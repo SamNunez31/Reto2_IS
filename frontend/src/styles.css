@@ -343,7 +343,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .revision dl { display: grid; grid-template-columns: minmax(110px, 160px) 1fr; gap: .3rem 1rem; margin: 0; font-size: .92rem; }
 .revision dt { color: var(--c-suave); }
 .revision dd { margin: 0; overflow-wrap: anywhere; }
-.recortado { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.recortado { display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Dirección + mapa */
 .combo { position: relative; }
