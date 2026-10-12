@@ -1,4 +1,8 @@
-# Auditoría de accesibilidad (WCAG 2.2 AA), UX y diseño responsive — Posada EC
+# Auditoría de accesibilidad, UX, seguridad y calidad — Frontend y Backend — Posada EC
+
+> **Contenido:** **Parte A** = frontend (accesibilidad WCAG 2.2 AA, UX y responsive; auditoría del 2026-10-06, sin cambios). **Parte B** = backend, API, base de datos, despliegue y dependencias (2026-10-11, al final del documento).
+
+# PARTE A — Auditoría del frontend (accesibilidad, UX y diseño responsive)
 
 **Fecha:** 2026-10-06
 **Método:** auditoría **no destructiva** (no se modificó ningún archivo del proyecto). Revisión estática de código, cálculo de contrastes según WCAG 2.x, y `npm run lint` (angular-eslint con reglas `templateAccessibility`).
@@ -256,3 +260,170 @@ En `app-estrellas` las estrellas son el único indicador visual de la categoría
 
 ### Conclusión
 El proyecto cumple la mayor parte de WCAG 2.2 AA y destaca en formularios, foco, diálogos y semántica de acciones. Las acciones de mayor impacto son **A1 (contraste del texto secundario)** y **A2 (autocomplete)**, seguidas de **M1/M2 (estrellas)** y **M3 (h1 de observabilidad)**. El resto son mejoras de UX/robustez.
+
+---
+---
+
+# PARTE B — Auditoría del backend, API, base de datos y despliegue
+
+**Fecha:** 2026-10-11
+**Método:** auditoría **no destructiva** (no se ejecutó ningún ataque ni se tocó producción). Revisión estática de código y configuración (`backend/src`, `database/*.sql`, `render.yaml`, `docker-compose.yml`, `frontend/vercel.json`, `.gitignore`, `package.json`) y contraste con los controles OWASP descritos en `docs/DOCUMENTO_TECNICO.md`. Las pruebas automáticas (`npm test` 35/35 y `npm run contract:check` 17/17) se ejecutaron en la sesión de trabajo anterior; **en esta revisión no se volvió a correr `npm audit`**: las cifras de dependencias salen de `docs/DOCUMENTO_TECNICO.md` (2026-10-05).
+**Alcance:** API NestJS 10 (`api/v1`), autenticación/autorización, validación, base de datos Supabase (esquema `booking`), despliegue (Render + Vercel), dependencias, calidad y pruebas.
+**Convención:** los IDs del backend llevan prefijo `BE-` para no confundirse con los del frontend (A1, M1, B1…). Lo que no pude comprobar con el código se marca **“a verificar”**.
+
+## B.1 Resumen ejecutivo
+
+El backend tiene una **base de seguridad buena para el alcance del curso**: validación estricta de entradas, SQL parametrizado, JWT con algoritmo fijado, roles + scopes, límites de peticiones, cabeceras de seguridad, errores estandarizados (RFC 7807), idempotencia, validación del entorno al arrancar y logs sin datos sensibles. No hay **hallazgos críticos** demostrables con el código.
+
+Los riesgos principales son de **ciclo de vida de la sesión** (un token sigue valiendo aunque el usuario se desactive o cambie de rol), de **datos demo públicos** si llegaran a producción, y de **proceso** (sin CI, pocas pruebas sobre la lógica que vive en SQL, dependencias con avisos que exigen salto de versión mayor).
+
+| Severidad | Nº | Resumen |
+|---|---|---|
+| Crítico | 0 | — |
+| Alto | 2 | JWT no se revalida (usuario desactivado o con rol cambiado conserva acceso hasta 30 min); cuentas demo con clave pública `Demo1234!` (incluye ADMIN) |
+| Medio | 7 | Sin CI/CD; lógica SQL sin pruebas de integración; frontend sin CSP; BD con rol que omite RLS; URL de webhooks sin filtro anti-SSRF (latente); dependencias con avisos; disponibilidad (Render free + jobs en el mismo proceso) |
+| Bajo | 8 | Swagger público; enumeración de correos al registrar y por tiempo en recuperación; JWT en `sessionStorage`; reset no cierra sesiones; sin bloqueo de cuenta; rate limit en memoria; credenciales dev en compose; documentación con cifras inconsistentes |
+
+**Comandos/pruebas citados:** `npm test` → 35 pruebas OK; `npm run contract:check` → 17/17 operaciones del contrato oficial; `eslint`/`tsc` sin errores (sesión anterior).
+
+---
+
+## B.2 Hallazgos por severidad
+
+### B.2.1 Críticos
+
+Ninguno. No se encontró inyección SQL, secretos en el repositorio ni ruta sin autenticación que exponga datos privados.
+
+---
+
+### B.2.2 Altos
+
+#### BE-A1 — El JWT no se revalida contra la base de datos (rol y estado “activo” quedan congelados 30 min)
+
+**Evidencia:**
+- `backend/src/common/auth/guards.ts:23` → `req.user = await this.jwt.verifyAsync(token, { algorithms: ['HS256'] })`: solo valida firma y expiración; no consulta `usuario.activo` ni `usuario.rol`.
+- `backend/src/config/entorno.ts:28` → vigencia por defecto `JWT_EXPIRES_IN = '30m'`; no hay refresh token ni lista de revocación.
+- `backend/src/modules/auth/auth.service.ts:84` → `activo` solo se comprueba en el **login**.
+- Relación con funciones nuevas: el admin puede desactivar usuarios y asignar rol ADMIN (`admin.service.ts`), pero el cambio **no afecta tokens ya emitidos**.
+
+**Riesgo:** un usuario desactivado puede seguir operando (reservar, cancelar) hasta que venza su token; a un ADMIN degradado se le sigue aceptando hasta 30 min; un token robado no se puede anular. Impacto acotado por la vida corta del token. *Severidad Alta por afectar control de acceso, con probabilidad baja.*
+
+**Recomendación:** (a) reducir a 10–15 min + refresh token rotatorio; o (b) en `JwtAuthGuard`, consultar `activo` y `rol` por petición (1 consulta por clave primaria, con caché de 30–60 s); o (c) columna `token_version` en `usuario` incluida en el claim y comparada al verificar.
+
+---
+
+#### BE-A2 — Cuentas demo con contraseña conocida y pública, incluida la de ADMIN
+
+**Evidencia:**
+- `database/02_datos_demo.sql:3` → “Contraseña de TODAS las cuentas demo: Demo1234!”; `:15` crea los usuarios con `crypt('Demo1234!', …)`.
+- `database/02_datos_demo.sql:17` → cuenta `admin.plataforma@gmail.com` con rol `ADMIN`.
+- Las credenciales aparecen también en la documentación del repositorio.
+
+**Riesgo:** si el script de datos demo se ejecutó en la base de producción (Supabase), cualquiera que lea el repositorio puede entrar como administrador. **A verificar:** si la base desplegada contiene esos usuarios con esa clave.
+
+**Recomendación:** tras la defensa, cambiar la clave del admin y eliminar/desactivar las cuentas demo en producción (`UPDATE usuario SET activo = false …` o cambiar `password_hash`); separar `02_datos_demo.sql` (solo desarrollo) de una carga inicial de producción que cree un admin con clave fuerte entregada por variable de entorno.
+
+---
+
+### B.2.3 Medios
+
+#### BE-M1 — No hay integración continua (CI) ni verificación automática antes del despliegue
+**Evidencia:** no existe `.github/`; Vercel despliega en cada push a `main` y Render según `render.yaml`. **Riesgo:** una rama con pruebas rotas, lint o `contract:check` fallido puede llegar a producción. **Recomendación:** workflow de GitHub Actions con `npm ci`, `lint`, `test`, `build` y `contract:check` en el backend, y `lint`/`test`/`build` en el frontend; proteger `main` exigiendo que pase.
+
+#### BE-M2 — Las reglas de negocio críticas viven en SQL y no tienen pruebas automáticas
+**Evidencia:** `fn_cotizar`, `fn_crear_preview`, `fn_crear_orden` (incl. `RESERVA_DUPLICADA`), `fn_cancelar_reserva` y triggers como `tg_detalle_validar` (`database/01_esquema.sql`, `03_integracion.sql`); las 35 pruebas Jest son unitarias (9 archivos `*.spec.ts`) y no tocan la BD. **Riesgo:** una regresión en disponibilidad, precios o duplicados no la detecta ninguna prueba. **Recomendación:** pruebas de integración con Postgres en contenedor (el `docker-compose.yml` ya existe) que carguen los tres scripts y verifiquen: doble reserva, solapamiento de fechas, cancelación y reembolso, idempotencia.
+
+#### BE-M3 — El frontend no envía Content-Security-Policy ni otras cabeceras recomendadas
+**Evidencia:** `frontend/vercel.json:11-13` solo define `X-Content-Type-Options`, `Referrer-Policy` y `X-Frame-Options`. **Riesgo:** sin CSP, un XSS (hoy no hay `innerHTML` ni `bypassSecurityTrust*` en `frontend/src`) tendría más alcance, y el JWT está en `sessionStorage` (BE-B4). HSTS lo aplica Vercel por defecto en HTTPS (**a verificar** con `curl -I`). **Recomendación:** añadir `Content-Security-Policy` (`default-src 'self'; connect-src 'self' https://reto1is.onrender.com; img-src 'self' https: data:; frame-ancestors 'none'`) y `Permissions-Policy`; probar en modo `Report-Only` primero.
+
+#### BE-M4 — La API se conecta a la BD con el rol `postgres`, que omite RLS
+**Evidencia:** `database/01_esquema.sql:872-882` → “El backend se conecta con el rol 'postgres', que omite RLS” (RLS activada sin políticas solo protege contra la API pública de Supabase). **Riesgo:** la autorización depende 100 % del código del backend; un bug de autorización o una inyección tendría acceso total. Mitigado: todo el SQL es parametrizado (`db.service.ts`). **Recomendación:** crear un rol `app_backend` con permisos mínimos (SELECT/INSERT/UPDATE/EXECUTE solo sobre lo necesario, sin DDL) y usarlo en `DATABASE_URL`.
+
+#### BE-M5 — URL de webhooks sin filtro anti-SSRF (riesgo latente)
+**Evidencia:** `backend/src/modules/alojamientos/dto/ordenes.dto.ts:138` valida `@IsUrl({ protocols: ['https'], require_tld: true })` y `webhooks.service.ts:32` solo la **guarda**; en el código revisado **no hay envío HTTP saliente** (la entrega es simulada en `webhook_entrega`). **Riesgo:** si en el futuro se implementa la entrega real, una URL a un host interno resuelto por DNS, o una redirección, permitiría SSRF. **Recomendación:** al implementar el envío, resolver DNS y bloquear IPs privadas/loopback/link-local, no seguir redirecciones, poner timeout y tamaño máximo, y firmar con el secreto (HMAC) ya almacenado.
+
+#### BE-M6 — Dependencias con avisos de seguridad (arreglo con salto de versión mayor)
+**Evidencia:** `docs/DOCUMENTO_TECNICO.md:287-298` → `npm audit --omit=dev`: backend 15 (0 críticos, 4 altos), frontend 7 (4 altos); 12 de los 15 del backend y los 7 del frontend requieren NestJS 10→11/12 y Angular 19→21; 3 del backend (`@nestjs/common`, `qs`, `file-type`) se corrigen sin salto mayor y están pendientes. **Riesgo:** vulnerabilidades conocidas en librerías de ejecución; el propio documento reconoce que no se aplicó `audit fix`. **Recomendación:** ejecutar ya `npm audit fix` (sin `--force`) en el backend + build + `contract:check`; planificar la migración mayor como tarea posterior; activar Dependabot.
+
+#### BE-M7 — Disponibilidad: plan gratuito de Render y trabajos en el mismo proceso
+**Evidencia:** `render.yaml` (plan free: se duerme por inactividad → primera petición lenta); los jobs (outbox cada 5 s, `@nestjs/schedule`) y el bus de eventos corren **dentro del proceso web** (`modules/jobs/bus-eventos.ts`, en memoria). **Riesgo:** latencia de arranque en frío; al reiniciarse se pierde el estado del bus (el outbox en BD sí conserva los eventos, por eso no se pierden datos); con 2+ instancias los jobs se duplicarían (mitigado por `FOR UPDATE SKIP LOCKED`). **Recomendación:** plan de pago o *keep-alive* externo para la demo; para producción, worker separado y broker real (diseño ya descrito en el documento técnico).
+
+---
+
+### B.2.4 Bajos
+
+| # | Hallazgo | Evidencia | Riesgo | Recomendación |
+|---|---|---|---|---|
+| BE-B1 | Swagger (`/api/docs`) público en producción | `backend/src/main.ts:37` → `montarSwagger(app)` sin condición; `swagger.ts:54` | Facilita el reconocimiento de la superficie de la API (no expone datos) | Mantenerlo (es parte de la entrega) o protegerlo/ocultarlo tras la defensa |
+| BE-B2 | El registro revela si un correo existe (409) | `auth.service.ts:55-58` (`MENSAJE_EMAIL_DUPLICADO`); el login, en cambio, es genérico (`:81-84`, con hash señuelo) | Enumeración de usuarios | Aceptable por UX; mitigado por límite 5/min (`auth.controller.ts:13`); alternativa: respuesta neutra + correo de verificación |
+| BE-B3 | Recuperar clave responde igual pero con distinto tiempo si el correo no existe | `auth.service.ts:92` (`if (!fila) return {}` sin hacer el INSERT) | Enumeración por temporización | Ejecutar un trabajo equivalente o encolar el envío de forma asíncrona |
+| BE-B4 | JWT guardado en `sessionStorage` | `frontend/src/app/core/services/auth.service.ts:10,60` | Un XSS podría leerlo (hoy no hay `innerHTML`/`bypassSecurityTrust*`; Angular escapa por defecto) | Cookie `HttpOnly; Secure; SameSite` o CSP estricta (ver BE-M3) |
+| BE-B5 | Restablecer clave no invalida sesiones ya emitidas | `auth.service.ts:104-120` solo cambia `password_hash` | Un token robado sigue valiendo tras cambiar la clave | Resolver junto con BE-A1 (`token_version`) |
+| BE-B6 | Sin bloqueo de cuenta por intentos fallidos; rate limit en memoria por instancia | `app.module.ts:28` (100/min global), `auth.controller.ts:13` (5/min por IP); política de clave de 8 caracteres (`auth.dto.ts:9-11`) | Fuerza bruta distribuida; contadores no compartidos si se escala | Almacén compartido (Redis) y bloqueo temporal por cuenta; subir mínimo de clave |
+| BE-B7 | Credenciales de desarrollo en `docker-compose.yml` | `postgres/postgres` (solo local; la producción usa Supabase) | Ninguno si no se expone el puerto | Mantener solo para desarrollo; no publicar el puerto 5432 en redes compartidas |
+| BE-B8 | Cifras inconsistentes en la documentación | `docs/DOCUMENTO_TECNICO.md:289-296` (15 backend / 7 frontend) vs `:466` (“40 altos; frontend 2 críticos, 26 altos”); 25 vs 27 tablas; conteos de pruebas antiguos | Pérdida de credibilidad en la defensa | Unificar con una sola corrida de `npm audit` fechada |
+
+---
+
+## B.3 Evidencia de controles que sí cumplen (verificados en código)
+
+| Control | Evidencia |
+|---|---|
+| Cabeceras de seguridad en la API (helmet; HSTS solo en producción; CORP same-site) | `backend/src/main.ts:17-23` |
+| Límite de tamaño del cuerpo (100 kb) | `main.ts:24` |
+| CORS con lista explícita de orígenes | `main.ts:27-28`, `config/entorno.ts` (`origenesCors`) |
+| Validación global: `whitelist`, `forbidNonWhitelisted`, `transform` | `common/validation/validation.ts` |
+| Orden de guards: Throttler → JWT → Roles → Scopes; `@Public` solo en rutas explícitas | `app.module.ts:42-45`, `common/auth/guards.ts` |
+| JWT con algoritmo fijado (HS256) | `guards.ts:23`, `common.module.ts:15` |
+| Contraseñas con bcrypt costo 12 y comparación con hash señuelo (sin filtrar si el correo existe) | `auth.service.ts:14,59,81`, `admin.service.ts:93` |
+| Tokens de recuperación: 32 bytes aleatorios, solo se guarda SHA-256, un solo uso, 30 min, transacción con `FOR UPDATE` | `auth.service.ts:94-118` |
+| SQL parametrizado (`$1…`) en todos los servicios revisados | `db.service.ts`, `host.service.ts`, `cuenta.service.ts` |
+| Autorización por propietario: el anfitrión solo ve lo suyo (`anfitrion_id = $1`; el ADMIN ve todo); el huésped solo sus reservas | `host.service.ts:86,96,255,308,321,330`; `cuenta.service.ts:107-114` |
+| Rutas de administración protegidas con `@Roles('ADMIN')` | `modules/admin/admin.controller.ts:23`; `modules/host/host.controller.ts:25` (incluye `confirm-payment`) |
+| Límite estricto de 5/min en login, registro y recuperación | `auth.controller.ts:13,22,31,48,57` |
+| Fallo al arrancar si faltan `DATABASE_URL`, `JWT_SECRET` (≥ 32) o `CORS_ORIGINS` en producción; redirección a HTTPS; `trust proxy` | `config/entorno.ts`, `main.ts:15,17` |
+| Idempotencia en operaciones de dinero/reserva | `common/guards/idempotency-key.guard.ts`, tabla `idempotencia` |
+| Regla anti-duplicado de reservas (mismo huésped, misma unidad, fechas solapadas) | `database/03_integracion.sql` (`RESERVA_DUPLICADA`) + mapeo en `common/problem/postgres-errors.ts` (con prueba) |
+| Errores estandarizados RFC 7807 sin trazas ni SQL al cliente | `common/problem/problem-details.filter.ts` |
+| Logs JSON con correlación, sin cuerpos, claves ni tokens; correo enmascarado en auditoría de accesos | `DOCUMENTO_TECNICO.md` §OWASP A09 + `common/logging` |
+| RLS activada en todas las tablas del esquema | `01_esquema.sql:872-882`, `03_integracion.sql:247-251` |
+| Secretos fuera del repositorio (`.env` ignorado; `.env.example` sin valores reales) | `.gitignore`, `backend/.env.example` |
+| Cabeceras básicas en el frontend (nosniff, Referrer-Policy, X-Frame-Options DENY) | `frontend/vercel.json:11-13` |
+| Contrato oficial intacto y verificado (17/17) | `backend/contracts/alojamientos-openapi.yaml`, `npm run contract:check` |
+
+## B.4 Recomendaciones priorizadas
+
+1. **Antes de la siguiente entrega (rápido, bajo riesgo):** cambiar/desactivar las cuentas demo en producción (BE-A2); `npm audit fix` sin `--force` + build + `contract:check` (BE-M6); añadir CSP en modo `Report-Only` (BE-M3); unificar cifras del documento (BE-B8).
+2. **Corto plazo:** revalidar `activo`/`rol` en el guard o `token_version` (BE-A1, BE-B5); workflow de CI (BE-M1); rol de BD con permisos mínimos (BE-M4).
+3. **Mediano plazo:** pruebas de integración con Postgres (BE-M2); cuando se implemente el envío real de webhooks, filtro anti-SSRF (BE-M5); migración NestJS 11/12 y Angular 21 (BE-M6); worker y broker separados (BE-M7).
+
+## B.5 Pruebas que deberían repetirse tras corregir
+
+```bash
+# Backend
+cd backend && npm ci && npm run lint && npm test && npm run build && npm run contract:check
+npm audit --omit=dev            # esperado: bajan los avisos tras audit fix
+
+# Sesión (BE-A1): desactivar un usuario y reutilizar su token → debe responder 401
+curl -H "Authorization: Bearer <token_de_usuario_desactivado>" https://reto1is.onrender.com/api/v1/me
+
+# Cabeceras (BE-M3)
+curl -I https://<dominio-vercel>/            # debe incluir Content-Security-Policy y Strict-Transport-Security
+
+# Límite de intentos
+for i in 1 2 3 4 5 6; do curl -s -o /dev/null -w "%{http_code}\n" -X POST .../api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"x@x.com","password":"mala"}'; done   # el 6.º → 429
+
+# Secretos en el historial
+git log --all -S "JWT_SECRET=" --oneline
+```
+Además: probar manualmente que un huésped no ve reservas de otro (`GET /orders/{id}` ajeno → 403/404) y que `PATCH /admin/users/:id/role` responde 403 con un token de USUARIO.
+
+---
+
+# Conclusión general
+
+**Frontend (Parte A):** base de accesibilidad sólida, sin críticos; 2 altos, 6 medios y 14 bajos, mayormente de contraste y ARIA.
+
+**Backend (Parte B):** controles de seguridad bien aplicados en validación, autenticación, autorización por propietario, SQL parametrizado, límites y errores; sin críticos. Los puntos a atender son el **ciclo de vida del token** (BE-A1), las **cuentas demo públicas** (BE-A2) y el **proceso** (CI, pruebas de la lógica SQL, dependencias). Ninguno impide la defensa; sí conviene cerrarlos antes de considerar el sistema listo para uso real.
+
+**Límites de esta auditoría:** revisión estática; no se hizo prueba de penetración, no se ejecutó la aplicación desplegada ni se re-corrió `npm audit` en esta fecha; los puntos marcados “a verificar” requieren confirmarse en el entorno real.
