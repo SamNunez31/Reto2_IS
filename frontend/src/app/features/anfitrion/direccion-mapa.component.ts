@@ -37,7 +37,7 @@ const ESPERA_ESCRITURA_MS = 800;
       <app-campo-mensaje [control]="direccion()" id="msg-dir" [mostrarOk]="false" />
     </div>
 
-    <div class="mapa" #mapa role="application" aria-label="Mapa: toca o arrastra el pin hasta la ubicación exacta del alojamiento"></div>
+    <div class="mapa" #mapa role="region" aria-label="Mapa: toca o arrastra el pin hasta la ubicación exacta del alojamiento"></div>
     <p class="ayuda">Toca el mapa o arrastra el pin para afinar la ubicación.</p>
     @if (latitud().invalid && latitud().touched) {
       <p class="msg-campo msg-error" role="alert"><span aria-hidden="true">✗</span> Ubica el alojamiento en el mapa: busca la dirección o toca el mapa.</p>

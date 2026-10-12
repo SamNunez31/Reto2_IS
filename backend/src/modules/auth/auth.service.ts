@@ -89,7 +89,12 @@ export class AuthService {
   /** Siempre responde lo mismo. Fuera de producción devuelve el enlace (correo simulado). */
   async olvideClave(dto: ForgotPasswordDto): Promise<{ enlace_simulado?: string }> {
     const fila = await this.db.uno<{ id: string }>(`SELECT id FROM usuario WHERE email = $1 AND activo`, [dto.email]);
-    if (!fila) return {};
+    if (!fila) {
+      // Misma cantidad de trabajo (token + viaje a la BD) que si el correo existiera, para no delatarlo por el tiempo de respuesta
+      this.sha256(randomBytes(32).toString('hex'));
+      await this.db.query(`SELECT 1`);
+      return {};
+    }
     const token = randomBytes(32).toString('hex');
     await this.db.query(
       `INSERT INTO token_usuario (usuario_id, tipo, token_hash, expira_en)

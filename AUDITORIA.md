@@ -262,6 +262,39 @@ En `app-estrellas` las estrellas son el único indicador visual de la categoría
 El proyecto cumple la mayor parte de WCAG 2.2 AA y destaca en formularios, foco, diálogos y semántica de acciones. Las acciones de mayor impacto son **A1 (contraste del texto secundario)** y **A2 (autocomplete)**, seguidas de **M1/M2 (estrellas)** y **M3 (h1 de observabilidad)**. El resto son mejoras de UX/robustez.
 
 ---
+
+### Estado de corrección de la Parte A (revisado en código el 2026-10-11)
+
+> Los hallazgos de esta parte se redactaron el 2026-10-06; al revisar el código el 2026-10-11 casi todos ya estaban aplicados. Las evidencias de arriba (archivo:línea) describen el estado **de esa fecha**.
+
+| Hallazgo | Estado | Cómo quedó |
+|---|---|---|
+| A1 contraste `--c-suave` | Corregido | `--c-suave: #616d6a` → 4.91:1 sobre el fondo y 5.38:1 sobre blanco (calculado) |
+| A2 `autocomplete` anulado | Corregido | `entrada.ts`: el host ya no fuerza `off`; respeta el `autocomplete` del campo |
+| M1 estrellas sin rol | Corregido | `ui.ts`: `role="img"` + `aria-label` ("1 estrella"/"N estrellas") |
+| M2 contraste estrellas | Corregido | `--c-estrellas: #b58015` → 3.46:1 sobre blanco (≥ 3:1 para gráficos) |
+| M3 `/observabilidad` sin `h1` | Corregido | `h1` cuando es página propia, `h2` cuando va dentro de Admin |
+| M4 pestañas ARIA | Corregido | Admin y Mis reservas: `aria-controls`, `role="tabpanel"`, `aria-labelledby`, roving tabindex y teclado (`teclaPestana`) |
+| M5 `overflow-x: clip` | Corregido | Se quitó el `clip` global; el banner usa `margin-inline: calc(50% - 50cqi)` (ancho útil, sin `vw`). **Falta probar a 320 px y 400 % de zoom en el navegador.** |
+| M6 contraste del banner | Corregido (a verificar visualmente) | Overlay subido de 35 % a 66–72 % de opacidad |
+| B1 `main` sin `tabindex` | Corregido | `<main id="contenido" tabindex="-1">` |
+| B2 menú móvil y Escape | Corregido | `(keydown.escape)` cierra y devuelve el foco al botón |
+| B3 foco tras navegar | **Corregido hoy** | `app.component.ts`: al cambiar de ruta (no de parámetros) se enfoca `#contenido`; `#contenido:focus { outline: none }` |
+| B4 `alt` redundante | Corregido | Portada con `alt=""` |
+| B5 `scope="col"` | Corregido | 5/5 `<th>` de admin |
+| B6 nombre accesible de la marca | **Corregido hoy** | `aria-label="PosadaEC, inicio"` (contiene el texto visible) |
+| B7 foco anulado en `h2` | Corregido | Ya no existe `outline: none` en esos encabezados |
+| B8 contador | Corregido | Texto `sr-only` junto al valor y `aria-live` |
+| B9 `role="application"` en mapa | **Corregido hoy** | `role="region"` con el mismo `aria-label` |
+| B10 `aria-current` | Corregido | `ariaCurrentWhenActive="page"` |
+| B11 `<caption>` | Corregido | 5/5 tablas de admin |
+| B12 CSS sin uso | Corregido | `.escala-nota*` ya no existe |
+| B13 flechas en pestañas de Mis reservas | Corregido | `teclaPestana` |
+| B14 `<noscript>` | Corregido | `index.html:16` ya incluye el aviso de JavaScript |
+
+**Verificación del frontend:** `ng lint` sin errores y `ngc` sin errores de compilación. **No se ejecutaron `ng test` ni `ng build` completos** (no hay Chrome en el entorno de trabajo); los corre el CI en cada push.
+
+---
 ---
 
 # PARTE B — Auditoría del backend, API, base de datos y despliegue
@@ -417,6 +450,32 @@ for i in 1 2 3 4 5 6; do curl -s -o /dev/null -w "%{http_code}\n" -X POST .../ap
 git log --all -S "JWT_SECRET=" --oneline
 ```
 Además: probar manualmente que un huésped no ve reservas de otro (`GET /orders/{id}` ajeno → 403/404) y que `PATCH /admin/users/:id/role` responde 403 con un token de USUARIO.
+
+---
+
+## B.6 Estado de corrección de la Parte B (2026-10-11)
+
+| Hallazgo | Estado | Qué se hizo / qué falta |
+|---|---|---|
+| BE-A1 JWT sin revalidar | **Corregido** | `guards.ts`: tras verificar la firma consulta `usuario.activo` y `rol` (caché 10 s). Cuenta inactiva o inexistente → 401; rol y scopes salen de la BD. 6 pruebas nuevas (`guards.spec.ts`) |
+| BE-A2 cuentas demo públicas | **Script listo, falta ejecutarlo tú** | `database/produccion_asegurar_cuentas_demo.sql` cambia la clave del admin y aleatoriza las demás. Ejecutarlo en Supabase **después de la defensa** (reemplazando la clave de ejemplo; no la subas a git) |
+| BE-M1 sin CI | **Corregido** | `.github/workflows/ci.yml` (lint, test, build, contract:check; y lint, test y build en el frontend). Para que bloquee despliegues, proteger `main` en GitHub exigiendo estos checks |
+| BE-M2 SQL sin pruebas de integración | Pendiente | Requiere montar Postgres en CI; se deja como mejora |
+| BE-M3 frontend sin CSP | **Corregido en parte** | `vercel.json`: HSTS, Permissions-Policy y `Content-Security-Policy-Report-Only`. La CSP es solo de **reporte** a propósito (Angular puede inyectar estilos/handlers en línea): revisar la consola del navegador y, si no hay violaciones, cambiarla a `Content-Security-Policy` |
+| BE-M4 rol `postgres` | **Script listo, falta aplicarlo tú** | `database/endurecer_rol_backend.sql` (rol `app_backend` con permisos mínimos y política RLS propia). **No probado contra Supabase real**: probar primero en un proyecto de pruebas y luego cambiar `DATABASE_URL` en Render |
+| BE-M5 SSRF en webhooks | **Corregido (validación de la URL)** | `common/validation/url-publica.ts` + `@UrlPublicaHttps()` en `WebhookSubscriptionDto`: rechaza IP, localhost, nombres internos y credenciales (`url-publica.spec.ts`, 19 casos). Al implementar el envío real hay que validar también la IP resuelta por DNS |
+| BE-M6 dependencias | **Parcial** | Se añadió Dependabot (`.github/dependabot.yml`). `npm audit fix` **no se aplicó**: en el entorno de trabajo reescribía el `package-lock.json` en más de 20 000 líneas; correrlo en tu máquina (sin `--force`), con `npm test`, `npm run build` y `npm run contract:check`. La migración NestJS 11/12 y Angular 21 sigue pendiente |
+| BE-M7 disponibilidad | Aceptado | Limitación del plan gratuito de Render; documentado |
+| BE-B1 Swagger público | Aceptado | Parte de la entrega |
+| BE-B2 enumeración al registrar | Aceptado | Compromiso de UX, con límite de 5/min |
+| BE-B3 temporización en recuperar clave | **Corregido** | `auth.service.ts`: mismo trabajo (token + consulta) cuando el correo no existe |
+| BE-B4 JWT en `sessionStorage` | Aceptado | Mitigado: sin `innerHTML`/`bypassSecurityTrust*`; CSP en reporte |
+| BE-B5 reset no cierra sesiones | Parcial | Con BE-A1 una cuenta desactivada pierde acceso; invalidar tokens al cambiar la clave requiere una columna nueva (`token_version`) |
+| BE-B6 bloqueo de cuenta / rate limit compartido | Pendiente | Requiere Redis o columna de intentos |
+| BE-B7 credenciales de `docker-compose.yml` | Aceptado | Solo desarrollo |
+| BE-B8 documentación inconsistente | **Corregido** | `DOCUMENTO_TECNICO.md`: conteo de pruebas (backend 60, frontend 62) y cifras de `npm audit` aclaradas; se añadió el anexo de correcciones |
+
+**Verificación del backend (2026-10-11):** `tsc --noEmit` y `eslint` sin errores; `npm test` → 11 suites, **60 pruebas OK** (antes 35); `contract:check` → **17/17**. No se ejecutó contra una base de datos real ni se desplegó.
 
 ---
 

@@ -3,6 +3,7 @@ import {
   ArrayMinSize, ArrayUnique, IsArray, IsEmail, IsEnum, IsInt, IsOptional, IsString, IsUrl, IsUUID, Length,
   Matches, MaxLength, Min, ValidateIf, ValidateNested,
 } from 'class-validator';
+import { UrlPublicaHttps } from '../../../common/validation/url-publica';
 import { NumeroDocumentoValido, Sanitizar } from '../../../common/validation/validadores-ec';
 import { FECHA, HuespedesDto, MSG_FECHA } from './comunes.dto';
 
@@ -136,6 +137,7 @@ export class WebhookSubscriptionDto {
 
   /** Solo https */
   @IsUrl({ protocols: ['https'], require_protocol: true, require_tld: true }, { message: 'url debe ser https pública' })
+  @UrlPublicaHttps() // anti-SSRF: sin IP, localhost, nombres internos ni credenciales (BE-M5)
   @MaxLength(500)
   url: string;
 

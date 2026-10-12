@@ -666,3 +666,5 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .tarjeta-aloj, .tarjeta-aloj img { transition: none; }
   .tarjeta-aloj:hover, .tarjeta-aloj:hover img { transform: none; }
 }
+
+#contenido:focus { outline: none; } /* foco programático al cambiar de página (WCAG 2.4.3); no es un control interactivo */

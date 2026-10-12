@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 import { ConfirmarComponent, ConfirmarService } from './shared/confirmar';
 import { LoginModalComponent } from './features/auth/login-modal.component';
@@ -11,7 +12,7 @@ import { LoginModalService } from './core/services/login-modal.service';
   template: `
     <a class="saltar" href="#contenido">Saltar al contenido</a>
     <header class="barra">
-      <a routerLink="/" class="marca" aria-label="Posada EC, inicio">Posada<span>EC</span></a>
+      <a routerLink="/" class="marca" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
       <button #menuBtn class="menu-btn" type="button" (click)="menu.set(!menu())" [attr.aria-expanded]="menu()" aria-controls="nav">Menú</button>
       <!-- Clic en un enlace del menú móvil lo cierra y Esc también; los enlaces ya son accesibles con teclado -->
       <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
@@ -62,6 +63,18 @@ export class AppComponent {
   private readonly confirmar = inject(ConfirmarService);
   private readonly loginModal = inject(LoginModalService);
   private readonly router = inject(Router);
+  private rutaAnterior: string | null = null;
+
+  constructor() {
+    // Accesibilidad (WCAG 2.4.3): al cambiar de PÁGINA se lleva el foco al contenido principal.
+    // Solo si cambia la ruta (no los parámetros de búsqueda) y no en la primera carga, para no robar el foco al escribir.
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((e) => {
+      if (!(e instanceof NavigationEnd)) return;
+      const ruta = e.urlAfterRedirects.split(/[?#]/)[0];
+      if (this.rutaAnterior !== null && ruta !== this.rutaAnterior) document.getElementById('contenido')?.focus({ preventScroll: true });
+      this.rutaAnterior = ruta;
+    });
+  }
 
   /** Abre la ventana de inicio de sesión; al entrar, vuelve a la página actual (desde el inicio, a la de siempre según el rol). */
   abrirLogin(): void {

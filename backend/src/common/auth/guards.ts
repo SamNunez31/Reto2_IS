@@ -2,16 +2,38 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { DbService } from '../../database/db.service';
 import { ProblemException, prohibido } from '../problem/problem';
-import { ES_PUBLICO, Rol, ROLES, Scope, SCOPES, UsuarioToken } from './decorators';
+import { ES_PUBLICO, Rol, ROLES, Scope, SCOPES, SCOPES_POR_ROL, UsuarioToken } from './decorators';
+
+/** Cuánto se recuerda el estado del usuario (segundos): un cambio de rol o una desactivación surte efecto en este plazo. */
+export const TTL_ESTADO_USUARIO_MS = 10_000;
 
 /** Guard global: exige un Bearer JWT HS256 válido salvo en rutas @Public(). */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly estados = new Map<string, { activo: boolean; rol: Rol; hasta: number }>();
+
   constructor(
     private readonly reflector: Reflector,
     private readonly jwt: JwtService,
+    private readonly db: DbService,
   ) {}
+
+  /** Estado vigente del usuario en la BD (con una caché corta). null = el usuario ya no existe. */
+  private async estadoActual(id: string): Promise<{ activo: boolean; rol: Rol } | null> {
+    const ahora = Date.now();
+    const guardado = this.estados.get(id);
+    if (guardado && guardado.hasta > ahora) return guardado;
+    const fila = await this.db.uno<{ activo: boolean; rol: Rol }>(`SELECT activo, rol::text AS rol FROM usuario WHERE id = $1`, [id]);
+    if (!fila) {
+      this.estados.delete(id);
+      return null;
+    }
+    if (this.estados.size > 5000) this.estados.clear(); // tope de memoria
+    this.estados.set(id, { activo: fila.activo, rol: fila.rol, hasta: ahora + TTL_ESTADO_USUARIO_MS });
+    return fila;
+  }
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const publico = this.reflector.getAllAndOverride<boolean>(ES_PUBLICO, [ctx.getHandler(), ctx.getClass()]);
@@ -24,6 +46,10 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new ProblemException(401, 'VALIDATION_FAILED', 'Token inválido o expirado');
     }
+    // El token no basta: se confirma en la BD que la cuenta siga activa y se toma el ROL vigente (no el congelado en el token)
+    const estado = await this.estadoActual(req.user.sub);
+    if (!estado || !estado.activo) throw new ProblemException(401, 'VALIDATION_FAILED', 'La cuenta no está activa');
+    if (estado.rol !== req.user.rol) req.user = { ...req.user, rol: estado.rol, scope: SCOPES_POR_ROL[estado.rol].join(' ') };
     return true;
   }
 }

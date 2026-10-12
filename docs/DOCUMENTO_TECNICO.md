@@ -242,7 +242,7 @@ Solo reseña el **huésped** de una reserva **COMPLETADA**, una vez por reserva 
 - Un solo idioma (`es`), una moneda (`USD`), un país (`ec`); sin cadenas hoteleras ni planes de comida.
 - Rate limit en memoria (por instancia); con varias instancias habría que usar Redis.
 - El plan gratuito de Supabase se pausa por inactividad y el de Render "duerme": la primera petición tarda.
-- Las pruebas automáticas son pocas: 37 en el frontend (`ng test`) y 9 en el backend (`npm test`, lógica pura sin BD), más los scripts de prueba del API; el precio y el reembolso (funciones SQL) no tienen prueba unitaria y no hay contract testing avanzado (Reto 2). Ver §17.
+- Las pruebas automáticas son pocas: 62 en el frontend (`ng test`) y 60 en el backend (`npm test`, lógica pura sin BD), más los scripts de prueba del API; el precio y el reembolso (funciones SQL) no tienen prueba unitaria y no hay contract testing avanzado (Reto 2). Ver §17.
 - *Eliminar* alojamiento (Administración) usa el estado SUSPENDIDO que ya existía: sale de las búsquedas y conserva su historial. Un borrado real o un estado "archivado" requeriría cambiar el contrato.
 - La observabilidad del frontend es **local de cada navegador** (ver §14); no hay agregación central de métricas del cliente.
 
@@ -431,10 +431,10 @@ Disponible en la página pública **`/observabilidad`** (enlace en el pie) y en 
 | Proyecto | Herramienta | Comando | Resultado (2026-10-06) |
 |---|---|---|---|
 | Frontend | ESLint (`angular-eslint` 19, configuración por defecto + plantillas accesibles) | `cd frontend && npm run lint` | All files pass linting |
-| Frontend | Karma + Jasmine | `cd frontend && npx ng test --watch=false --browsers=ChromeHeadless` | 37 pruebas, 37 OK |
+| Frontend | Karma + Jasmine | `cd frontend && npx ng test --watch=false --browsers=ChromeHeadless` | 62 pruebas, 62 OK (última corrida completa registrada) |
 | Frontend | Compilación | `cd frontend && npm run build` | OK |
 | Backend | ESLint 9 (flat config, `typescript-eslint` recomendado), sin `--fix` | `cd backend && npm run lint` | 0 problemas |
-| Backend | Jest + ts-jest | `cd backend && npm test` | 3 suites, 9 pruebas OK |
+| Backend | Jest + ts-jest | `cd backend && npm test` | 11 suites, 60 pruebas OK |
 | Backend | Compilación | `cd backend && npm run build` | OK |
 
 - **Qué cubren las pruebas.** Frontend: validadores de formularios (teléfono, tarjeta, CVV, nombres, precios), la directiva que filtra la escritura, la política de cancelación con fechas, la búsqueda, las agregaciones del dashboard y la observabilidad. Backend: `IdempotencyKeyGuard` (UUID válido, ausente o mal formado), cédula/RUC y saneo de texto libre, cursor de paginación y conteo de noches.
@@ -463,7 +463,7 @@ Pruebas **solo locales** (2026-10-06): backend `dist/main` en `http://localhost:
 | **A04 Diseño inseguro / A08 Integridad** | Idempotencia y doble cobro | Sin `Idempotency-Key` → 400; misma clave → misma orden con `Idempotent-Replayed: true`; misma clave y otro cuerpo → 409; **otra clave con el mismo preview → la misma orden, 1 cobro y 1 factura**. Hallazgo corregido: ese reenvío reescribía el comprador de la factura ya emitida (ahora solo se toca la emitida en la misma transacción) |
 | **A05 Configuración insegura** | Cabeceras, CORS, Swagger, /health | helmet: CSP `default-src 'self'`, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, CORP `same-site`, sin `X-Powered-By`; HSTS solo con `APP_ENV=production`. CORS: origen ajeno sin `Access-Control-Allow-Origin`, `http://localhost:4200` sí. `/api/docs-json` sin secretos; `/health` solo `status/app/db/timestamp` |
 | **A09 Registro y fallos** | Fugas en errores | JSON mal formado, UUID inválido, ruta inexistente, cuerpo > 100 kB (413) y entero enorme → 4xx con `application/problem+json`; **ninguna** de las 72 respuestas de error contiene stack, rutas, `node_modules` ni SQL; **ningún 500** |
-| **A06 Componentes vulnerables** | `npm audit` | Backend: 0 críticos, 40 altos; frontend: 2 críticos, 26 altos (antes 32). Casi todos en herramientas de desarrollo (Jest, Karma, CLI/build de Angular y Nest) y su arreglo exige versión mayor (Angular 21, NestJS 12, Jest 30): no se aplica. En ejecución: avisos de Angular (i18n, hidratación SSR) que la app no usa, y de `@nestjs/platform-express`/`swagger` (multer, js-yaml, lodash) también con salto mayor. Aplicado: `typescript-eslint` 8.71 (menor) |
+| **A06 Componentes vulnerables** | `npm audit` | Con dependencias de desarrollo incluidas: backend 62 avisos (40 altos) y frontend 2 críticos/26 altos; las cifras de producción (`--omit=dev`) están en la sección 13 (backend 15, frontend 7). Casi todos en herramientas de desarrollo (Jest, Karma, CLI/build de Angular y Nest) y su arreglo exige versión mayor (Angular 21, NestJS 12, Jest 30): no se aplica. En ejecución: avisos de Angular (i18n, hidratación SSR) que la app no usa, y de `@nestjs/platform-express`/`swagger` (multer, js-yaml, lodash) también con salto mayor. Aplicado: `typescript-eslint` 8.71 (menor) |
 | **A02 Datos sensibles / secretos** | Repositorio e historial | `.env` ignorado; solo se versiona `.env.example` (sin valores). `git grep` y `git log --all -S/-G` de cadenas de conexión, JWT, `JWT_SECRET=`, `service_role`, `sbp_`: solo plantillas y `localhost` |
 
 **Hallazgos abiertos** (sin cambio de código en esta rama): (1) las cuentas demo, incluida la del ADMIN, usan la clave `Demo1234!`, publicada en el README y en `02_datos_demo.sql`: en un despliegue público hay que cambiar la clave del ADMIN o desactivar las cuentas demo. (2) Con `trust proxy 1` y acceso **directo** al backend, `X-Forwarded-For` falsificado evade el rate limit; detrás de un único proxy (Render) la IP real es la última del encabezado, pero conviene verificarlo en el despliegue.
@@ -484,3 +484,7 @@ python scripts/pruebas-seguridad.py http://localhost:3100 seguridad-local-012345
 (cd backend && npm audit) ; (cd frontend && npm audit) ; git log --all -S "JWT_SECRET=" --oneline
 docker rm -f pg_seg
 ```
+
+## Anexo. Correcciones posteriores a la auditoría (2026-10-11)
+
+Resultado de `AUDITORIA.md` (partes A y B). Lo aplicado en código: el guard JWT **revalida en la BD** que la cuenta siga activa y toma el **rol vigente** (caché de 10 s; `common/auth/guards.ts`), por lo que desactivar a un usuario o quitarle el rol surte efecto casi de inmediato; la URL de los webhooks se valida contra **SSRF** (sin IP, localhost, nombres internos ni credenciales; `common/validation/url-publica.ts`); la recuperación de clave ya no delata por tiempo si el correo existe; el frontend añade `Strict-Transport-Security`, `Permissions-Policy` y una **CSP en modo solo-reporte** (`vercel.json`, hay que revisar la consola antes de hacerla obligatoria); el foco se mueve al contenido al cambiar de página; se añadió **CI** (`.github/workflows/ci.yml`) y **Dependabot** (`.github/dependabot.yml`). Scripts SQL **opcionales** para ejecutar a mano: `database/produccion_asegurar_cuentas_demo.sql` (cambia la clave pública `Demo1234!`) y `database/endurecer_rol_backend.sql` (rol `app_backend` con permisos mínimos; no probado contra Supabase real). Pendiente: `npm audit fix` sin `--force` en el backend (debe correrse en la máquina local), migración mayor NestJS/Angular, pruebas de integración con BD, envío real de webhooks (re-validar la IP resuelta por DNS).
