@@ -20,3 +20,6 @@ yarn-error.log*
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Carpeta temporal
+_to_delete/

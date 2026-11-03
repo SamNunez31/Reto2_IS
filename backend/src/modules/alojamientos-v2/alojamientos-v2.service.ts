@@ -89,8 +89,11 @@ export class AlojamientosV2Service {
     const t0 = Date.now();
     let conectada = true;
     let metricas: Record<string, number> | undefined;
+    let latencia = 0;
     try {
+      // La latencia del semáforo mide la respuesta de la BD (ping), no el costo de calcular las métricas.
       await this.db.query('SELECT 1');
+      latencia = Date.now() - t0;
       const m = await this.db.uno<{ props: number; hab: number; ocu: number }>(
         `SELECT (SELECT count(*) FROM alojamiento WHERE estado = 'PUBLICADO')::int AS props,
                 (SELECT COALESCE(sum(u.cantidad), 0) FROM unidad_alojamiento u JOIN alojamiento a ON a.id = u.alojamiento_id
@@ -107,7 +110,7 @@ export class AlojamientosV2Service {
       conectada = false;
       logJson('error', 'health_bd_caida', { error: e instanceof Error ? e.message : String(e) });
     }
-    const latencia = Date.now() - t0;
+    if (!conectada) latencia = Date.now() - t0;
     const semaforo = !conectada || latencia > 800 ? 'RED' : latencia >= 200 ? 'YELLOW' : 'GREEN';
     const status = !conectada ? 'DOWN' : semaforo === 'GREEN' ? 'HEALTHY' : 'DEGRADED';
     return {
