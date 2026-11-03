@@ -21,6 +21,7 @@ services:
       - ./database/03_integracion.sql:/docker-entrypoint-initdb.d/03_integracion.sql:ro
       - ./database/04_v2_integracion.sql:/docker-entrypoint-initdb.d/04_v2_integracion.sql:ro
       - ./database/datos_catalogo_extra.sql:/docker-entrypoint-initdb.d/05_datos_catalogo_extra.sql:ro
+      - ./database/05_v2_checkin.sql:/docker-entrypoint-initdb.d/06_v2_checkin.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d posada_reto2']
       interval: 5s

@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { timingSafeEqual } from 'crypto';
 import { Request } from 'express';
 import { DbService } from '../../database/db.service';
 import { ProblemException, prohibido } from '../problem/problem';
@@ -8,6 +9,8 @@ import { ES_PUBLICO, Rol, ROLES, Scope, SCOPES, SCOPES_POR_ROL, UsuarioToken } f
 
 /** Cuánto se recuerda el estado del usuario (segundos): un cambio de rol o una desactivación surte efecto en este plazo. */
 export const TTL_ESTADO_USUARIO_MS = 10_000;
+const EMAIL_CUENTA_SERVICIO = 'esb-booking@servicio.posada.ec';
+const SCOPES_LLAVE_SERVICIO = 'alojamientos:read alojamientos:book alojamientos:cancel alojamientos:inventory';
 
 /** Guard global: exige un Bearer JWT HS256 válido salvo en rutas @Public(). */
 @Injectable()
@@ -35,11 +38,39 @@ export class JwtAuthGuard implements CanActivate {
     return fila;
   }
 
+  /** Cuenta de servicio del ESB de Booking (la misma de `npm run token:servicio`), con caché corta. */
+  private servicio?: { id: string; hasta: number };
+
+  /**
+   * X-API-Key (ApiKeyAuth del contrato v2, deprecada hasta v3): llave precompartida ESB ⇄ nodo.
+   * Solo vale en /api/v2, se compara en tiempo constante y concede los scopes del rol SERVICE (sin check-in ni admin).
+   */
+  private async porLlaveDeServicio(llave: string, req: Request): Promise<UsuarioToken> {
+    const esperada = process.env.SERVICE_API_KEY ?? '';
+    const a = Buffer.from(llave);
+    const b = Buffer.from(esperada);
+    if (esperada.length < 24 || a.length !== b.length || !timingSafeEqual(a, b) || !req.originalUrl.startsWith('/api/v2/')) {
+      throw new ProblemException(401, 'VALIDATION_FAILED', 'API key inválida');
+    }
+    const ahora = Date.now();
+    if (!this.servicio || this.servicio.hasta < ahora) {
+      const f = await this.db.uno<{ id: string }>(`SELECT id::text AS id FROM usuario WHERE email = $1 AND activo`, [EMAIL_CUENTA_SERVICIO]);
+      if (!f) throw new ProblemException(401, 'VALIDATION_FAILED', 'La cuenta de servicio no está activa');
+      this.servicio = { id: f.id, hasta: ahora + TTL_ESTADO_USUARIO_MS };
+    }
+    return { sub: this.servicio.id, email: EMAIL_CUENTA_SERVICIO, rol: 'USUARIO', scope: SCOPES_LLAVE_SERVICIO };
+  }
+
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const publico = this.reflector.getAllAndOverride<boolean>(ES_PUBLICO, [ctx.getHandler(), ctx.getClass()]);
     if (publico) return true;
     const req = ctx.switchToHttp().getRequest<Request>();
     const [tipo, token] = (req.header('authorization') ?? '').split(' ');
+    const llave = req.header('x-api-key');
+    if (llave && !(tipo === 'Bearer' && token)) {
+      req.user = await this.porLlaveDeServicio(llave, req);
+      return true;
+    }
     if (tipo !== 'Bearer' || !token) throw new ProblemException(401, 'VALIDATION_FAILED', 'Falta el token de acceso');
     try {
       req.user = await this.jwt.verifyAsync<UsuarioToken>(token, { algorithms: ['HS256'] });

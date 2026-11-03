@@ -147,6 +147,56 @@ async function http(method, path, { token, body, headers = {} } = {}) {
   r = await http('POST', `/api/v2/alojamientos/orders/${o.orderId}/cancel`, { token, body: { motivo: 'x', extra: 1 }, headers: { 'idempotency-key': uuid() } });
   check('cancel con campo desconocido -> 400', r.status === 400, r.json);
 
+  console.log('\n[search]');
+  const ciudad = (await c.query(`SELECT c.nombre FROM booking.alojamiento a JOIN booking.ciudad c ON c.id = a.ciudad_id WHERE a.codigo = $1`, [unidad.codigo])).rows[0].nombre;
+  const busca = { destino: ciudad, fechaInicio: ini, fechaFin: fin, adultos: 1 };
+  r = await http('POST', '/api/v2/alojamientos/search', { body: busca });
+  check('200 público con request_id, metadata y data', r.status === 200 && !!r.json.request_id && r.json.metadata?.noches === 3 && Array.isArray(r.json.data), r.json);
+  const tarjeta = (r.json.data || []).find((x) => x.id === aloj);
+  check('incluye el alojamiento de prueba con precioTotalEstancia Money', !!tarjeta && /^\d+\.\d{2}$/.test(tarjeta.precioTotalEstancia) && /^\d+\.\d{2}$/.test(tarjeta.precioPorNoche), tarjeta);
+  check('alias deprecado "alojamientos" = data', Array.isArray(r.json.alojamientos) && r.json.alojamientos.length === r.json.data.length);
+  r = await http('POST', '/api/v2/alojamientos/search', { body: { ...busca, destino: 'Atlantis' } });
+  check('destino sin resultados -> 200 con data vacía', r.status === 200 && r.json.data.length === 0 && r.json.metadata.total_results === 0, r.json);
+  r = await http('POST', '/api/v2/alojamientos/search', { body: { ...busca, precioMaximo: '0.01' } });
+  check('precioMaximo 0.01 -> sin resultados', r.status === 200 && r.json.data.length === 0, r.json);
+  r = await http('POST', '/api/v2/alojamientos/search', { body: { ...busca, campoRaro: 1 } });
+  check('campo desconocido -> 400', r.status === 400 && r.json.code === 'VALIDATION_FAILED', r.json);
+  r = await http('POST', '/api/v2/alojamientos/search', { body: { ...busca, fechaFin: ini } });
+  check('fechaFin = fechaInicio -> 422', r.status === 422 && r.json.invalid_params?.[0]?.name === 'fechaFin', r.json);
+  r = await http('POST', '/api/v2/alojamientos/search', { body: { ...busca, adultos: 0 } });
+  check('adultos 0 -> 400 con invalid_params', r.status === 400 && r.json.invalid_params?.[0]?.name === 'adultos', r.json);
+
+  console.log('\n[orders GET lista: saga_id / idempotency_key / external_order_id]');
+  r = await http('GET', '/api/v2/alojamientos/orders?saga_id=' + orden.saga_id, { token });
+  check('saga_id -> 200 con la orden creada', r.status === 200 && r.json.data.some((x) => x.orderId === o.orderId) && r.json.metadata.total_results >= 2, r.json?.metadata);
+  r = await http('GET', '/api/v2/alojamientos/orders?external_order_id=' + o.external_order_id, { token });
+  check('external_order_id -> exactamente 1', r.status === 200 && r.json.metadata.total_results === 1 && r.json.data[0].orderId === o.orderId, r.json);
+  r = await http('GET', '/api/v2/alojamientos/orders?idempotency_key=' + clave, { token });
+  check('idempotency_key -> la misma orden', r.status === 200 && r.json.metadata.total_results === 1 && r.json.data[0].orderId === o.orderId, r.json);
+  r = await http('GET', '/api/v2/alojamientos/orders?saga_id=no-existe-' + uuid(), { token });
+  check('saga_id inexistente -> 200 lista vacía', r.status === 200 && r.json.data.length === 0 && r.json.metadata.total_results === 0, r.json);
+  r = await http('GET', '/api/v2/alojamientos/orders?estado=RARO', { token });
+  check('estado inválido -> 400', r.status === 400 && r.json.invalid_params?.[0]?.name === 'estado', r.json);
+  r = await http('GET', '/api/v2/alojamientos/orders?limit=100', { token });
+  check('limit=100 -> 400', r.status === 400, r.json);
+  r = await http('GET', '/api/v2/alojamientos/orders?saga_id=' + orden.saga_id);
+  check('sin credenciales -> 401', r.status === 401, r.json);
+
+  console.log('\n[X-API-Key]');
+  const LLAVE = process.env.SERVICE_API_KEY;
+  if (!LLAVE || LLAVE.length < 24) {
+    console.log('  (omitido: define SERVICE_API_KEY de 24+ caracteres en backend/.env y reinicia el backend)');
+  } else {
+    r = await http('GET', '/api/v2/alojamientos/orders?saga_id=' + orden.saga_id, { headers: { 'x-api-key': LLAVE } });
+    check('llave válida -> 200 y ve las órdenes de la cuenta de servicio', r.status === 200 && r.json.data.some((x) => x.orderId === o.orderId), r.json);
+    r = await http('GET', '/api/v2/alojamientos/orders/' + o.external_order_id, { headers: { 'x-api-key': LLAVE } });
+    check('llave válida en GET orders/{id} -> 200', r.status === 200 && r.json.orderId === o.orderId, r.json);
+    r = await http('GET', '/api/v2/alojamientos/orders?saga_id=' + orden.saga_id, { headers: { 'x-api-key': LLAVE + 'x' } });
+    check('llave incorrecta -> 401', r.status === 401, r.json);
+    r = await http('GET', '/api/v1/orders/00000000-0000-0000-0000-000000000000', { headers: { 'x-api-key': LLAVE } });
+    check('la llave no sirve en /api/v1 -> 401', r.status === 401, r.json);
+  }
+
   console.log('\n[inventario]');
   const rutaInv = `/api/v2/alojamientos/${aloj}/inventario?desde=${ini}&hasta=${fin}&tipoHabitacion=${tipo}`;
   r = await http('GET', rutaInv, { token });

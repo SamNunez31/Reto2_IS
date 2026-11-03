@@ -12,6 +12,7 @@ export type ProblemCode =
   | 'PAYMENT_NOT_AUTHORIZED'
   // Códigos del contrato v2 (ErrorCode). En rutas /api/v1 se traducen al enum v1 (ver problem-v2.ts)
   | 'INVALID_DOCUMENT'
+  | 'HOTEL_NOT_FOUND'
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'

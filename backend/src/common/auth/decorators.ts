@@ -15,8 +15,8 @@ export type Scope =
   | 'alojamientos:admin';
 
 export const SCOPES_POR_ROL: Record<Rol, Scope[]> = {
-  USUARIO: ['alojamientos:read', 'alojamientos:book', 'alojamientos:cancel'],
-  ADMIN: ['alojamientos:read', 'alojamientos:webhooks'], // el ADMIN no reserva
+  USUARIO: ['alojamientos:read', 'alojamientos:book', 'alojamientos:cancel', 'alojamientos:checkin'],
+  ADMIN: ['alojamientos:read', 'alojamientos:webhooks', 'alojamientos:admin'], // el ADMIN no reserva
 };
 
 /** Claims del JWT de acceso. */
