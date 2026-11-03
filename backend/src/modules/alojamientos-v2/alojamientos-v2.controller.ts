@@ -166,6 +166,105 @@ export class AlojamientosV2Controller {
     return this.servicio.checkOut(ref, body, usuario);
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Alias DEPRECADOS del contrato v2.2.0 (comportamiento idéntico; se eliminan en v3).
+  // Delegan en los handlers principales y avisan con la cabecera `Deprecation: true`.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  @Get('tipos')
+  @Public()
+  @Header('Deprecation', 'true')
+  tiposAlias(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<Record<string, unknown>[] | undefined> {
+    return this.categorias(req, res);
+  }
+
+  @Get(':id/disponibilidad')
+  @Public()
+  @Header('Deprecation', 'true')
+  disponibilidadAlias(@Param('id') id: string, @Query() q: Record<string, string | undefined>): Promise<Record<string, unknown>> {
+    return this.disponibilidadGet(id, q);
+  }
+
+  @Get(':id/reviews')
+  @Public()
+  @Header('Deprecation', 'true')
+  reviewsAlias(@Param('id') id: string, @Query() q: Record<string, string | undefined>): Promise<Record<string, unknown>> {
+    return this.resenas(id, q);
+  }
+
+  @Post(':id/reviews')
+  @HttpCode(HttpStatus.CREATED)
+  @Header('Deprecation', 'true')
+  crearReviewAlias(@Param('id') id: string, @Body() body: unknown, @UsuarioActual() usuario: UsuarioToken): Promise<Record<string, unknown>> {
+    return this.crearResena(id, body, usuario);
+  }
+
+  @Post('reservas')
+  @HttpCode(HttpStatus.CREATED)
+  @Scopes('alojamientos:book')
+  @UseGuards(IdempotencyKeyGuard)
+  @UseInterceptors(IdempotenciaInterceptor)
+  @Idempotente('orders.create.v2')
+  @Header('Deprecation', 'true')
+  crearReservaAlias(@Body() body: unknown, @UsuarioActual() usuario: UsuarioToken, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<Record<string, unknown>> {
+    return this.crear(body, usuario, req, res);
+  }
+
+  /** El {id} de la ruta es el alojamiento; si el cuerpo no trae alojamientoId y el id es HTL-…, se usa. */
+  @Post(':id/reservations')
+  @HttpCode(HttpStatus.CREATED)
+  @Scopes('alojamientos:book')
+  @UseGuards(IdempotencyKeyGuard)
+  @UseInterceptors(IdempotenciaInterceptor)
+  @Idempotente('orders.create.v2')
+  @Header('Deprecation', 'true')
+  crearReservaDeAlojamientoAlias(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @UsuarioActual() usuario: UsuarioToken,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Record<string, unknown>> {
+    const b = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+    const cuerpo = b && b.alojamientoId === undefined && id.startsWith('HTL-') ? { ...b, alojamientoId: id } : body;
+    return this.crear(cuerpo, usuario, req, res);
+  }
+
+  @Get(['reservas/:orderId', 'reservations/:orderId'])
+  @Scopes('alojamientos:read')
+  @Header('Cache-Control', 'no-store')
+  @Header('Deprecation', 'true')
+  obtenerReservaAlias(@Param('orderId') ref: string, @UsuarioActual() usuario: UsuarioToken): Promise<Record<string, unknown>> {
+    return this.obtener(ref, usuario);
+  }
+
+  @Post(['reservas/:orderId/cancel', 'reservations/:orderId/cancel'])
+  @HttpCode(200)
+  @Scopes('alojamientos:cancel')
+  @UseGuards(IdempotencyKeyGuard)
+  @UseInterceptors(IdempotenciaInterceptor)
+  @Idempotente('orders.cancel.v2')
+  @Header('Deprecation', 'true')
+  cancelarReservaAlias(@Param('orderId') ref: string, @Body() body: unknown, @UsuarioActual() usuario: UsuarioToken): Promise<Record<string, unknown>> {
+    return this.cancelar(ref, body, usuario);
+  }
+
+  @Post(['reservas/:orderId/checkin', 'reservations/:orderId/checkin'])
+  @HttpCode(200)
+  @Scopes('alojamientos:checkin')
+  @Header('Deprecation', 'true')
+  checkInAlias(@Param('orderId') ref: string, @Body() body: unknown, @UsuarioActual() usuario: UsuarioToken): Promise<Record<string, unknown>> {
+    return this.checkIn(ref, body, usuario);
+  }
+
+  @Post(['reservas/:orderId/checkout', 'reservations/:orderId/checkout'])
+  @HttpCode(200)
+  @Scopes('alojamientos:checkin')
+  @Header('Deprecation', 'true')
+  checkOutAlias(@Param('orderId') ref: string, @Body() body: unknown, @UsuarioActual() usuario: UsuarioToken): Promise<Record<string, unknown>> {
+    return this.checkOut(ref, body, usuario);
+  }
+
   /** Ficha pública del alojamiento (HTL-<codigo> o UUID). Va al final: rutas dinámicas. */
   @Get(':id')
   @Public()
