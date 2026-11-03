@@ -15,6 +15,8 @@ export interface StockUpdateMessage {
   available_units: number;
   timestamp: number;
   slot_id: string;
+  /** Solo para el canal REST (motivo del cambio); el canal gRPC lo ignora. */
+  reason?: string;
 }
 export interface StockUpdateAck {
   success: boolean;
@@ -50,6 +52,15 @@ type InventoryClientCtor = new (target: string, creds: grpc.ChannelCredentials) 
 
 /** Eventos de reserva que cambian el stock (cualquier canal: Booking o el marketplace propio). */
 const EVENTOS_QUE_CAMBIAN_STOCK = new Set(['ReservaCreada', 'ReservaConfirmada', 'ReservaCancelada', 'ReservaRechazada', 'ReservaExpirada', 'EstanciaCompletada']);
+/** Motivo (`reason`) que se informa a Booking en el canal REST. Confirmar con Booking los valores aceptados. */
+const MOTIVO_POR_EVENTO: Record<string, string> = {
+  ReservaCreada: 'ORDER_CREATED',
+  ReservaConfirmada: 'ORDER_CREATED',
+  ReservaCancelada: 'ORDER_CANCELLED',
+  ReservaRechazada: 'ORDER_CANCELLED',
+  ReservaExpirada: 'ORDER_EXPIRED',
+  EstanciaCompletada: 'STAY_COMPLETED',
+};
 const PLAZO_MS = 3000;
 const INTENTOS = 3;
 const CONCURRENCIA = 10;
@@ -72,8 +83,17 @@ export class StockGrpcService implements OnModuleInit {
   get objetivo(): string {
     return (process.env.STOCK_GRPC_TARGET || '').trim();
   }
+  /** Canal REST de Booking: POST {STOCK_REST_URL}/api/v3/inventory/stock con X-API-Key (tiene prioridad sobre gRPC). */
+  get urlRest(): string {
+    return (process.env.STOCK_REST_URL || '').trim().replace(/\/$/, '');
+  }
+  get modo(): 'rest' | 'grpc' | null {
+    if (process.env.STOCK_GRPC_ENABLED === 'false') return null;
+    if (this.urlRest !== '') return 'rest';
+    return this.objetivo !== '' ? 'grpc' : null;
+  }
   get habilitado(): boolean {
-    return this.objetivo !== '' && process.env.STOCK_GRPC_ENABLED !== 'false';
+    return this.modo !== null;
   }
   private get serviceId(): string {
     return process.env.STOCK_SERVICE_ID || 'alojamientos';
@@ -81,10 +101,10 @@ export class StockGrpcService implements OnModuleInit {
 
   onModuleInit(): void {
     if (!this.habilitado) {
-      logJson('info', 'stock_grpc_desactivado', { motivo: 'STOCK_GRPC_TARGET vacío' });
+      logJson('info', 'stock_grpc_desactivado', { motivo: 'STOCK_REST_URL y STOCK_GRPC_TARGET vacíos' });
       return;
     }
-    logJson('info', 'stock_grpc_activo', { destino: this.objetivo, service_id: this.serviceId });
+    logJson('info', 'stock_activo', { canal: this.modo, destino: this.modo === 'rest' ? this.urlRest : this.objetivo, service_id: this.serviceId });
     this.bus.suscribir((e) => this.alEvento(e));
   }
 
@@ -93,20 +113,20 @@ export class StockGrpcService implements OnModuleInit {
     if (!EVENTOS_QUE_CAMBIAN_STOCK.has(e.tipo)) return;
     const reservaId = e.payload?.reservaId;
     if (typeof reservaId !== 'string') return;
-    this.publicarReserva(reservaId).catch((err: unknown) =>
+    this.publicarReserva(reservaId, MOTIVO_POR_EVENTO[e.tipo] ?? 'MANUAL_ADJUSTMENT').catch((err: unknown) =>
       logJson('error', 'stock_grpc_error', { reserva_id: reservaId, error: err instanceof Error ? err.message : String(err) }),
     );
   }
 
   /** Reenvía el stock de las noches de una reserva (tras reservar, cancelar, expirar...). */
-  async publicarReserva(reservaId: string): Promise<number> {
+  async publicarReserva(reservaId: string, motivo = 'MANUAL_ADJUSTMENT'): Promise<number> {
     const lineas = await this.db.query<{ unidad_id: string; entrada: string; salida: string }>(
       `SELECT d.unidad_id::text AS unidad_id, r.fecha_entrada::text AS entrada, r.fecha_salida::text AS salida
          FROM reserva_detalle d JOIN reserva r ON r.id = d.reserva_id WHERE d.reserva_id = $1`,
       [reservaId],
     );
     let n = 0;
-    for (const l of lineas) n += await this.publicarRango(l.unidad_id, l.entrada, l.salida);
+    for (const l of lineas) n += await this.publicarRango(l.unidad_id, l.entrada, l.salida, motivo);
     return n;
   }
 
@@ -137,9 +157,9 @@ export class StockGrpcService implements OnModuleInit {
     }));
   }
 
-  async publicarRango(unidadId: string, entrada: string, salida: string): Promise<number> {
+  async publicarRango(unidadId: string, entrada: string, salida: string, motivo = 'MANUAL_ADJUSTMENT'): Promise<number> {
     if (!this.habilitado) return 0;
-    const mensajes = await this.mensajesDeRango(unidadId, entrada, salida);
+    const mensajes = (await this.mensajesDeRango(unidadId, entrada, salida)).map((m) => ({ ...m, reason: motivo }));
     await this.enviarTodos(mensajes);
     return mensajes.length;
   }
@@ -154,7 +174,7 @@ export class StockGrpcService implements OnModuleInit {
     const antes = { ...this.contadores };
     let total = 0;
     for (const u of unidades) {
-      const m = await this.mensajesDeRango(u.id, desde, hasta);
+      const m = (await this.mensajesDeRango(u.id, desde, hasta)).map((x) => ({ ...x, reason: 'INITIAL_LOAD' }));
       total += m.length;
       await this.enviarTodos(m);
     }
@@ -196,8 +216,25 @@ export class StockGrpcService implements OnModuleInit {
     logJson('error', 'stock_grpc_fallo', { item_id: m.item_id, date: m.date, error: ultimo });
   }
 
-  /** Una llamada unaria PushStockUpdate (plazo de 3 s). */
+  /** REST: POST /api/v3/inventory/stock {item_id, available_units, date, reason} con X-API-Key. Un 2xx es éxito. */
+  private async pushRest(m: StockUpdateMessage): Promise<StockUpdateAck> {
+    const llave = process.env.STOCK_REST_API_KEY || '';
+    const r = await fetch(`${this.urlRest}/api/v3/inventory/stock`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(llave ? { 'x-api-key': llave } : {}) },
+      body: JSON.stringify({ item_id: m.item_id, available_units: m.available_units, date: m.date, reason: m.reason ?? 'MANUAL_ADJUSTMENT' }),
+      signal: AbortSignal.timeout(PLAZO_MS + 2000),
+    });
+    if (r.ok) return { success: true, message: 'OK', processed_at: Date.now(), error_code: 'OK', current_available: m.available_units };
+    const detalle = (await r.text().catch(() => '')).slice(0, 200);
+    // 404: item no registrado en Booking; 409: dato más nuevo ya aplicado; otros 4xx no se reintentan; 5xx sí.
+    const codigo = r.status === 404 ? 'ITEM_NOT_FOUND' : r.status === 409 ? 'STALE_TIMESTAMP_IGNORED' : r.status >= 400 && r.status < 500 ? 'INVALID_SLOT' : `HTTP_${r.status}`;
+    return { success: false, message: `HTTP ${r.status} ${detalle}`, processed_at: Date.now(), error_code: codigo, current_available: 0 };
+  }
+
+  /** Una llamada de stock por el canal activo (REST o gRPC unario, plazo de 3 s). */
   push(m: StockUpdateMessage): Promise<StockUpdateAck> {
+    if (this.modo === 'rest') return this.pushRest(m);
     return new Promise((resolve, reject) => {
       this.obtenerCliente().PushStockUpdate(m, { deadline: Date.now() + PLAZO_MS }, (err, res) => {
         if (err) reject(err);
