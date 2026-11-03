@@ -46,7 +46,7 @@ export class IdempotenciaInterceptor implements NestInterceptor {
 
     return from(this.reservar(propietario, clave, operacion, hash)).pipe(
       mergeMap((previa) => {
-        if (previa) return this.reproducir(previa, hash, res);
+        if (previa) return this.reproducir(previa, hash, res, req.path.startsWith('/api/v2/'));
         return next.handle().pipe(
           mergeMap(async (cuerpo) => {
             await this.db.query(
@@ -75,17 +75,23 @@ export class IdempotenciaInterceptor implements NestInterceptor {
     );
   }
 
-  private reproducir(previa: FilaIdem, hash: string, res: Response): Observable<unknown> {
+  private reproducir(previa: FilaIdem, hash: string, res: Response, v2: boolean): Observable<unknown> {
     if (previa.hash_solicitud !== hash) {
-      return throwError(() => new ProblemException(409, 'VALIDATION_FAILED', 'La Idempotency-Key ya se usó con otra petición distinta'));
+      return throwError(() =>
+        v2
+          ? new ProblemException(422, 'IDEMPOTENCY_KEY_REUSED', 'La clave ya se usó con un cuerpo distinto. Genere una nueva para una nueva intención.')
+          : new ProblemException(409, 'VALIDATION_FAILED', 'La Idempotency-Key ya se usó con otra petición distinta'),
+      );
     }
     if (previa.estado_http === null) {
-      return throwError(() => new ProblemException(409, 'VALIDATION_FAILED', 'La petición con esta Idempotency-Key aún se está procesando', undefined, 1));
+      return throwError(() =>
+        new ProblemException(409, v2 ? 'IDEMPOTENCY_IN_PROGRESS' : 'VALIDATION_FAILED', 'La petición con esta Idempotency-Key aún se está procesando', undefined, 1),
+      );
     }
     res.setHeader('Idempotent-Replayed', 'true');
     if (previa.estado_http >= 400) {
       const p = previa.respuesta as ProblemBody;
-      return throwError(() => new ProblemException(p.status, p.code, p.detail, p.invalidParams));
+      return throwError(() => new ProblemException(p.status, p.code, p.detail, p.invalidParams, undefined, p.extras));
     }
     res.status(previa.estado_http);
     return of(previa.respuesta);

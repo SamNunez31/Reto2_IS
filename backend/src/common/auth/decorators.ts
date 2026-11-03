@@ -4,7 +4,15 @@ import { Request } from 'express';
 export type Rol = 'USUARIO' | 'ADMIN';
 
 /** Scopes OAuth2 del contrato. */
-export type Scope = 'alojamientos:read' | 'alojamientos:book' | 'alojamientos:cancel' | 'alojamientos:webhooks';
+export type Scope =
+  | 'alojamientos:read'
+  | 'alojamientos:book'
+  | 'alojamientos:cancel'
+  | 'alojamientos:webhooks'
+  // Contrato v2 (cuenta de servicio del ESB)
+  | 'alojamientos:checkin'
+  | 'alojamientos:inventory'
+  | 'alojamientos:admin';
 
 export const SCOPES_POR_ROL: Record<Rol, Scope[]> = {
   USUARIO: ['alojamientos:read', 'alojamientos:book', 'alojamientos:cancel'],

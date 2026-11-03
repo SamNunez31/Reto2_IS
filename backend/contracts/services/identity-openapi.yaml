@@ -1,0 +1,376 @@
+# GENERADO con `npm run contract:split` a partir de contracts/posada-ec-openapi.yaml. No editar a mano.
+# Servicio: identity. Política de versiones: contracts/POLITICA_VERSIONADO.md
+openapi: 3.0.0
+info:
+  title: Posada EC — Servicio de Identidad
+  description: |-
+    Registro, inicio de sesión, emisión y validación de JWT, perfil y administración de usuarios y roles.
+
+    Contrato derivado del contrato propio de Posada EC v1.0.0; versión propia de este servicio con SemVer (ver contracts/POLITICA_VERSIONADO.md).
+  version: 1.0.0
+x-servicio:
+  nombre: identity
+  tablas_propias:
+    - usuario
+    - token_usuario
+  eventos_que_publica:
+    - UsuarioRegistrado
+    - UsuarioActualizado
+    - UsuarioDesactivado
+  eventos_que_consume: []
+  contrato_de_eventos: ../events/posada-events-asyncapi.yaml
+servers:
+  - url: /
+    description: Detrás del API Gateway (ver docs/ARQUITECTURA_MICROSERVICIOS.md §6)
+tags:
+  - name: Autenticación
+    description: 'Ruta propia: registro, login y recuperación de clave'
+  - name: Mi cuenta
+    description: 'Ruta propia: perfil, mis reservas, factura, trazabilidad y reseñas'
+  - name: Administración
+    description: 'Ruta propia: panel del ADMIN'
+  - name: Salud
+    description: ''
+paths:
+  /health:
+    get:
+      operationId: HealthController_health
+      summary: Estado de la app y de la BD (SELECT 1)
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Salud
+  /api/v1/auth/register:
+    post:
+      operationId: AuthController_register
+      summary: Registrar cuenta (rol USUARIO)
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDto'
+      responses:
+        '201':
+          description: Cuenta creada y sesión iniciada
+      tags:
+        - Autenticación
+  /api/v1/auth/login:
+    post:
+      operationId: AuthController_login
+      summary: 'Iniciar sesión: devuelve un JWT (Bearer) con claim scope'
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Autenticación
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: AuthController_forgot
+      summary: Solicitar enlace de recuperación (respuesta siempre genérica)
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Autenticación
+  /api/v1/auth/reset-password:
+    post:
+      operationId: AuthController_reset
+      summary: Restablecer la clave con el token recibido
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Autenticación
+  /api/v1/me:
+    get:
+      operationId: CuentaController_me
+      summary: Mi perfil
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Mi cuenta
+      security:
+        - bearer: []
+    patch:
+      operationId: CuentaController_actualizar
+      summary: Actualizar mi perfil (datos de facturación incluidos)
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarPerfilDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Mi cuenta
+      security:
+        - bearer: []
+  /api/v1/admin/users:
+    get:
+      operationId: AdminController_usuarios
+      summary: Usuarios
+      parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca en correo, nombres o apellidos
+          schema:
+            maxLength: 80
+            type: string
+        - name: limit
+          required: true
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: offset
+          required: true
+          in: query
+          schema:
+            minimum: 0
+            default: 0
+            type: number
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Administración
+      security:
+        - bearer: []
+    post:
+      operationId: AdminController_crearUsuario
+      summary: Crear un usuario activo (rol USUARIO) con correo, nombres, apellidos y clave
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearUsuarioDto'
+      responses:
+        '201':
+          description: ''
+      tags:
+        - Administración
+      security:
+        - bearer: []
+  /api/v1/admin/users/{id}/status:
+    patch:
+      operationId: AdminController_estadoUsuario
+      summary: Activar o desactivar un usuario
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EstadoUsuarioDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Administración
+      security:
+        - bearer: []
+  /api/v1/admin/users/{id}/role:
+    patch:
+      operationId: AdminController_rolUsuario
+      summary: Asignar el rol de administrador a otro usuario (el usuario debe volver a iniciar sesión)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolUsuarioDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Administración
+      security:
+        - bearer: []
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    ActualizarPerfilDto:
+      type: object
+      properties:
+        nombres:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: NOMBRE_PERSONA
+        apellidos:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: NOMBRE_PERSONA
+        telefono:
+          type: string
+          pattern: TELEFONO_EC
+        tipo_documento:
+          type: string
+          enum:
+            - CEDULA
+            - RUC
+            - PASAPORTE
+        numero_documento:
+          type: string
+        razon_social:
+          type: string
+          maxLength: 160
+    CrearUsuarioDto:
+      type: object
+      properties:
+        email:
+          type: string
+          maxLength: 160
+        password:
+          type: string
+          pattern: POLITICA_CLAVE
+        nombres:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: NOMBRE_PERSONA
+        apellidos:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: NOMBRE_PERSONA
+      required:
+        - email
+        - password
+        - nombres
+        - apellidos
+    EstadoUsuarioDto:
+      type: object
+      properties:
+        activo:
+          type: boolean
+      required:
+        - activo
+    ForgotPasswordDto:
+      type: object
+      properties:
+        email:
+          type: string
+      required:
+        - email
+    LoginDto:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 1
+          maxLength: 72
+      required:
+        - email
+        - password
+    RegisterDto:
+      type: object
+      properties:
+        email:
+          type: string
+          maxLength: 160
+        password:
+          type: string
+          pattern: POLITICA_CLAVE
+        nombres:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: NOMBRE_PERSONA
+        apellidos:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: NOMBRE_PERSONA
+        telefono:
+          type: string
+          pattern: TELEFONO_EC
+        tipo_documento:
+          type: string
+          enum:
+            - CEDULA
+            - RUC
+            - PASAPORTE
+        numero_documento:
+          type: string
+      required:
+        - email
+        - password
+        - nombres
+        - apellidos
+    ResetPasswordDto:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token de 32 bytes en hexadecimal recibido por "correo"
+          minLength: 64
+          maxLength: 64
+        password:
+          type: string
+          pattern: POLITICA_CLAVE
+      required:
+        - token
+        - password
+    RolUsuarioDto:
+      type: object
+      properties:
+        rol:
+          type: string
+          enum:
+            - ADMIN
+      required:
+        - rol

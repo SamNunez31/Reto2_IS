@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from '@nestjs/co
 import { Request, Response } from 'express';
 import { ThrottlerException } from '@nestjs/throttler';
 import { construirProblema, ProblemBody, ProblemCode, ProblemException } from './problem';
+import { aCodigoV1, esRutaV2, formatoV2 } from './problem-v2';
 import { traducirErrorPostgres } from './postgres-errors';
 import { logJson } from '../logging/log-json';
 import { auditar } from '../logging/auditoria';
@@ -23,7 +24,15 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     }
 
     if (retryAfter !== undefined) res.setHeader('Retry-After', String(retryAfter));
-    res.status(body.status).type('application/problem+json').send(JSON.stringify(body));
+    // Misma excepción, dos "vestidos": contrato v2 en /api/v2 y contrato v1 (enum cerrado) en el resto
+    let salida: unknown;
+    if (esRutaV2(req.path)) salida = formatoV2(body, req, retryAfter);
+    else {
+      const { extras: _extras, ...v1 } = body;
+      void _extras;
+      salida = { ...v1, code: aCodigoV1(body.code) };
+    }
+    res.status(body.status).type('application/problem+json').send(JSON.stringify(salida));
   }
 
   private aProblema(exception: unknown, req: Request): { body: ProblemBody; retryAfter?: number } {

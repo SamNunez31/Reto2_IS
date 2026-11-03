@@ -1,3 +1,5 @@
+# RETO 2: BD local propia (contenedor posada_reto2_db, puerto 5433, BD posada_reto2).
+# Es distinta de la del Reto 1 (puerto 5432) para poder correr ambas sin que se pisen.
 
 # Postgres local para desarrollo. En producción se usa Supabase (ver docs/DOCUMENTO_TECNICO.md).
 # Los scripts de database/ se ejecutan en orden alfabético solo la primera vez (volumen vacío).
@@ -5,25 +7,26 @@
 services:
   postgres:
     image: postgres:16
-    container_name: booking_db_container
+    container_name: posada_reto2_db
     ports:
-      - '5432:5432'
+      - '5433:5432'
     environment:
-      POSTGRES_DB: booking_db
+      POSTGRES_DB: posada_reto2
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_reto2:/var/lib/postgresql/data
       - ./database/01_esquema.sql:/docker-entrypoint-initdb.d/01_esquema.sql:ro
       - ./database/02_datos_demo.sql:/docker-entrypoint-initdb.d/02_datos_demo.sql:ro
       - ./database/03_integracion.sql:/docker-entrypoint-initdb.d/03_integracion.sql:ro
-      - ./database/datos_catalogo_extra.sql:/docker-entrypoint-initdb.d/04_datos_catalogo_extra.sql:ro
+      - ./database/04_v2_integracion.sql:/docker-entrypoint-initdb.d/04_v2_integracion.sql:ro
+      - ./database/datos_catalogo_extra.sql:/docker-entrypoint-initdb.d/05_datos_catalogo_extra.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d booking_db']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d posada_reto2']
       interval: 5s
       timeout: 5s
       retries: 20
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  pgdata_reto2:

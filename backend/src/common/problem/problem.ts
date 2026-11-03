@@ -9,7 +9,30 @@ export type ProblemCode =
   | 'CANCELLATION_NOT_ALLOWED'
   | 'RATE_LIMIT_EXCEEDED'
   | 'PAYMENT_REFERENCE_INVALID'
-  | 'PAYMENT_NOT_AUTHORIZED';
+  | 'PAYMENT_NOT_AUTHORIZED'
+  // Códigos del contrato v2 (ErrorCode). En rutas /api/v1 se traducen al enum v1 (ver problem-v2.ts)
+  | 'INVALID_DOCUMENT'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'OUT_OF_STOCK'
+  | 'QUOTE_EXPIRED'
+  | 'PRICE_MISMATCH'
+  | 'IDEMPOTENCY_KEY_REUSED'
+  | 'IDEMPOTENCY_IN_PROGRESS'
+  | 'INVALID_STATE_TRANSITION'
+  | 'CHECKIN_TIME_NOT_REACHED'
+  | 'CAPACITY_EXCEEDED'
+  | 'DISCOUNT_EXCEEDS_CONTRACT'
+  | 'PROMOTIONS_NOT_ALLOWED'
+  | 'RATE_LIMITED'
+  | 'PROVIDER_DISABLED'
+  | 'GATEWAY_TIMEOUT'
+  | 'INTERNAL_ERROR'
+  | 'RESTRICTION_VIOLATED'
+  | 'UNSUPPORTED_CURRENCY'
+  | 'INSUFFICIENT_SCOPE';
 
 export interface InvalidParam {
   name: string;
@@ -24,6 +47,8 @@ export interface ProblemBody {
   detail?: string;
   code: ProblemCode;
   invalidParams?: InvalidParam[];
+  /** Campos extra del contrato v2 (restriccion, habilitadoDesde, scopes_requeridos). Solo salen en /api/v2. */
+  extras?: Record<string, unknown>;
 }
 
 const TITULOS: Record<number, string> = {
@@ -48,6 +73,7 @@ export function construirProblema(
   code: ProblemCode,
   detail?: string,
   invalidParams?: InvalidParam[],
+  extras?: Record<string, unknown>,
 ): ProblemBody {
   const body: ProblemBody = {
     type: `https://booking-prototipo.ec/problemas/${code.toLowerCase().replace(/_/g, '-')}`,
@@ -57,6 +83,7 @@ export function construirProblema(
   };
   if (detail) body.detail = detail;
   if (invalidParams && invalidParams.length) body.invalidParams = invalidParams;
+  if (extras && Object.keys(extras).length) body.extras = extras;
   return body;
 }
 
@@ -71,8 +98,9 @@ export class ProblemException extends HttpException {
     detail?: string,
     invalidParams?: InvalidParam[],
     public readonly retryAfter?: number,
+    extras?: Record<string, unknown>,
   ) {
-    super(construirProblema(status, code, detail, invalidParams), status);
+    super(construirProblema(status, code, detail, invalidParams, extras), status);
   }
 }
 

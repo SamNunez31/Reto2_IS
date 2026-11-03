@@ -1,3 +1,4 @@
+import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
@@ -7,6 +8,7 @@ import { crearValidationPipe } from './common/validation/validation';
 import { correlacionMiddleware, errorParserMiddleware, redireccionHttpsMiddleware } from './common/middleware/http-middlewares';
 import { esProduccion, origenesCors } from './config/entorno';
 import { montarSwagger } from './swagger';
+import { logJson } from './common/logging/log-json';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
@@ -31,11 +33,17 @@ async function bootstrap() {
     exposedHeaders: ['X-Correlation-Id', 'Retry-After', 'Idempotent-Replayed', 'X-API-Deprecation-Date'],
   });
 
-  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
+  // /api/v2/* (contrato v2 del Reto 2) lleva su propio prefijo en el controlador: se excluye del prefijo global api/v1
+  app.setGlobalPrefix('api/v1', { exclude: ['health', { path: 'api/v2/(.*)', method: RequestMethod.ALL }] });
   app.useGlobalPipes(crearValidationPipe());
   app.enableShutdownHooks();
   montarSwagger(app);
 
-  await app.listen(process.env.PORT || 3000);
+  // Reto 2: escuchar en 0.0.0.0 (no solo en localhost) para que Booking y otras maquinas puedan llamarnos
+  // por la red privada (Tailscale). Se puede cambiar con HOST en el .env.
+  const puerto = Number(process.env.PORT) || 3000;
+  const host = process.env.HOST || '0.0.0.0';
+  await app.listen(puerto, host);
+  logJson('info', 'servidor_escuchando', { host, puerto });
 }
 bootstrap();

@@ -12,6 +12,8 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthController } from './modules/health/health.controller';
 import { AlojamientosModule } from './modules/alojamientos/alojamientos.module';
+import { AlojamientosV2Module } from './modules/alojamientos-v2/alojamientos-v2.module';
+import { StockGrpcModule } from './modules/stock-grpc/stock-grpc.module';
 import { CuentaModule } from './modules/cuenta/cuenta.module';
 import { HostModule } from './modules/host/host.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -31,6 +33,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
     CommonModule,
     AuthModule,
     AlojamientosModule,
+    AlojamientosV2Module,
+    StockGrpcModule,
     CuentaModule,
     HostModule,
     AdminModule,

@@ -79,7 +79,9 @@ export class ScopesGuard implements CanActivate {
     const user = ctx.switchToHttp().getRequest<Request>().user;
     const concedidos = (user?.scope ?? '').split(' ');
     const faltan = requeridos.filter((s) => !concedidos.includes(s));
-    if (faltan.length) throw prohibido(`Falta el scope: ${faltan.join(', ')}`);
+    if (faltan.length) {
+      throw new ProblemException(403, 'INSUFFICIENT_SCOPE', `Falta el scope: ${faltan.join(', ')}`, undefined, undefined, { scopes_requeridos: requeridos });
+    }
     return true;
   }
 }

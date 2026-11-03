@@ -9,7 +9,7 @@ declare module 'express-serve-static-core' {
   }
 }
 
-const CORRELACION_VALIDA = /^[A-Za-z0-9-]{8,64}$/;
+const CORRELACION_VALIDA = /^[A-Za-z0-9._:-]{4,64}$/;
 
 /** Toma X-Correlation-Id del cliente (si es válido) o genera uno; lo devuelve y registra la petición. */
 export function correlacionMiddleware(req: Request, res: Response, next: NextFunction): void {
