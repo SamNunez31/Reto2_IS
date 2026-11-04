@@ -29,6 +29,18 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
+      - name: health-raiz
+        paths: ["~/health$"]
+        regex_priority: 2000
+        strip_path: false
+      - name: health-v1
+        paths: ["~/api/v1/health$"]
+        regex_priority: 2000
+        strip_path: false
+      - name: health-v2
+        paths: ["~/api/v2/alojamientos/health$"]
+        regex_priority: 2000
+        strip_path: false
       - name: catalogo-cache-tipos
         paths: ["~/api/v2/alojamientos/tipos$"]
         methods: [GET]
@@ -68,18 +80,6 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
-      - name: health-raiz
-        paths: ["~/health$"]
-        regex_priority: 2000
-        strip_path: false
-      - name: health-v1
-        paths: ["~/api/v1/health$"]
-        regex_priority: 2000
-        strip_path: false
-      - name: health-v2
-        paths: ["~/api/v2/alojamientos/health$"]
-        regex_priority: 2000
-        strip_path: false
       - name: reservations-2
         paths: ["~/api/v2/alojamientos/(orders|reservations|reservas|availability)(/|$)"]
         regex_priority: 998

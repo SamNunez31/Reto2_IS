@@ -5,7 +5,7 @@ Cada bloque dice qué comando correr y qué captura guardar para el entregable. 
 ## A. Arquitectura y gateway (entregables 1 y 5)
 ```bash
 curl -i $GW/gateway/health                       # 200 {"status":"UP","gateway":"kong",...}
-curl -i $GW/api/v2/alojamientos/health           # responde reservations; ver X-Service-Name y X-Gateway
+curl -i $GW/api/v2/alojamientos/health           # health (lo atiende catalog); ver X-Service-Name y X-Gateway
 curl -i $GW/api/v2/alojamientos/categorias       # responde catalog
 curl -i $GW/api/v1/auth/login -X POST -H "content-type: application/json" -d "{}"   # responde identity (400 validación)
 ```

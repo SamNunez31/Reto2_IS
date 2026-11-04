@@ -41,8 +41,8 @@ for (const rol of ROLES) {
   w('    write_timeout: 60000');
   w('    routes:');
   let prioridad = 1000;
-  // Salud y estado: siempre al servicio de reservas (lo mantiene activo con el monitor de Booking).
-  if (rol === 'reservations') {
+  // Salud: la responde cualquier servicio; se fija en catalog (el monitor de Booking lo mantiene activo).
+  if (rol === 'catalog') {
     w('      - name: health-raiz');
     w('        paths: [' + q('~/health$') + ']');
     w('        regex_priority: 2000');
