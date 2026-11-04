@@ -2,11 +2,11 @@
 # Fuente de verdad de la forma de los mensajes que hoy salen de la tabla evento_outbox
 # (database/01_esquema.sql, triggers tg_evt_*) y que en la Fase B viajarán por RabbitMQ.
 # Cada evento lleva x-estado: "vigente" (ya se emite hoy) o "propuesto" (nace con la separación en servicios).
-# Política de cambios: contracts/POLITICA_VERSIONADO.md (BACKWARD: solo se agregan campos opcionales).
+# Política de cambios: backend/contracts/POLITICA_VERSIONADO.md (BACKWARD: solo se agregan campos opcionales).
 asyncapi: 2.6.0
 info:
   title: Posada EC — Eventos de dominio (Alojamientos)
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Eventos de negocio publicados con el patrón **outbox transaccional**: se escriben en la misma transacción que el
     cambio de estado, así que no existe un cambio sin evento ni un evento sin cambio. La entrega es **al menos una vez**:
@@ -51,6 +51,9 @@ channels:
   alojamientos.estancia.completada:
     description: La estancia terminó. Habilita al huésped a publicar una reseña.
     publish: { x-publicador: reservations, x-consumidores: [catalog, integration], message: { $ref: '#/components/messages/EstanciaCompletada' } }
+  alojamientos.checkin.completado:
+    description: El huésped hizo el check-in digital (CONFIRMADA + checkin_en). Lo expone también el feed GET /api/v2/alojamientos/eventos.
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/CheckInCompletado' } }
   alojamientos.pago.registrado:
     description: Cobro registrado.
     publish: { x-publicador: reservations, message: { $ref: '#/components/messages/PagoRegistrado' } }
@@ -74,7 +77,7 @@ channels:
     description: Cambió el rol o el estado activo de un usuario. No contiene datos personales.
     publish: { x-publicador: identity, x-consumidores: [catalog, reservations], message: { $ref: '#/components/messages/UsuarioActualizado' } }
   alojamientos.stock.cambiado:
-    description: Cupo absoluto de una unidad en una noche. Es lo que el servicio de integración empuja a Booking por gRPC.
+    description: Cupo absoluto de una unidad en una noche. Hoy el servicio de integración lo empuja a Booking por REST (POST /api/v3/inventory/stock) o gRPC; este evento aún no se emite en el outbox.
     publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/StockCambiado' } }
 
 components:
@@ -106,6 +109,11 @@ components:
       payload: { $ref: '#/components/schemas/ReservaPayload' }
     EstanciaCompletada:
       name: EstanciaCompletada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    CheckInCompletado:
+      name: CheckInCompletado
       x-estado: vigente
       headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ReservaPayload' }
