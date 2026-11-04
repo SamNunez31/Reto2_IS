@@ -1,0 +1,264 @@
+# Contrato de EVENTOS de Posada EC (AsyncAPI 2.6). Complementa a los contratos OpenAPI por servicio.
+# Fuente de verdad de la forma de los mensajes que hoy salen de la tabla evento_outbox
+# (database/01_esquema.sql, triggers tg_evt_*) y que en la Fase B viajarán por RabbitMQ.
+# Cada evento lleva x-estado: "vigente" (ya se emite hoy) o "propuesto" (nace con la separación en servicios).
+# Política de cambios: contracts/POLITICA_VERSIONADO.md (BACKWARD: solo se agregan campos opcionales).
+asyncapi: 2.6.0
+info:
+  title: Posada EC — Eventos de dominio (Alojamientos)
+  version: 1.0.0
+  description: |
+    Eventos de negocio publicados con el patrón **outbox transaccional**: se escriben en la misma transacción que el
+    cambio de estado, así que no existe un cambio sin evento ni un evento sin cambio. La entrega es **al menos una vez**:
+    todo consumidor debe ser **idempotente** y deduplicar por `event_id`.
+
+    **Sobre (envelope).** Todos los mensajes llevan las mismas cabeceras (ver `EnvelopeHeaders`). `correlacion_id` es
+    el id de la reserva en los flujos de reserva y une reserva, pago, factura y cancelación de punta a punta; se propaga
+    además como `X-Correlation-Id` en las llamadas HTTP.
+
+    **Próximos cambios compatibles (1.1.0, solo campos opcionales):** `ReservaCreada.lineas[{unidadId, cantidad}]` y
+    `ReservaCreada.canal` (`MARKETPLACE` | `BOOKING`), para que el servicio de integración calcule el stock sin consultar
+    la base de reservas.
+  contact:
+    name: Posada EC (Elizabeth Samantha Nuñez Insuasti)
+  x-politica-compatibilidad: BACKWARD
+defaultContentType: application/json
+servers:
+  broker:
+    url: amqp://localhost:5672
+    protocol: amqp
+    description: Fase B. Hoy los eventos circulan por un bus en memoria dentro del monolito (BusEventos) y los consume el mismo proceso.
+
+channels:
+  alojamientos.reserva.creada:
+    description: Nace una reserva (INSERT en reserva). Toda reserva queda CONFIRMADA al aprobarse el pago.
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/ReservaCreada' } }
+  alojamientos.reserva.confirmada:
+    description: Confirmación de una reserva pendiente (modo por solicitud, hoy sin uso).
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/ReservaConfirmada' } }
+  alojamientos.reserva.modificada:
+    description: Cambio de fechas u ocupantes (fn_modificar_reserva).
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/ReservaModificada' } }
+  alojamientos.reserva.cancelada:
+    description: Reserva cancelada; libera cupo.
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/ReservaCancelada' } }
+  alojamientos.reserva.rechazada:
+    description: Solicitud rechazada; libera cupo.
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/ReservaRechazada' } }
+  alojamientos.reserva.expirada:
+    description: Solicitud sin respuesta a tiempo; libera cupo.
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/ReservaExpirada' } }
+  alojamientos.estancia.completada:
+    description: La estancia terminó. Habilita al huésped a publicar una reseña.
+    publish: { x-publicador: reservations, x-consumidores: [catalog, integration], message: { $ref: '#/components/messages/EstanciaCompletada' } }
+  alojamientos.pago.registrado:
+    description: Cobro registrado.
+    publish: { x-publicador: reservations, message: { $ref: '#/components/messages/PagoRegistrado' } }
+  alojamientos.reembolso.registrado:
+    description: Reembolso registrado tras una cancelación.
+    publish: { x-publicador: reservations, message: { $ref: '#/components/messages/ReembolsoRegistrado' } }
+  alojamientos.factura.emitida:
+    publish: { x-publicador: reservations, message: { $ref: '#/components/messages/FacturaEmitida' } }
+  alojamientos.factura.anulada:
+    publish: { x-publicador: reservations, message: { $ref: '#/components/messages/FacturaAnulada' } }
+  alojamientos.resena.publicada:
+    publish: { x-publicador: catalog, message: { $ref: '#/components/messages/ResenaPublicada' } }
+  alojamientos.alojamiento.publicado:
+    publish: { x-publicador: catalog, x-consumidores: [reservations], message: { $ref: '#/components/messages/AlojamientoPublicado' } }
+  alojamientos.alojamiento.suspendido:
+    publish: { x-publicador: catalog, x-consumidores: [reservations], message: { $ref: '#/components/messages/AlojamientoSuspendido' } }
+  alojamientos.alojamiento.actualizado:
+    description: Cambió un dato del alojamiento que otros servicios replican (estado, horarios de check-in y check-out).
+    publish: { x-publicador: catalog, x-consumidores: [reservations], message: { $ref: '#/components/messages/AlojamientoActualizado' } }
+  alojamientos.usuario.actualizado:
+    description: Cambió el rol o el estado activo de un usuario. No contiene datos personales.
+    publish: { x-publicador: identity, x-consumidores: [catalog, reservations], message: { $ref: '#/components/messages/UsuarioActualizado' } }
+  alojamientos.stock.cambiado:
+    description: Cupo absoluto de una unidad en una noche. Es lo que el servicio de integración empuja a Booking por gRPC.
+    publish: { x-publicador: reservations, x-consumidores: [integration], message: { $ref: '#/components/messages/StockCambiado' } }
+
+components:
+  messages:
+    ReservaCreada:
+      name: ReservaCreada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    ReservaConfirmada:
+      name: ReservaConfirmada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    ReservaCancelada:
+      name: ReservaCancelada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    ReservaRechazada:
+      name: ReservaRechazada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    ReservaExpirada:
+      name: ReservaExpirada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    EstanciaCompletada:
+      name: EstanciaCompletada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaPayload' }
+    ReservaModificada:
+      name: ReservaModificada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ReservaModificadaPayload' }
+    PagoRegistrado:
+      name: PagoRegistrado
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/PagoPayload' }
+    ReembolsoRegistrado:
+      name: ReembolsoRegistrado
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/PagoPayload' }
+    FacturaEmitida:
+      name: FacturaEmitida
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/FacturaPayload' }
+    FacturaAnulada:
+      name: FacturaAnulada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/FacturaPayload' }
+    ResenaPublicada:
+      name: ResenaPublicada
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ResenaPayload' }
+    AlojamientoPublicado:
+      name: AlojamientoPublicado
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/AlojamientoPayload' }
+    AlojamientoSuspendido:
+      name: AlojamientoSuspendido
+      x-estado: vigente
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/AlojamientoSuspendidoPayload' }
+    AlojamientoActualizado:
+      name: AlojamientoActualizado
+      x-estado: propuesto
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/AlojamientoActualizadoPayload' }
+    UsuarioActualizado:
+      name: UsuarioActualizado
+      x-estado: propuesto
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/UsuarioActualizadoPayload' }
+    StockCambiado:
+      name: StockCambiado
+      x-estado: propuesto
+      headers: { $ref: '#/components/schemas/EnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/StockCambiadoPayload' }
+
+  schemas:
+    EnvelopeHeaders:
+      type: object
+      description: Metadatos comunes. Corresponden a las columnas de evento_outbox.
+      required: [event_id, tipo, agregado, agregado_id, correlacion_id, version, occurred_at]
+      properties:
+        event_id: { type: integer, format: int64, description: 'evento_outbox.id. Los consumidores deduplican por este valor.' }
+        tipo: { type: string, maxLength: 60, example: ReservaCreada }
+        agregado: { type: string, maxLength: 30, example: Reserva }
+        agregado_id: { type: string, format: uuid }
+        correlacion_id: { type: string, format: uuid, description: 'En flujos de reserva es el id de la reserva.' }
+        version: { type: string, pattern: '^\d+\.\d+\.\d+$', example: 1.0.0, description: 'Versión de este contrato de eventos con la que se emitió el mensaje.' }
+        occurred_at: { type: string, format: date-time }
+
+    ReservaPayload:
+      type: object
+      required: [reservaId, codigo, estado, huespedId, alojamientoId, entrada, salida]
+      properties:
+        reservaId: { type: string, format: uuid }
+        codigo: { type: string, pattern: '^BK-[A-Z0-9]+$', example: BK-4DDB587F }
+        estado: { type: string, enum: [PENDIENTE, CONFIRMADA, CANCELADA, RECHAZADA, EXPIRADA, COMPLETADA] }
+        huespedId: { type: string, format: uuid }
+        alojamientoId: { type: string, format: uuid }
+        entrada: { type: string, format: date }
+        salida: { type: string, format: date }
+    ReservaModificadaPayload:
+      type: object
+      required: [reservaId, codigo, entrada, salida, huespedes, totalAnterior, totalNuevo]
+      properties:
+        reservaId: { type: string, format: uuid }
+        codigo: { type: string }
+        entrada: { type: string, format: date }
+        salida: { type: string, format: date }
+        huespedes: { type: integer, minimum: 1 }
+        totalAnterior: { type: number, description: 'USD' }
+        totalNuevo: { type: number, description: 'USD' }
+    PagoPayload:
+      type: object
+      required: [pagoId, reservaId, tipo, monto]
+      properties:
+        pagoId: { type: string, format: uuid }
+        reservaId: { type: string, format: uuid }
+        tipo: { type: string, enum: [COBRO, REEMBOLSO] }
+        monto: { type: number, description: 'USD' }
+    FacturaPayload:
+      type: object
+      required: [facturaId, reservaId, secuencial]
+      properties:
+        facturaId: { type: string, format: uuid }
+        reservaId: { type: string, format: uuid }
+        secuencial: { type: string }
+    ResenaPayload:
+      type: object
+      required: [resenaId, reservaId, nota]
+      properties:
+        resenaId: { type: string, format: uuid }
+        reservaId: { type: string, format: uuid }
+        nota: { type: number, description: 'Nota global de la reseña' }
+    AlojamientoPayload:
+      type: object
+      required: [alojamientoId, nombre, anfitrionId]
+      properties:
+        alojamientoId: { type: string, format: uuid }
+        nombre: { type: string }
+        anfitrionId: { type: string, format: uuid }
+    AlojamientoSuspendidoPayload:
+      type: object
+      required: [alojamientoId, nombre]
+      properties:
+        alojamientoId: { type: string, format: uuid }
+        nombre: { type: string }
+    AlojamientoActualizadoPayload:
+      type: object
+      required: [alojamientoId, codigo, estado, horaCheckin, horaCheckout]
+      properties:
+        alojamientoId: { type: string, format: uuid }
+        codigo: { type: integer, description: 'Código público entero (nunca el UUID hacia afuera).' }
+        estado: { type: string, enum: [BORRADOR, PUBLICADO, SUSPENDIDO] }
+        horaCheckin: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', example: '14:00', description: 'Siempre >= 14:00.' }
+        horaCheckout: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', example: '11:00', description: 'Siempre <= 11:00.' }
+    UsuarioActualizadoPayload:
+      type: object
+      required: [usuarioId, rol, activo]
+      properties:
+        usuarioId: { type: string, format: uuid }
+        rol: { type: string, enum: [USUARIO, ADMIN] }
+        activo: { type: boolean }
+    StockCambiadoPayload:
+      type: object
+      description: Cupo absoluto de una unidad en UNA noche (check-in .. check-out menos un día).
+      required: [alojamientoCodigo, codigoTipo, fecha, disponibles, emitidoEnMs]
+      properties:
+        alojamientoCodigo: { type: integer }
+        codigoTipo: { type: string, pattern: '^[A-Z0-9_]{2,40}$', example: HABITACION_ESTANDAR }
+        fecha: { type: string, format: date }
+        disponibles: { type: integer, minimum: 0 }
+        emitidoEnMs: { type: integer, format: int64, description: 'Epoch en ms. Booking descarta valores menores al último que procesó.' }

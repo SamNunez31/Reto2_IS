@@ -90,8 +90,11 @@ async function http(method, path, { token, body, headers = {} } = {}) {
   check('sin Idempotency-Key -> 400', r.status === 400, r.json);
 
   const clave = uuid();
+  const t0Crear = Date.now();
   r = await http('POST', '/api/v2/alojamientos/orders/create', { token, body: orden, headers: { 'idempotency-key': clave, 'x-correlation-id': 'corr-prueba-0001' } });
+  const msCrear = Date.now() - t0Crear;
   check('201 creada', r.status === 201, r.json);
+  check(`orders/create responde en <= 3000 ms (medido: ${msCrear} ms)`, msCrear <= 3000, msCrear);
   const o = r.json;
   check('estado CONFIRMED + ids con formato', o.estado === 'CONFIRMED' && /^ORD-HTL-[A-Z0-9]{3,20}$/.test(o.external_order_id) && /^BK-HOTEL-[A-Z0-9]{3,20}$/.test(o.codigoReserva), o);
   check('desgloseFiscal.total = total cotizado', o.desgloseFiscal?.total === cot.precioTotalCotizado && o.total === cot.precioTotalCotizado, o.desgloseFiscal);

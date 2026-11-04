@@ -16,6 +16,7 @@
     "docs:openapi": "nest build && node dist/scripts/generar-openapi.js",
     "contract:check": "node scripts/contract-check.js",
     "contract:export": "node scripts/exportar-contrato-propio.js",
+    "contract:split": "node scripts/dividir-contratos.js",
     "token:servicio": "node scripts/token-servicio.js",
     "stock:cargar": "nest build && node dist/scripts/cargar-stock.js",
     "stock:falso": "node scripts/servidor-stock-falso.cjs",
