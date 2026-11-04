@@ -71,3 +71,10 @@ Diferencias y cómo se resolvieron:
 - El servidor falso (`npm run stock:falso`) ya usa este .proto e imita `STALE_TIMESTAMP_IGNORED`, `INVALID_SLOT`, `ITEM_NOT_FOUND` y `GetSlotAvailability`.
 - Directiva del líder (reparto en 7 microservicios entre 4 compañeros: ms_catalog, ms_rooms, ms_inventory, ms_orders, ms_reception, ms_pricing, ms_housekeeping): pendiente de decidir cómo se mapea con la arquitectura individual de 4 servicios (Bloque 4).
 - Horarios: el texto dice check-out máximo 11:00 y check-in desde 14:00; la BD tiene check-out por defecto 12:00 (`alojamiento.hora_checkout`). Pendiente de decidir.
+
+## Entrada — Migración a microservicios y gateway (semanas 7 a 11)
+- Decisión: monolito modular desplegado como 4 servicios (`SERVICE_ROLE`), una imagen; justificación y límites en `docs/ARQUITECTURA_MICROSERVICIOS.md`.
+- Gateway Kong DB-less generado desde las reglas del código (una sola fuente de verdad), con key-auth, rate limit por consumidor, correlation-id, proxy-cache y métricas.
+- Contract testing con Pact (Booking como consumidor, Posada EC como proveedor) y pruebas del reparto de rutas.
+- Observabilidad: `/metrics` Prometheus por servicio; auditoría de operaciones críticas `/api/v2`.
+- Pendiente de demostrar en Azure: ejecutar `scripts/desplegar-microservicios-azure.sh`, correr `pact:verificar` contra el gateway y capturar evidencias (`docs/EVIDENCIAS_RETO2.md`).

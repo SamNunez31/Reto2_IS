@@ -6,6 +6,9 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { crearValidationPipe } from './common/validation/validation';
 import { correlacionMiddleware, errorParserMiddleware, redireccionHttpsMiddleware } from './common/middleware/http-middlewares';
+import { rolServicioMiddleware } from './common/middleware/rol-servicio';
+import { auditoriaOperacionesMiddleware } from './common/logging/auditoria';
+import { metricasHandler, metricasMiddleware } from './common/metricas/metricas';
 import { esProduccion, origenesCors } from './config/entorno';
 import { montarSwagger } from './swagger';
 import { logJson } from './common/logging/log-json';
@@ -16,6 +19,10 @@ async function bootstrap() {
 
   app.set('trust proxy', 1); // Render/Vercel están detrás de un proxy: IP real para el rate limit
   app.use(correlacionMiddleware);
+  app.use('/metrics', metricasHandler); // S10: Prometheus; NO se enruta por el gateway
+  app.use(metricasMiddleware);
+  app.use(auditoriaOperacionesMiddleware); // S11: auditoría de operaciones críticas /api/v2
+  app.use(rolServicioMiddleware); // Reto 2: SERVICE_ROLE limita las rutas de cada microservicio
   if (produccion) app.use(redireccionHttpsMiddleware);
   app.use(
     helmet({

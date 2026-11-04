@@ -121,6 +121,7 @@ export class AlojamientosV2Service {
         service: 'MS_ALOJAMIENTOS',
         vertical: 'ALOJAMIENTOS',
         ...(process.env.NODE_ID ? { nodo_id: process.env.NODE_ID } : {}),
+        servicio: process.env.SERVICE_ROLE || 'all',
         version: '2.2.0',
         latency_ms: latencia,
         uptime_seconds: Math.floor((Date.now() - INICIO) / 1000),

@@ -1,0 +1,228 @@
+{
+  "consumer": {
+    "name": "Booking-Prototipo"
+  },
+  "interactions": [
+    {
+      "description": "crear orden sin Idempotency-Key",
+      "request": {
+        "body": {},
+        "headers": {
+          "Authorization": "Bearer token-de-prueba",
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {},
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer .+"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v2/alojamientos/orders/create"
+      },
+      "response": {
+        "body": {
+          "code": "VALIDATION_FAILED",
+          "status": 400,
+          "type": "https://booking-prototipo.ec/problemas/validation-failed"
+        },
+        "headers": {
+          "Content-Type": "application/problem+json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$.code": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {},
+          "status": {}
+        },
+        "status": 400
+      }
+    },
+    {
+      "description": "una consulta de categorías",
+      "providerStates": [
+        {
+          "name": "existen tipos de alojamiento"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/v2/alojamientos/categorias"
+      },
+      "response": {
+        "body": [
+          {
+            "id": "CAT-1",
+            "nombre": "Hotel",
+            "orden": 0,
+            "slug": "hotel"
+          }
+        ],
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^CAT-\\d+$"
+                }
+              ]
+            },
+            "$[*].nombre": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].orden": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$[*].slug": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {},
+          "status": {}
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "una consulta de salud del nodo",
+      "providerStates": [
+        {
+          "name": "la base de datos está conectada"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/alojamientos/health"
+      },
+      "response": {
+        "body": {
+          "database": {
+            "status": "CONNECTED"
+          },
+          "latency_ms": 12,
+          "semaforo": "GREEN",
+          "service": "MS_ALOJAMIENTOS",
+          "status": "HEALTHY",
+          "version": "2.2.0",
+          "vertical": "ALOJAMIENTOS"
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$.latency_ms": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.semaforo": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(GREEN|YELLOW)$"
+                }
+              ]
+            },
+            "$.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(HEALTHY|DEGRADED)$"
+                }
+              ]
+            },
+            "$.version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^2\\.\\d+\\.\\d+$"
+                }
+              ]
+            }
+          },
+          "header": {},
+          "status": {}
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "Posada-EC"
+  }
+}

@@ -1,0 +1,69 @@
+# RETO 2: arquitectura de microservicios completa en local.
+#   docker compose -f docker-compose.microservicios.yml up --build
+# Cliente -> gateway (Kong, :8080) -> identity | catalog | reservations | integration -> Postgres.
+# Los 4 servicios usan la MISMA imagen; solo cambia SERVICE_ROLE (ver docs/ARQUITECTURA_MICROSERVICIOS.md).
+x-servicio: &servicio
+  build: ./backend
+  restart: unless-stopped
+  depends_on:
+    postgres: { condition: service_healthy }
+  environment: &entorno
+    NODE_ENV: development
+    PORT: '3000'
+    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/posada_reto2
+    DB_SSL: 'false'
+    JWT_SECRET: ${JWT_SECRET:-clave-local-solo-para-desarrollo-32-caracteres-min}
+    SERVICE_API_KEY: ${SERVICE_API_KEY:-llave-local-de-prueba}
+    CORS_ORIGINS: http://localhost:4200
+    API_PUBLIC_URL: http://localhost:8080
+    NODE_ID: NODE_ALO_PEC
+    METRICS_TOKEN: ${METRICS_TOKEN:-}
+
+services:
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_DB: posada_reto2, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+    ports: ['5433:5432']
+    volumes:
+      - pgdata_micro:/var/lib/postgresql/data
+      - ./database/01_esquema.sql:/docker-entrypoint-initdb.d/01_esquema.sql:ro
+      - ./database/02_datos_demo.sql:/docker-entrypoint-initdb.d/02_datos_demo.sql:ro
+      - ./database/03_integracion.sql:/docker-entrypoint-initdb.d/03_integracion.sql:ro
+      - ./database/04_v2_integracion.sql:/docker-entrypoint-initdb.d/04_v2_integracion.sql:ro
+      - ./database/datos_catalogo_extra.sql:/docker-entrypoint-initdb.d/05_datos_catalogo_extra.sql:ro
+      - ./database/05_v2_checkin.sql:/docker-entrypoint-initdb.d/06_v2_checkin.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d posada_reto2']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  identity:
+    <<: *servicio
+    environment: { <<: *entorno, SERVICE_ROLE: identity }
+  catalog:
+    <<: *servicio
+    environment: { <<: *entorno, SERVICE_ROLE: catalog }
+  reservations:
+    <<: *servicio
+    environment: { <<: *entorno, SERVICE_ROLE: reservations }
+  integration:
+    <<: *servicio
+    environment: { <<: *entorno, SERVICE_ROLE: integration }
+
+  gateway:
+    build: ./gateway
+    restart: unless-stopped
+    depends_on: [identity, catalog, reservations, integration]
+    environment:
+      UPSTREAM_IDENTITY: http://identity:3000
+      UPSTREAM_CATALOG: http://catalog:3000
+      UPSTREAM_RESERVATIONS: http://reservations:3000
+      UPSTREAM_INTEGRATION: http://integration:3000
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-llave-local-de-prueba}
+    ports:
+      - '8080:8000'   # tráfico (único puerto público)
+      - '8100:8100'   # estado y métricas de Kong (/status, /metrics)
+
+volumes:
+  pgdata_micro:

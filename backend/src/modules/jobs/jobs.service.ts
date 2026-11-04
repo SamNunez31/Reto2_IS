@@ -36,7 +36,9 @@ export class JobsService {
     private readonly bus: BusEventos,
     config: ConfigService,
   ) {
-    this.habilitados = config.get<string>('JOBS_ENABLED') !== 'false';
+    // Reto 2: los jobs (outbox, completar estancias) solo corren en el servicio de integración o en el monolito
+    const rol = (process.env.SERVICE_ROLE ?? '').trim().toLowerCase();
+    this.habilitados = config.get<string>('JOBS_ENABLED') !== 'false' && (rol === '' || rol === 'all' || rol === 'integration');
   }
 
   @Cron(CronExpression.EVERY_HOUR)

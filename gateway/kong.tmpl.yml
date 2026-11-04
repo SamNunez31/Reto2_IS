@@ -1,0 +1,168 @@
+# GENERADO por gateway/generar-kong.js — no editar a mano (npm run gateway:generar en backend).
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: identity
+    url: __UPSTREAM_IDENTITY__
+    retries: 2
+    connect_timeout: 30000   # scale-to-zero: el primer paquete puede esperar el arranque en frío
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: identity-11
+        paths: ["~/api/v1/auth(/|$)"]
+        regex_priority: 989
+        strip_path: false
+      - name: identity-12
+        paths: ["~/api/v1/me$"]
+        regex_priority: 988
+        strip_path: false
+      - name: identity-14
+        paths: ["~/api/v1/admin/users(/|$)"]
+        regex_priority: 986
+        strip_path: false
+  - name: catalog
+    url: __UPSTREAM_CATALOG__
+    retries: 2
+    connect_timeout: 30000   # scale-to-zero: el primer paquete puede esperar el arranque en frío
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: catalogo-cache-tipos
+        paths: ["~/api/v2/alojamientos/tipos$"]
+        methods: [GET]
+        regex_priority: 1500
+        strip_path: false
+        plugins:
+          - name: proxy-cache
+            config: { strategy: memory, request_method: [GET], response_code: [200], content_type: ["application/json"], cache_ttl: 60 }
+      - name: catalog-4
+        paths: ["~/api/v2/alojamientos(/|$)"]
+        regex_priority: 996
+        strip_path: false
+      - name: catalog-5
+        paths: ["~/api/v1/orders/[^/]+/review$"]
+        regex_priority: 995
+        strip_path: false
+      - name: catalog-6
+        paths: ["~/api/v1/host/reviews(/|$)"]
+        regex_priority: 994
+        strip_path: false
+      - name: catalog-9
+        paths: ["~/api/v1/host/accommodations(/|$)"]
+        regex_priority: 991
+        strip_path: false
+      - name: catalog-15
+        paths: ["~/api/v1/admin/(accommodations|catalogs)(/|$)"]
+        regex_priority: 985
+        strip_path: false
+      - name: catalog-19
+        paths: ["~/api/v1/(search|details|chains|constants|reviews)(/|$)"]
+        regex_priority: 981
+        strip_path: false
+  - name: reservations
+    url: __UPSTREAM_RESERVATIONS__
+    retries: 2
+    connect_timeout: 30000   # scale-to-zero: el primer paquete puede esperar el arranque en frío
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: health-raiz
+        paths: ["~/health$"]
+        regex_priority: 2000
+        strip_path: false
+      - name: health-v1
+        paths: ["~/api/v1/health$"]
+        regex_priority: 2000
+        strip_path: false
+      - name: health-v2
+        paths: ["~/api/v2/alojamientos/health$"]
+        regex_priority: 2000
+        strip_path: false
+      - name: reservations-2
+        paths: ["~/api/v2/alojamientos/(orders|reservations|reservas|availability)(/|$)"]
+        regex_priority: 998
+        strip_path: false
+      - name: reservations-3
+        paths: ["~/api/v2/alojamientos/[^/]+/(inventario|disponibilidad|availability|reservations)$"]
+        regex_priority: 997
+        strip_path: false
+      - name: reservations-7
+        paths: ["~/api/v1/host/accommodations/[^/]+/units$"]
+        regex_priority: 993
+        strip_path: false
+      - name: reservations-8
+        paths: ["~/api/v1/host/units(/|$)"]
+        regex_priority: 992
+        strip_path: false
+      - name: reservations-10
+        paths: ["~/api/v1/host/(orders|income)(/|$)"]
+        regex_priority: 990
+        strip_path: false
+      - name: reservations-13
+        paths: ["~/api/v1/me/orders$"]
+        regex_priority: 987
+        strip_path: false
+      - name: reservations-16
+        paths: ["~/api/v1/admin/(taxes|indicators|sales-by-city|top-accommodations)(/|$)"]
+        regex_priority: 984
+        strip_path: false
+      - name: reservations-20
+        paths: ["~/api/v1/(availability|bulk-availability|orders)(/|$)"]
+        regex_priority: 980
+        strip_path: false
+  - name: integration
+    url: __UPSTREAM_INTEGRATION__
+    retries: 2
+    connect_timeout: 30000   # scale-to-zero: el primer paquete puede esperar el arranque en frío
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: integration-1
+        paths: ["~/api/v2/alojamientos/(promociones|eventos)(/|$)"]
+        regex_priority: 999
+        strip_path: false
+      - name: integration-17
+        paths: ["~/api/v1/admin/(events|jobs)(/|$)"]
+        regex_priority: 983
+        strip_path: false
+      - name: integration-18
+        paths: ["~/api/v1/webhooks(/|$)"]
+        regex_priority: 982
+        strip_path: false
+
+  # Estado del propio gateway (S8: "no monitorear el Gateway" es un error común).
+  - name: gateway-estado
+    url: http://127.0.0.1:8000
+    routes:
+      - name: gateway-health
+        paths: ["~/gateway/health$"]
+        regex_priority: 3000
+        strip_path: false
+        plugins:
+          - name: request-termination
+            config: { status_code: 200, content_type: "application/json", body: '{"status":"UP","gateway":"kong","node":"NODE_ALO_PEC"}' }
+
+consumers:
+  - username: booking          # Booking Prototipo (identificado por X-API-Key)
+    keyauth_credentials:
+      - key: __SERVICE_API_KEY__
+    plugins:
+      - name: rate-limiting
+        config: { minute: 1200, policy: local, limit_by: consumer }
+  - username: anonimo          # sin llave: frontend propio, health checks y tráfico no identificado
+
+plugins:
+  - name: key-auth             # identifica al consumidor; "anonymous" deja pasar y el backend decide con JWT + scopes
+    config: { key_names: ["X-API-Key"], anonymous: anonimo, hide_credentials: false }
+  - name: rate-limiting        # límite por IP para el tráfico no identificado (el de Booking es mayor, por consumer)
+    config: { minute: 240, policy: local, limit_by: ip }
+  - name: correlation-id       # trazabilidad: el gateway inyecta X-Correlation-Id si el cliente no lo trae
+    config: { header_name: X-Correlation-Id, generator: uuid, echo_downstream: true }
+  - name: request-size-limiting
+    config: { allowed_payload_size: 200, size_unit: kilobytes }
+  - name: response-transformer
+    config: { add: { headers: ["X-Gateway: posada-kong"] } }
+  - name: prometheus           # métricas del gateway en el puerto de estado (8100) /metrics
+    config: { per_consumer: true, status_code_metrics: true, latency_metrics: true }

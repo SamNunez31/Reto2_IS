@@ -27,6 +27,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run contract:check
+      - run: npm run gateway:check
+      - run: npm run test:roles
 
   frontend:
     runs-on: ubuntu-latest

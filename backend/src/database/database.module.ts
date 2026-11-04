@@ -13,6 +13,7 @@ const HOSTS_LOCALES = ['localhost', '127.0.0.1', '::1', '[::1]'];
 
 /** SSL solo fuera de localhost: Postgres de Docker no tiene TLS; Supabase lo exige. */
 export function usarSsl(url: string | undefined): boolean {
+  if (process.env.DB_SSL === 'false') return false; // docker compose: el host es "postgres", no localhost
   try {
     return !HOSTS_LOCALES.includes(new URL(url ?? '').hostname);
   } catch {
