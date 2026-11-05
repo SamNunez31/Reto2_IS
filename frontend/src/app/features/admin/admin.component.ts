@@ -118,6 +118,11 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
                     @if (s.metodo_pago === 'EFECTIVO' && s.estado_pago === 'PENDIENTE' && (s.estado === 'CONFIRMADA' || s.estado === 'COMPLETADA')) {
                       <button class="btn btn-chico btn-primario" type="button" (click)="confirmarPago(s)">Confirmar pago recibido</button>
                     }
+                    @if (s.canal_booking && s.estado === 'CONFIRMADA' && !s.checkin_en) {
+                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">Registrar llegada</button>
+                    } @else if (s.canal_booking && s.checkin_en) {
+                      <span class="badge">Huésped en el hotel</span>
+                    }
                   </td>
                 </tr>
               } @empty { @if (!cargando()) { <tr><td colspan="8">Sin reservas</td></tr> } }
@@ -435,6 +440,27 @@ export class AdminComponent implements OnInit {
     });
     if (!si) return;
     this.accion(this.catalogo.confirmarPago(s.id), `Pago de la reserva ${s.codigo} confirmado`, 'reservas');
+  }
+
+  async registrarLlegada(s: ReservaHost): Promise<void> {
+    const si = await this.confirmar.pedir({
+      titulo: '¿El huésped ya llegó?',
+      mensaje: `Confirma solo si ${s.huesped} se presentó en recepción por la reserva ${s.codigo} («${s.alojamiento}»). Se le asignará habitación y se avisará a Booking.`,
+      confirmar: 'Sí, registrar llegada',
+      cancelar: 'Todavía no',
+    });
+    if (!si) return;
+    this.ok.limpiar();
+    this.catalogo.registrarLlegada(s.id).subscribe({
+      next: (r) => {
+        this.ok.mostrar(
+          `Llegada de la reserva ${s.codigo} registrada (habitación ${r.habitacion_asignada}). ` +
+            (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
+        );
+        this.ir('reservas');
+      },
+      error: (e) => this.error.set(leerError(e)),
+    });
   }
 
   private usd(n: number): string {

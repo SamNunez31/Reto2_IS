@@ -9,7 +9,7 @@ import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, RangoFechasDto,
   ResponderResenaDto, UnidadDto,
 } from './dto/host.dto';
-import { HostService, ReservaHost, ResumenAlojamiento, UnidadHost } from './host.service';
+import { HostService, ReservaHost, RespuestaLlegada, ResumenAlojamiento, UnidadHost } from './host.service';
 
 const uuid = (n: string) =>
   new ParseUUIDPipe({ exceptionFactory: () => invalido(`${n} debe ser un UUID`, [{ name: n, reason: 'formato UUID requerido' }]) });
@@ -136,6 +136,35 @@ export class HostController {
     const r = await this.host.confirmarPago(id, u);
     auditar('pago_confirmado', req, { reserva_id: id, codigo: r.reserva.codigo, ya_confirmado: r.ya_confirmado });
     return ok(r, r.ya_confirmado ? 'El pago ya estaba confirmado' : 'Pago en efectivo confirmado');
+  }
+
+  @Post('orders/:id/arrival')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Check-in en recepción: el huésped llegó',
+    description: 'Solo reservas confirmadas del canal Booking. Marca la llegada, asigna habitación y avisa a Booking ' +
+      '(POST /api/v2/reservas/{id}/checkin). Idempotente. Si Booking no responde, `booking_notificado` es false y el aviso se reintenta solo.',
+  })
+  @ApiResponse({ status: 409, description: 'La reserva no es del canal Booking o no está confirmada' })
+  async llegada(
+    @Param('id', uuid('id')) id: string,
+    @Body() body: Record<string, unknown> | undefined,
+    @UsuarioActual() u: UsuarioToken,
+    @Req() req: Request,
+  ): Promise<RespuestaApi<RespuestaLlegada>> {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const r = await this.host.registrarLlegada(
+      id,
+      {
+        observaciones: b.observaciones as string | undefined,
+        huespedes_reales: b.huespedes_reales as number | undefined,
+        admin_id: b.admin_id as string | undefined,
+        habitacion: b.habitacion as string | undefined,
+      },
+      u,
+    );
+    auditar('operacion_critica', req, { reserva_id: id, accion: 'checkin_recepcion', ya_registrado: r.ya_registrado, booking_notificado: r.booking_notificado });
+    return ok(r, r.booking_notificado ? 'Llegada registrada y Booking notificado' : 'Llegada registrada; Booking se notificará en breve (reintento automático)');
   }
 
   @Get('income')

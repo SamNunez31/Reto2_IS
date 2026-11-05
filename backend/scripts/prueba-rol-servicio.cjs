@@ -10,6 +10,7 @@ const t = (cond, nombre) => { console.log((cond ? 'OK   ' : 'FALLA') + ' ' + nom
 const casos = [
   ['/api/v1/auth/login', 'identity'], ['/api/v1/me', 'identity'], ['/api/v1/search', 'catalog'],
   ['/api/v1/orders/abc/review', 'catalog'], ['/api/v1/orders', 'reservations'], ['/api/v1/webhooks/x', 'integration'],
+  ['/api/v2/clientes', 'identity'], ['/api/v1/host/orders/abc/arrival', 'reservations'],
   ['/api/v2/alojamientos', 'catalog'], ['/api/v2/alojamientos/HTL-1', 'catalog'], ['/api/v2/alojamientos/categorias', 'catalog'],
   ['/api/v2/alojamientos/orders/create', 'reservations'], ['/api/v2/alojamientos/HTL-1/inventario', 'reservations'],
   ['/api/v2/alojamientos/availability', 'reservations'], ['/api/v2/alojamientos/eventos', 'integration'],

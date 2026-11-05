@@ -4,9 +4,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { logJson } from '../../common/logging/log-json';
 import { noEncontrado } from '../../common/problem/problem';
 import { Consulta, DbService } from '../../database/db.service';
+import { NotificadorCheckin } from '../integracion/notificador-checkin';
 import { BusEventos, EventoNegocio } from './bus-eventos';
 
-export const JOBS = ['completar-estancias', 'publicar-outbox', 'purgar-idempotencia'] as const;
+export const JOBS = ['completar-estancias', 'publicar-outbox', 'purgar-idempotencia', 'notificar-checkin'] as const;
 export type NombreJob = (typeof JOBS)[number];
 
 /** Llave numérica de pg_try_advisory_xact_lock por job (evita que dos instancias lo corran a la vez). */
@@ -14,6 +15,7 @@ const LLAVE: Record<NombreJob, number> = {
   'completar-estancias': 71002,
   'publicar-outbox': 71003,
   'purgar-idempotencia': 71004,
+  'notificar-checkin': 71005,
 };
 
 export interface ResultadoJob {
@@ -34,6 +36,7 @@ export class JobsService {
   constructor(
     private readonly db: DbService,
     private readonly bus: BusEventos,
+    private readonly checkin: NotificadorCheckin,
     config: ConfigService,
   ) {
     // Reto 2: los jobs (outbox, completar estancias) solo corren en el servicio de integración o en el monolito
@@ -49,6 +52,11 @@ export class JobsService {
   @Cron(CronExpression.EVERY_5_SECONDS)
   outboxProgramado(): Promise<void> {
     return this.programado('publicar-outbox');
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  checkinProgramado(): Promise<void> {
+    return this.programado('notificar-checkin');
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
@@ -89,6 +97,8 @@ export class JobsService {
         return (await q(`DELETE FROM idempotencia WHERE creado_en < now() - interval '24 hours' RETURNING clave`)).length;
       case 'publicar-outbox':
         return this.publicarOutbox(q);
+      case 'notificar-checkin':
+        return this.checkin.reintentarPendientes();
     }
   }
 

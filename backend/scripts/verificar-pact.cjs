@@ -20,6 +20,7 @@ new Verifier({
   stateHandlers: {
     'la base de datos está conectada': async () => 'ok',
     'existen tipos de alojamiento': async () => 'ok',
+    'no existe el huésped': async () => 'ok',
   },
   logLevel: 'warn',
 })

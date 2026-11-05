@@ -8,6 +8,22 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Eventos propuestos aún sin emitir: `AlojamientoActualizado`, `UsuarioActualizado`, `StockCambiado`.
 - `ReservaCreada` 1.1.0 (campos opcionales `lineas` y `canal`).
 
+## Extensiones de la defensa: huéspedes y check-in en recepción — 2026-11-04
+
+Requisito de la cátedra para el flujo «crear en Posada → reservar desde Booking → llegada física». Cambios **aditivos** (no tocan v2.2.0).
+
+### Agregado
+- `GET /api/v2/clientes?email=&identificacion=` (scope `alojamientos:read`): 200 con la ficha o 404.
+- `POST /api/v2/clientes` (scope `alojamientos:book`): 201 con `client_id`; 200 con el mismo id si ya existía; 409 si correo e identificación son de fichas distintas. No duplica por correo ni por identificación.
+- Cada orden creada por `POST /orders/create` se vincula a la ficha del titular (`orden_v2.cliente_id`).
+- Aviso saliente a Booking `POST /api/v2/reservas/{external_order_id}/checkin` (`X-API-Key`) al registrar la llegada en recepción
+  (`POST /api/v1/host/orders/{id}/arrival`, solo ADMIN). Con reintentos automáticos (job `notificar-checkin`).
+- Contrato de estas rutas: `contracts/posada-extensiones-v2.yaml`. Migración: `database/06_v2_clientes_checkin.sql`.
+
+### Notas
+- El arranque acepta 28 o 29 tablas, de modo que la imagen nueva se puede desplegar antes o después del script 06.
+- El mensaje de la cátedra dice «contrato v2.1»; el nodo sigue en v2.2.0. Pendiente de confirmar con el líder de integración si existe un contrato más nuevo que incluya estas rutas.
+
 ## Contrato v2.2.0 completo (36 de 36 operaciones) — 2026-11-03
 
 ### Agregado

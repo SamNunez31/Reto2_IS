@@ -78,3 +78,15 @@ Diferencias y cómo se resolvieron:
 - Contract testing con Pact (Booking como consumidor, Posada EC como proveedor) y pruebas del reparto de rutas.
 - Observabilidad: `/metrics` Prometheus por servicio; auditoría de operaciones críticas `/api/v2`.
 - Pendiente de demostrar en Azure: ejecutar `scripts/desplegar-microservicios-azure.sh`, correr `pact:verificar` contra el gateway y capturar evidencias (`docs/EVIDENCIAS_RETO2.md`).
+
+
+## 2026-11-04 — Huéspedes (`/api/v2/clientes`) y check-in en recepción
+
+Pedido de la cátedra para el flujo crear habitación → reservar desde Booking → llegada física.
+
+- `GET|POST /api/v2/clientes`: ficha única por correo e identificación (201 nueva, 200 mismo `client_id`, 409 si chocan). Servicio **identity** en el gateway. Contrato: `backend/contracts/posada-extensiones-v2.yaml`.
+- Panel de administración: botón «Registrar llegada» (`POST /api/v1/host/orders/:id/arrival`, solo ADMIN, servicio **reservations**). Registra el check-in y avisa a Booking con `POST /api/v2/reservas/{external_order_id}/checkin` (X-API-Key).
+- Si Booking no responde, el job `notificar-checkin` (servicio **integration**) reintenta con espera creciente (máx. 12). Mismo patrón de resiliencia que el outbox.
+- Auditoría: evento `operacion_critica` con `accion: checkin_recepcion`.
+- Migración `database/06_v2_clientes_checkin.sql` (tabla `cliente_v2` + columnas de check-in en `orden_v2`).
+- Pruebas: `test:roles` (ruteo), Pact (5 interacciones) y bloque `[clientes]` en `prueba-v2.cjs`.

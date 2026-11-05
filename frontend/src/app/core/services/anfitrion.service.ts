@@ -83,6 +83,18 @@ export interface ReservaHost {
   metodo_pago: string | null;
   /** PENDIENTE (efectivo aún no recibido) | APROBADO */
   estado_pago: string | null;
+  /** true si llegó por Booking (orden v2): solo esas admiten check-in en recepción */
+  canal_booking: boolean;
+  /** Momento de llegada del huésped; null si aún no llegó */
+  checkin_en: string | null;
+}
+
+export interface RespuestaLlegada {
+  reserva: ReservaHost;
+  estado: 'CHECKED_IN';
+  habitacion_asignada: string;
+  ya_registrado: boolean;
+  booking_notificado: boolean;
 }
 
 export interface ResenaHost {
@@ -138,6 +150,11 @@ export class AnfitrionService {
     return datos(this.http.get<RespuestaApi<Listado<ReservaHost>>>(`${this.base}/orders`, { params }));
   }
   /** Marca como recibido el pago en efectivo de la reserva (idempotente). */
+  /** Check-in en recepción: el huésped llegó. El backend avisa a Booking. */
+  registrarLlegada(id: string, cuerpo: { observaciones?: string } = {}): Observable<RespuestaLlegada> {
+    return datos(this.http.post<RespuestaApi<RespuestaLlegada>>(`${this.base}/orders/${id}/arrival`, cuerpo));
+  }
+
   confirmarPago(id: string): Observable<{ reserva: ReservaHost; ya_confirmado: boolean }> {
     return datos(this.http.post<RespuestaApi<{ reserva: ReservaHost; ya_confirmado: boolean }>>(`${this.base}/orders/${id}/confirm-payment`, null));
   }

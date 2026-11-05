@@ -13,6 +13,7 @@ export const ROLES: readonly RolServicio[] = ['identity', 'catalog', 'reservatio
 /** Mismas reglas que scripts/dividir-contratos.js (v1) + reparto del contrato v2. Orden = prioridad. */
 export const REGLAS: ReadonlyArray<[RegExp, RolServicio]> = [
   // ---- v2 (canal Booking) ----
+  [/^\/api\/v2\/clientes(\/|$)/, 'identity'], // fichas de huéspedes
   [/^\/api\/v2\/alojamientos\/(promociones|eventos)(\/|$)/, 'integration'],
   [/^\/api\/v2\/alojamientos\/(orders|reservations|reservas|availability)(\/|$)/, 'reservations'],
   [/^\/api\/v2\/alojamientos\/[^/]+\/(inventario|disponibilidad|availability|reservations)$/, 'reservations'],

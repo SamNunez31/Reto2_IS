@@ -10,17 +10,21 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
-      - name: identity-11
-        paths: ["~/api/v1/auth(/|$)"]
-        regex_priority: 989
+      - name: identity-1
+        paths: ["~/api/v2/clientes(/|$)"]
+        regex_priority: 999
         strip_path: false
       - name: identity-12
-        paths: ["~/api/v1/me$"]
+        paths: ["~/api/v1/auth(/|$)"]
         regex_priority: 988
         strip_path: false
-      - name: identity-14
+      - name: identity-13
+        paths: ["~/api/v1/me$"]
+        regex_priority: 987
+        strip_path: false
+      - name: identity-15
         paths: ["~/api/v1/admin/users(/|$)"]
-        regex_priority: 986
+        regex_priority: 985
         strip_path: false
   - name: catalog
     url: __UPSTREAM_CATALOG__
@@ -49,29 +53,29 @@ services:
         plugins:
           - name: proxy-cache
             config: { strategy: memory, request_method: [GET], response_code: [200], content_type: ["application/json"], cache_ttl: 60 }
-      - name: catalog-4
-        paths: ["~/api/v2/alojamientos(/|$)"]
-        regex_priority: 996
-        strip_path: false
       - name: catalog-5
-        paths: ["~/api/v1/orders/[^/]+/review$"]
+        paths: ["~/api/v2/alojamientos(/|$)"]
         regex_priority: 995
         strip_path: false
       - name: catalog-6
-        paths: ["~/api/v1/host/reviews(/|$)"]
+        paths: ["~/api/v1/orders/[^/]+/review$"]
         regex_priority: 994
         strip_path: false
-      - name: catalog-9
+      - name: catalog-7
+        paths: ["~/api/v1/host/reviews(/|$)"]
+        regex_priority: 993
+        strip_path: false
+      - name: catalog-10
         paths: ["~/api/v1/host/accommodations(/|$)"]
-        regex_priority: 991
+        regex_priority: 990
         strip_path: false
-      - name: catalog-15
+      - name: catalog-16
         paths: ["~/api/v1/admin/(accommodations|catalogs)(/|$)"]
-        regex_priority: 985
+        regex_priority: 984
         strip_path: false
-      - name: catalog-19
+      - name: catalog-20
         paths: ["~/api/v1/(search|details|chains|constants|reviews)(/|$)"]
-        regex_priority: 981
+        regex_priority: 980
         strip_path: false
   - name: reservations
     url: __UPSTREAM_RESERVATIONS__
@@ -80,37 +84,37 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
-      - name: reservations-2
-        paths: ["~/api/v2/alojamientos/(orders|reservations|reservas|availability)(/|$)"]
-        regex_priority: 998
-        strip_path: false
       - name: reservations-3
-        paths: ["~/api/v2/alojamientos/[^/]+/(inventario|disponibilidad|availability|reservations)$"]
+        paths: ["~/api/v2/alojamientos/(orders|reservations|reservas|availability)(/|$)"]
         regex_priority: 997
         strip_path: false
-      - name: reservations-7
-        paths: ["~/api/v1/host/accommodations/[^/]+/units$"]
-        regex_priority: 993
+      - name: reservations-4
+        paths: ["~/api/v2/alojamientos/[^/]+/(inventario|disponibilidad|availability|reservations)$"]
+        regex_priority: 996
         strip_path: false
       - name: reservations-8
-        paths: ["~/api/v1/host/units(/|$)"]
+        paths: ["~/api/v1/host/accommodations/[^/]+/units$"]
         regex_priority: 992
         strip_path: false
-      - name: reservations-10
+      - name: reservations-9
+        paths: ["~/api/v1/host/units(/|$)"]
+        regex_priority: 991
+        strip_path: false
+      - name: reservations-11
         paths: ["~/api/v1/host/(orders|income)(/|$)"]
-        regex_priority: 990
+        regex_priority: 989
         strip_path: false
-      - name: reservations-13
+      - name: reservations-14
         paths: ["~/api/v1/me/orders$"]
-        regex_priority: 987
+        regex_priority: 986
         strip_path: false
-      - name: reservations-16
+      - name: reservations-17
         paths: ["~/api/v1/admin/(taxes|indicators|sales-by-city|top-accommodations)(/|$)"]
-        regex_priority: 984
+        regex_priority: 983
         strip_path: false
-      - name: reservations-20
+      - name: reservations-21
         paths: ["~/api/v1/(availability|bulk-availability|orders)(/|$)"]
-        regex_priority: 980
+        regex_priority: 979
         strip_path: false
   - name: integration
     url: __UPSTREAM_INTEGRATION__
@@ -119,17 +123,17 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
-      - name: integration-1
+      - name: integration-2
         paths: ["~/api/v2/alojamientos/(promociones|eventos)(/|$)"]
-        regex_priority: 999
-        strip_path: false
-      - name: integration-17
-        paths: ["~/api/v1/admin/(events|jobs)(/|$)"]
-        regex_priority: 983
+        regex_priority: 998
         strip_path: false
       - name: integration-18
-        paths: ["~/api/v1/webhooks(/|$)"]
+        paths: ["~/api/v1/admin/(events|jobs)(/|$)"]
         regex_priority: 982
+        strip_path: false
+      - name: integration-19
+        paths: ["~/api/v1/webhooks(/|$)"]
+        regex_priority: 981
         strip_path: false
 
   # Estado del propio gateway (S8: "no monitorear el Gateway" es un error común).

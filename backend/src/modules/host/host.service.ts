@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { UsuarioToken } from '../../common/auth/decorators';
 import { Listado } from '../../common/http/respuestas';
 import { conflicto, invalido, noEncontrado } from '../../common/problem/problem';
 import { Consulta, DbService } from '../../database/db.service';
 import { sqlPago } from '../alojamientos/services/ordenes.service';
+import { NotificadorCheckin } from '../integracion/notificador-checkin';
 import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, UnidadDto,
 } from './dto/host.dto';
@@ -18,8 +20,9 @@ const COLUMNAS_ALOJ = [
 const SQL_RESERVA_HOST = `
   SELECT r.id, r.codigo, r.estado::text AS estado, a.nombre AS alojamiento, a.codigo AS alojamiento_codigo, a.anfitrion_id,
          u.nombres || ' ' || u.apellidos AS huesped, r.fecha_entrada, r.fecha_salida, r.num_huespedes,
-         t.total, r.created_at, ${sqlPago('r.id')}
+         t.total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en
     FROM reserva r
+    LEFT JOIN orden_v2 o ON o.reserva_id = r.id
     JOIN alojamiento a ON a.id = r.alojamiento_id
     JOIN usuario u ON u.id = r.huesped_id
     JOIN v_reserva_total t ON t.reserva_id = r.id`;
@@ -69,6 +72,26 @@ export interface ReservaHost {
   metodo_pago: string | null;
   /** PENDIENTE (efectivo aún no recibido) | APROBADO */
   estado_pago: string | null;
+  /** true si la reserva llegó por el canal Booking (orden v2): solo esas admiten check-in en recepción */
+  canal_booking: boolean;
+  /** Momento en que el huésped llegó (null si aún no) */
+  checkin_en: string | null;
+}
+
+export interface RespuestaLlegada {
+  reserva: ReservaHost;
+  estado: 'CHECKED_IN';
+  habitacion_asignada: string;
+  ya_registrado: boolean;
+  /** true si Booking confirmó el aviso; false = queda en cola de reintentos automáticos */
+  booking_notificado: boolean;
+}
+
+export interface DatosLlegada {
+  observaciones?: string;
+  huespedes_reales?: number;
+  admin_id?: string;
+  habitacion?: string;
 }
 
 /**
@@ -79,7 +102,7 @@ export interface ReservaHost {
  */
 @Injectable()
 export class HostService {
-  constructor(private readonly db: DbService) {}
+  constructor(private readonly db: DbService, private readonly checkin: NotificadorCheckin) {}
 
   /** null = sin filtro de dueño (ADMIN); si no, el id del usuario. */
   private dueno(user: UsuarioToken): string | null {
@@ -276,6 +299,49 @@ export class HostService {
       [reservaId],
     );
     return { reserva: await this.reserva(reservaId, user), ya_confirmado: false };
+  }
+
+
+  /**
+   * Check-in en recepción (requisito de la defensa): el recepcionista confirma que el huésped llegó.
+   * Solo reservas CONFIRMADAS del canal Booking. Idempotente. Después avisa a Booking
+   * (POST /api/v2/reservas/{id}/checkin); si Booking no responde queda en reintentos automáticos.
+   */
+  async registrarLlegada(reservaId: string, datos: DatosLlegada, user: UsuarioToken): Promise<RespuestaLlegada> {
+    const actual = await this.reserva(reservaId, user);
+    const fila = await this.db.uno<{ checkin_en: string | null; recepcion: boolean; habitacion: string | null; unidad: string }>(
+      `SELECT o.checkin_en, o.checkin_recepcion AS recepcion, o.habitacion_asignada AS habitacion, u.nombre AS unidad
+         FROM orden_v2 o JOIN unidad_alojamiento u ON u.id = o.unidad_id WHERE o.reserva_id = $1`,
+      [reservaId],
+    );
+    if (!fila) throw conflicto('El check-in en recepción se registra solo para reservas del canal Booking');
+    if (actual.estado !== 'CONFIRMADA') throw conflicto(`La reserva está ${actual.estado.toLowerCase()}: solo una reserva confirmada admite check-in`);
+
+    const errores: { name: string; reason: string }[] = [];
+    if (datos.observaciones !== undefined && (typeof datos.observaciones !== 'string' || datos.observaciones.length > 300)) errores.push({ name: 'observaciones', reason: 'máximo 300 caracteres' });
+    if (datos.huespedes_reales !== undefined && !(Number.isInteger(datos.huespedes_reales) && datos.huespedes_reales >= 1 && datos.huespedes_reales <= 30)) errores.push({ name: 'huespedes_reales', reason: 'entero de 1 a 30' });
+    if (datos.admin_id !== undefined && (typeof datos.admin_id !== 'string' || datos.admin_id.length < 1 || datos.admin_id.length > 80)) errores.push({ name: 'admin_id', reason: '1 a 80 caracteres' });
+    if (datos.habitacion !== undefined && (typeof datos.habitacion !== 'string' || datos.habitacion.length > 100)) errores.push({ name: 'habitacion', reason: 'máximo 100 caracteres' });
+    if (errores.length) throw invalido('Datos de llegada no válidos', errores);
+
+    const yaRegistrado = fila.recepcion;
+    let habitacion = fila.habitacion;
+    if (!yaRegistrado) {
+      habitacion = datos.habitacion ?? fila.habitacion ?? `${fila.unidad} ${randomInt(101, 600)}`.slice(0, 100);
+      await this.db.transaccion(async (q) => {
+        await q(
+          `UPDATE orden_v2 SET checkin_recepcion = true, checkin_en = COALESCE(checkin_en, now()), habitacion_asignada = $2,
+                  checkin_admin = $3, checkin_observaciones = $4, checkin_huespedes = $5
+            WHERE reserva_id = $1`,
+          [reservaId, habitacion, datos.admin_id ?? (user.email ?? 'recepcionista-hotel').slice(0, 80), datos.observaciones ?? null, datos.huespedes_reales ?? null],
+        );
+        if (!fila.checkin_en) {
+          await q(`SELECT fn_emitir_evento('CheckInCompletado', 'Reserva', $1::uuid, $1::uuid, jsonb_build_object('reservaId', $1::text, 'estado', 'CHECKED_IN', 'canal', 'RECEPCION'))`, [reservaId]);
+        }
+      });
+    }
+    const notificado = await this.checkin.notificar(reservaId); // idempotente: si ya se avisó, devuelve true sin reenviar
+    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_IN', habitacion_asignada: habitacion ?? '', ya_registrado: yaRegistrado, booking_notificado: notificado };
   }
 
   /** Ingresos por mes (v_ingresos_anfitrion; para el ADMIN, suma de todo el catálogo). */

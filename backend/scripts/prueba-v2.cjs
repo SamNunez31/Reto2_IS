@@ -294,6 +294,26 @@ async function http(method, path, { token, body, headers = {} } = {}) {
   check('PUT admin -> 200 y GET lo refleja', r.status === 200 && r.json.porcentaje_descuento_maximo === 10, r.json);
   await http('PUT', '/api/v2/alojamientos/promociones/contrato', { token: tokAdmin, body: { permite_promociones: false, porcentaje_descuento_maximo: 0 } });
 
+  console.log('\n[clientes (huespedes sin duplicar)]');
+  const sufijo = Date.now().toString().slice(-8);
+  const cli = { nombre: 'Huesped Prueba', email: `prueba.${sufijo}@correo.test`, identificacion: 'PR' + sufijo, telefono: '0991234567' };
+  r = await http('GET', `/api/v2/clientes?identificacion=${cli.identificacion}`, { token });
+  check('GET cliente inexistente -> 404', r.status === 404, r.json);
+  r = await http('GET', '/api/v2/clientes', { token });
+  check('GET sin criterio -> 400', r.status === 400, r.json);
+  r = await http('POST', '/api/v2/clientes', { token: tokAdmin, body: cli });
+  check('POST cliente nuevo -> 201 con client_id', r.status === 201 && !!r.json.client_id, r.json);
+  const clienteId = r.json && r.json.client_id;
+  r = await http('POST', '/api/v2/clientes', { token: tokAdmin, body: cli });
+  check('POST repetido -> 200 mismo client_id (sin duplicar)', r.status === 200 && r.json.client_id === clienteId, r.json);
+  r = await http('GET', `/api/v2/clientes?email=${encodeURIComponent(cli.email)}`, { token });
+  check('GET por email -> 200 mismo client_id', r.status === 200 && r.json.client_id === clienteId, r.json);
+  r = await http('POST', '/api/v2/clientes', { token: tokAdmin, body: { ...cli, identificacion: 'XX' + sufijo } });
+  check('mismo correo con otra identificacion -> 409', r.status === 409, r.json);
+  r = await http('POST', '/api/v2/clientes', { token: tokAdmin, body: { nombre: 'A', email: 'malo' } });
+  check('POST invalido -> 400', r.status === 400, r.json);
+  await c.query('DELETE FROM booking.cliente_v2 WHERE email=$1', [cli.email]);
+
   console.log('\n[alias deprecados del contrato]');
   r = await http('GET', '/api/v2/alojamientos/tipos');
   check('GET /tipos = /categorias (200, array) + Deprecation', r.status === 200 && Array.isArray(r.json) && r.h.get('deprecation') === 'true', r.json);

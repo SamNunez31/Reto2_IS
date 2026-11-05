@@ -142,3 +142,14 @@ OWASP API Top 10 y pruebas de seguridad del Reto 1: ver `docs/DOCUMENTO_TECNICO.
 2. Sin trazas con spans (OpenTelemetry) ni dashboard (Grafana): solo logs, correlation-id y métricas Prometheus.
 3. El rate limit de Kong es local por instancia (`policy: local`); con varias réplicas se multiplica el límite efectivo.
 4. Con escala a cero el primer request puede tardar más de 3 s; para la demostración se dejan réplicas mínimas en `reservations`, `integration` y el gateway.
+
+
+## Anexo: huéspedes y aviso de check-in
+
+| Ruta | Servicio | Nota |
+|---|---|---|
+| `/api/v2/clientes` (GET, POST) | identity | Ficha única de huésped; Booking la consulta antes de crear una orden. |
+| `/api/v1/host/orders/:id/arrival` (POST) | reservations | Recepción confirma la llegada; dispara el aviso a Booking. |
+| Job `notificar-checkin` | integration | Reintenta los avisos que Booking no recibió (backoff exponencial, 12 intentos). |
+
+El aviso saliente usa `CHECKIN_REST_URL` / `CHECKIN_REST_API_KEY` (si no existen, `STOCK_REST_URL` / `STOCK_REST_API_KEY`).

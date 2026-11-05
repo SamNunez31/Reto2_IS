@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: Posada EC — Extensiones del contrato v2 (huéspedes y aviso de check-in)
+  version: 1.0.0
+  description: |
+    Requisitos de la defensa pedidos por la cátedra a los nodos de alojamientos. **Son aditivos**: no modifican ninguna
+    operación del contrato v2.2.0 de Booking (`alojamientos-openapi-v2.yaml`), así que no cambian su versión mayor.
+
+    - **Entrante** (Booking → Posada): `GET|POST /api/v2/clientes`.
+    - **Saliente** (Posada → Booking): `POST {BOOKING}/api/v2/reservas/{external_order_id}/checkin`, disparado cuando el
+      recepcionista confirma la llegada en el panel de administración.
+
+    Autenticación entrante: igual que v2.2.0 (Bearer JWT con scopes, o `X-API-Key` de la cuenta de servicio).
+servers:
+  - url: https://posada-gateway.thankfulglacier-a27c5a77.northcentralus.azurecontainerapps.io
+    description: API Gateway de Posada EC
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+paths:
+  /api/v2/clientes:
+    get:
+      summary: Consultar si un huésped ya tiene ficha
+      description: Busca por `identificacion` (prioridad) o por `email`. Debe enviarse al menos uno.
+      x-scopes: ['alojamientos:read']
+      parameters:
+        - { name: email, in: query, required: false, schema: { type: string, format: email, maxLength: 160 } }
+        - { name: identificacion, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9]{6,20}$' } }
+      responses:
+        '200':
+          description: El huésped ya existe
+          content: { application/json: { schema: { $ref: '#/components/schemas/Cliente' } } }
+        '400': { $ref: '#/components/responses/Problema' }
+        '401': { $ref: '#/components/responses/Problema' }
+        '404': { $ref: '#/components/responses/Problema' }
+    post:
+      summary: Registrar la ficha de un huésped (sin duplicar)
+      description: |
+        Idempotente: si el huésped ya existe (misma identificación y correo) responde **200** con el mismo `client_id`.
+        Si el correo y la identificación pertenecen a fichas distintas responde **409**.
+      x-scopes: ['alojamientos:book']
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ClienteNuevo' } } }
+      responses:
+        '201':
+          description: Ficha creada
+          content: { application/json: { schema: { type: object, required: [client_id], properties: { client_id: { type: string, format: uuid } } } } }
+        '200':
+          description: La ficha ya existía (mismo `client_id`)
+          content: { application/json: { schema: { type: object, required: [client_id], properties: { client_id: { type: string, format: uuid } } } } }
+        '400': { $ref: '#/components/responses/Problema' }
+        '401': { $ref: '#/components/responses/Problema' }
+        '409': { $ref: '#/components/responses/Problema' }
+components:
+  securitySchemes:
+    BearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    ApiKeyAuth: { type: apiKey, in: header, name: X-API-Key }
+  responses:
+    Problema:
+      description: Error RFC 7807
+      content: { application/problem+json: { schema: { type: object, required: [status, code], properties: { type: { type: string }, title: { type: string }, status: { type: integer }, code: { type: string }, detail: { type: string } } } } }
+  schemas:
+    Cliente:
+      type: object
+      required: [client_id, nombre, email, identificacion]
+      properties:
+        client_id: { type: string, format: uuid }
+        nombre: { type: string }
+        email: { type: string, format: email }
+        identificacion: { type: string }
+        telefono: { type: string }
+    ClienteNuevo:
+      type: object
+      additionalProperties: false
+      required: [nombre, email, identificacion]
+      properties:
+        nombre: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: string, format: email, maxLength: 160 }
+        identificacion: { type: string, pattern: '^[A-Za-z0-9]{6,20}$' }
+        telefono: { type: string, pattern: '^\+?[0-9]{7,15}$' }
+x-webhooks-salientes:
+  checkin-recepcion:
+    description: |
+      Posada → Booking cuando el recepcionista registra la llegada (panel: «Registrar llegada»).
+      `POST https://booking-core-api.azurewebsites.net/api/v2/reservas/{external_order_id}/checkin`
+      con `Content-Type: application/json` y `X-API-Key` (la llave registrada). Booking responde 200.
+      Si no responde (o da 5xx/408/429) se reintenta automáticamente con espera creciente (hasta 12 veces);
+      un 4xx definitivo se registra como error y no se reintenta.
+    body:
+      external_order_id: 'ORD-HTL-XXXXXXXX'
+      client_id: '<uuid de la ficha en Posada>'
+      estado: CONFIRMADO_ASISTIDO
+      huespedes_reales: 1
+      admin_id: recepcionista-hotel
+      fecha_checkin: '2026-11-04T19:30:00.000Z'
+      observaciones: Huésped presentado en mostrador de recepción y habitación entregada

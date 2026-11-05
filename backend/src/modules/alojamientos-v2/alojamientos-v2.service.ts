@@ -6,6 +6,7 @@ import { hoyEcuador, noches as contarNoches } from '../../common/http/respuestas
 import { InvalidParam, ProblemException, invalido } from '../../common/problem/problem';
 import { logJson } from '../../common/logging/log-json';
 import { DbService } from '../../database/db.service';
+import { vincularTitular } from './clientes-v2';
 import {
   ComunV2,
   REGIMENES,
@@ -392,6 +393,7 @@ export class AlojamientosV2Service {
       );
       return id;
     });
+    await vincularTitular((sql, p) => this.db.query(sql, p), reservaId, t); // ficha del huésped (no duplica; nunca rompe la reserva)
     logJson('info', 'orden_v2_creada', { reserva_id: reservaId, saga_id: (b.saga_id as string | undefined) ?? null, total: aMoney(precio.totalC) });
     return this.detalleOrden(`reserva.id = $1`, [reservaId]);
   }

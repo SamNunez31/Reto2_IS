@@ -87,4 +87,35 @@ describe('Contrato Booking → Posada EC (consumidor)', () => {
       expect(r.status).toBe(400);
     });
   });
+
+  it('clientes: consultar sin criterios es un error de validación', async () => {
+    pact
+      .uponReceiving('consulta de huésped sin email ni identificación')
+      .withRequest({ method: 'GET', path: '/api/v2/clientes', headers: { Accept: 'application/json' } })
+      .willRespondWith({
+        status: 400,
+        headers: { 'Content-Type': 'application/problem+json; charset=utf-8' },
+        body: { status: 400, code: 'VALIDATION_FAILED' },
+      });
+    await pact.executeTest(async (mock) => {
+      const r = await fetch(`${mock.url}/api/v2/clientes`, { headers: { Accept: 'application/json' } });
+      expect(r.status).toBe(400);
+    });
+  });
+
+  it('clientes: huésped que no existe responde 404', async () => {
+    pact
+      .given('no existe el huésped')
+      .uponReceiving('consulta de un huésped inexistente')
+      .withRequest({ method: 'GET', path: '/api/v2/clientes', query: { identificacion: 'NOEXISTE0001' }, headers: { Accept: 'application/json' } })
+      .willRespondWith({
+        status: 404,
+        headers: { 'Content-Type': 'application/problem+json; charset=utf-8' },
+        body: { status: 404, code: 'NOT_FOUND' },
+      });
+    await pact.executeTest(async (mock) => {
+      const r = await fetch(`${mock.url}/api/v2/clientes?identificacion=NOEXISTE0001`, { headers: { Accept: 'application/json' } });
+      expect(r.status).toBe(404);
+    });
+  });
 });

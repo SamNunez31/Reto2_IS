@@ -4,6 +4,56 @@
   },
   "interactions": [
     {
+      "description": "consulta de huésped sin email ni identificación",
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/v2/clientes"
+      },
+      "response": {
+        "body": {
+          "code": "VALIDATION_FAILED",
+          "status": 400
+        },
+        "headers": {
+          "Content-Type": "application/problem+json; charset=utf-8"
+        },
+        "status": 400
+      }
+    },
+    {
+      "description": "consulta de un huésped inexistente",
+      "providerStates": [
+        {
+          "name": "no existe el huésped"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/v2/clientes",
+        "query": {
+          "identificacion": [
+            "NOEXISTE0001"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "code": "NOT_FOUND",
+          "status": 404
+        },
+        "headers": {
+          "Content-Type": "application/problem+json; charset=utf-8"
+        },
+        "status": 404
+      }
+    },
+    {
       "description": "crear orden sin Idempotency-Key",
       "request": {
         "body": {},
