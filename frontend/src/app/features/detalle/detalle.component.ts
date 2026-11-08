@@ -114,7 +114,7 @@ interface Opcion {
                    [attr.aria-invalid]="!!fechas().salida" [attr.aria-describedby]="fechas().salida ? 'err-det-checkout' : null" />
               @if (fechas().salida) { <small class="msg-fecha" id="err-det-checkout" role="alert">{{ fechas().salida }}</small> }</label>
           </div>
-          <details class="huespedes-plegable" [open]="huespedesAbierto()" (toggle)="huespedesAbierto.set($any($event.target).open)">
+          <details class="huespedes-plegable" [open]="huespedesAbierto()" (toggle)="alternarHuespedes($event)">
             <summary><span class="contador-etiqueta">Huéspedes</span> {{ resumen() }}</summary>
             <app-contador id="c-adultos" etiqueta="Adultos" singular="un adulto" detalle="13 años o más" [min]="1" [max]="30" [(valor)]="adultos" />
             <app-contador id="c-ninos" etiqueta="Niños" singular="un niño" detalle="De 0 a 12 años" [min]="0" [max]="10" [(valor)]="ninos" />
@@ -219,6 +219,7 @@ export class DetalleComponent implements OnInit {
   readonly ninos = signal(0);
   readonly habitaciones = signal(1);
   readonly huespedesAbierto = signal(false);
+  alternarHuespedes(e: Event): void { this.huespedesAbierto.set((e.target as HTMLDetailsElement).open); }
   /** Tipo de habitación elegido en el panel (por nombre); si no hay, el primero reservable. */
   readonly seleccion = signal<string | null>(null);
   readonly elegida = computed<Opcion | null>(() => {

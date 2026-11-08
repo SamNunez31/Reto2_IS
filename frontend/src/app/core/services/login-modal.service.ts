@@ -14,7 +14,7 @@ export class LoginModalService {
 
   abrir(volver: string | null = null): void {
     if (!this.abierto()) this.origen = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    this.volver.set(volver && volver.startsWith('/') && !volver.startsWith('/login') ? volver : null);
+    this.volver.set(volver && volver.startsWith('/') && !volver.startsWith('//') && !volver.includes(':') && !volver.startsWith('/login') ? volver : null);
     this.abierto.set(true);
   }
 

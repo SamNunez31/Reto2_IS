@@ -39,6 +39,7 @@
   --c-suave: #616d6a;     /* texto secundario: 4.9:1 sobre --c-fondo, 5.4:1 sobre blanco (AA) */
   --c-borde: var(--gris-300);
   --c-borde-suave: var(--gris-200);
+  --c-borde-control: #7d8986; /* 3,6:1 sobre blanco: WCAG 1.4.11 (bordes de controles) */
   --c-primario: var(--marca-700);
   --c-primario-osc: var(--marca-900);
   --c-primario-suave: var(--marca-100);
@@ -131,7 +132,7 @@ h3 { font-size: 1rem; margin: .8rem 0 .4rem; }
 .btn-chico { min-height: 32px; padding: .3rem .75rem; font-size: .9rem; }
 
 form label { display: flex; flex-direction: column; gap: .3rem; font-size: .88rem; font-weight: 600; margin-bottom: .85rem; color: var(--gris-700); }
-input, select, textarea { font: inherit; padding: .55rem .7rem; border: 1px solid var(--c-borde); border-radius: var(--radio-s); background: var(--c-superficie);
+input, select, textarea { font: inherit; padding: .55rem .7rem; border: 1px solid var(--c-borde-control); border-radius: var(--radio-s); background: var(--c-superficie);
   color: var(--c-texto); min-height: 42px; width: 100%; transition: border-color var(--transicion), box-shadow var(--transicion); }
 input:focus, select:focus, textarea:focus { border-color: var(--c-primario); box-shadow: 0 0 0 3px var(--c-primario-suave); outline: none; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--c-primario); outline-offset: 1px; }
@@ -791,19 +792,19 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .desglose-plegable summary strong { order: 2; }
 
 /* Panel de reserva estilo Airbnb/Booking: una habitación elegida, un botón, desglose en vivo */
-.tarjeta-reserva .fechas-reserva { margin: 0; border: 1px solid #b9b3a9; border-radius: 14px 14px 0 0; overflow: hidden; --bs-gutter-x: 0; }
+.tarjeta-reserva .fechas-reserva { margin: 0; border: 1px solid var(--c-borde-control); border-radius: 14px 14px 0 0; overflow: hidden; --bs-gutter-x: 0; }
 .tarjeta-reserva .fechas-reserva > label { padding: .5rem .8rem; font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
-.tarjeta-reserva .fechas-reserva > label + label { border-left: 1px solid #b9b3a9; }
+.tarjeta-reserva .fechas-reserva > label + label { border-left: 1px solid var(--c-borde-control); }
 .tarjeta-reserva .fechas-reserva input { border: 0; padding: .1rem 0; background: transparent; font-size: .9rem; font-weight: 500; width: 100%; box-shadow: none; text-transform: none; letter-spacing: 0; }
-.tarjeta-reserva .huespedes-plegable { border: 1px solid #b9b3a9; border-top: 0; border-radius: 0 0 14px 14px; margin-bottom: .6rem; }
+.tarjeta-reserva .huespedes-plegable { border: 1px solid var(--c-borde-control); border-top: 0; border-radius: 0 0 14px 14px; margin-bottom: .6rem; }
 .tarjeta-reserva .resumen-estadia { display: none; }
 .selector-hab { display: grid; gap: .5rem; margin: .8rem 0; }
 .hab-opcion { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .7rem .8rem; text-align: left; background: #fff; border: 1.5px solid var(--gris-200, #e9e5de); border-radius: 14px; cursor: pointer; font: inherit; color: inherit; transition: border-color .15s, background .15s; }
-.hab-opcion:hover:not(:disabled) { border-color: #b9b3a9; }
+.hab-opcion:hover:not(:disabled) { border-color: var(--c-borde-control); }
 .hab-opcion.activa { border-color: var(--c-primario, #1f5c4d); box-shadow: 0 0 0 1px var(--c-primario, #1f5c4d); background: var(--c-primario-suave, #eef5f2); }
 .hab-opcion.sin-cupo { opacity: .55; cursor: not-allowed; background: var(--gris-100, #f4f1ec); }
 .hab-opcion:focus-visible { outline: 2px solid var(--c-primario, #1f5c4d); outline-offset: 2px; }
-.hab-punto { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #b9b3a9; display: inline-block; }
+.hab-punto { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--c-borde-control); display: inline-block; }
 .hab-opcion.activa .hab-punto { border-color: var(--c-primario, #1f5c4d); background: radial-gradient(circle, var(--c-primario, #1f5c4d) 45%, transparent 50%); }
 .hab-texto, .hab-precio { display: flex; flex-direction: column; gap: .1rem; line-height: 1.2; }
 .hab-precio { text-align: right; }
