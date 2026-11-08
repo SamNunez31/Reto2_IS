@@ -668,3 +668,47 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 }
 
 #contenido:focus { outline: none; } /* foco programático al cambiar de página (WCAG 2.4.3); no es un control interactivo */
+
+/* ---------- 7. Pulido de diseño (inicio, tarjetas y celular) ----------
+   Solo ajustes de espacio y jerarquía: no cambia la paleta, la tipografía ni el comportamiento. */
+.tarjeta-aloj { border: 1px solid var(--c-borde-suave); }
+.tarjeta-aloj:hover, .tarjeta-aloj:focus-visible { border-color: transparent; }
+.tarjeta-aloj:focus-visible { outline: 3px solid var(--c-acento); outline-offset: 3px; }
+/* Degradado suave en la base de la foto: asienta la etiqueta y da profundidad */
+.tarjeta-foto::after { content: ''; position: absolute; inset: auto 0 0 0; height: 38%; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgb(7 30 28 / 22%)); }
+.tarjeta-tipo { z-index: 1; box-shadow: 0 1px 4px rgb(7 30 28 / 18%); }
+/* Precio: respiro entre la cifra y "/ noche" y "desde" pegado a la cifra */
+.precio-desde span { margin-left: .2rem; }
+.precio-desde small { margin-bottom: .1rem; }
+/* Las estrellas de categoría (hotel de 4★) más discretas que la nota de huéspedes */
+.ubicacion .estrellas { font-size: .78rem; letter-spacing: .5px; opacity: .9; }
+.ubicacion { row-gap: .1rem; }
+.resultados-cabecera { padding-bottom: .6rem; border-bottom: 1px solid var(--c-borde-suave); margin-bottom: 1.5rem; }
+
+@media (min-width: 641px) {
+  /* Reserva dos líneas para el nombre: las filas de nota y precio quedan alineadas entre tarjetas */
+  .tarjeta-aloj h2 { min-height: 2.6em; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+
+@media (max-width: 640px) {
+  .banner { min-height: 280px; }
+  .banner-texto { padding-top: 1.5rem; padding-bottom: 4.2rem; }
+  .banner h1 { font-size: clamp(1.9rem, 9vw, 2.4rem); }
+  .banner .antetitulo { font-size: .7rem; letter-spacing: .14em; }
+  /* Buscador compacto: Entrada y Salida lado a lado */
+  .buscador { padding: .5rem; }
+  .buscador-fila { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .buscador-fila > div.campo, .buscador .btn-buscar { grid-column: 1 / -1; } /* destino y huéspedes a todo el ancho; Entrada y Salida (label) lado a lado */
+  .campo { padding: .4rem .75rem; }
+  .campo input[type='date'] { font-size: .95rem; }
+  .buscador .btn-buscar { min-height: 50px; }
+  /* Tarjetas más bajas: caben más alojamientos por pantalla */
+  .grid-tarjetas { gap: 1.1rem; }
+  .tarjeta-foto { aspect-ratio: 16 / 10; }
+  .tarjeta-aloj .cuerpo { padding: .85rem 1rem 1rem; }
+  .tarjeta-aloj h2 { font-size: 1.05rem; }
+  .resultados-cabecera h2 { font-size: 1.5rem; }
+  .resultados-cabecera p { font-size: .9rem; }
+  .paginacion .btn { flex: 1; }
+}
