@@ -70,7 +70,7 @@ describe('Contrato Booking → Posada EC (consumidor)', () => {
       .withRequest({
         method: 'POST',
         path: '/api/v2/alojamientos/orders/create',
-        headers: { 'Content-Type': 'application/json', Authorization: regex(/^Bearer .+/, 'Bearer token-de-prueba') },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': like('llave-de-prueba') },
         body: {},
       })
       .willRespondWith({
@@ -81,7 +81,7 @@ describe('Contrato Booking → Posada EC (consumidor)', () => {
     await pact.executeTest(async (mock) => {
       const r = await fetch(`${mock.url}/api/v2/alojamientos/orders/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-de-prueba' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'llave-de-prueba' },
         body: '{}',
       });
       expect(r.status).toBe(400);

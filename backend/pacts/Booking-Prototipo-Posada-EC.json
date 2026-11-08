@@ -58,18 +58,17 @@
       "request": {
         "body": {},
         "headers": {
-          "Authorization": "Bearer token-de-prueba",
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-API-Key": "llave-de-prueba"
         },
         "matchingRules": {
           "body": {},
           "header": {
-            "Authorization": {
+            "X-API-Key": {
               "combine": "AND",
               "matchers": [
                 {
-                  "match": "regex",
-                  "regex": "^Bearer .+"
+                  "match": "type"
                 }
               ]
             }

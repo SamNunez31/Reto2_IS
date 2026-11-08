@@ -26,7 +26,7 @@ npm test                                   # unitarias + contrato de consumidor 
 npm run test:roles                         # reparto de rutas por servicio
 npm run gateway:check                      # kong.tmpl.yml al día
 BASE_URL=$GW DATABASE_URL=... JWT_SECRET=... node scripts/prueba-v2.cjs   # 125 comprobaciones contra el sistema desplegado
-PROVIDER_URL=$GW SERVICE_API_KEY=... npm run pact:verificar   # el proveedor cumple el contrato de Booking
+PROVIDER_URL=$GW SERVICE_API_KEY=... npm run pact:verificar   # el proveedor cumple el contrato de Booking (5 interacciones OK contra el gateway en Azure; usa pact-core directo porque el proxy de pact-js rompe los POST con cuerpo)
 ```
 Capturas: salida de cada comando. Para demostrar que el contrato *protege*: en `alojamientos-v2.service.ts` renombrar temporalmente `vertical` a `rubro`, correr `npm run pact:verificar` (falla) y revertir.
 
