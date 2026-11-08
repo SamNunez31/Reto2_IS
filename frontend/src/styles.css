@@ -829,3 +829,10 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .dl-total .dl-etq, .dl-total .dl-val { font-size: 1.15rem; font-weight: 800; }
 .dl-total .dl-etq small { display: inline; font-size: .8rem; font-weight: 500; margin-left: .25rem; }
 .dl-total .dl-etq { flex-direction: row; align-items: baseline; }
+
+/* Tarjetas de la misma altura: el precio siempre queda alineado al fondo de la fila */
+.tarjeta-aloj { height: 100%; }
+.tarjeta-enlace { height: 100%; }
+.tarjeta-aloj .cuerpo { flex: 1; display: flex; flex-direction: column; }
+.tarjeta-aloj .precio-noche { margin-top: auto; padding-top: .45rem; }
+.tarjeta-aloj h2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
