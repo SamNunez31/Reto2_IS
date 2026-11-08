@@ -61,7 +61,11 @@ export class RequisitosClaveComponent {
       <ng-content />
       <button type="button" class="btn-ojo" (click)="alternar()" [attr.aria-pressed]="visible()"
               [attr.aria-label]="visible() ? 'Ocultar clave' : 'Mostrar clave'" [title]="visible() ? 'Ocultar clave' : 'Mostrar clave'">
-        <span aria-hidden="true">{{ visible() ? '🙈' : '👁' }}</span>
+        @if (visible()) {
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4 9.5 6a14 14 0 0 1-3.1 3.9M6.3 7.6A14 14 0 0 0 2.5 12c1 2 4.5 6 9.5 6 1.5 0 2.8-.4 4-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+        } @else {
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12C3.5 10 7 6 12 6s8.5 4 9.5 6c-1 2-4.5 6-9.5 6S3.5 14 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        }
       </button>
     </div>
   `,
