@@ -131,36 +131,48 @@ interface Opcion {
             @if (estanciaInvalida(); as m) {
               <p class="alerta alerta-aviso">{{ m }}</p>
             } @else {
-              @for (o of opciones(); track o.nombre) {
-                <article class="producto" [class.no-disponible]="!o.producto">
-                  <h3>{{ o.nombre }}</h3>
-                  <p class="meta">Capacidad: {{ plural(o.capacidad, 'huésped', 'huéspedes') }} por habitación
-                    @if (o.producto && o.producto.available_rooms <= 3) { · <span class="pocas">Pocas disponibles</span> }</p>
-                  @if (o.producto; as p) {
-                    <details class="desglose-plegable">
-                      <summary><span>Total {{ plural(p.nights, 'noche') }}</span><strong>{{ p.price.total | currency: 'USD' }}</strong></summary>
-                    <dl class="desglose">
+              @if (opciones().length) {
+                <div class="selector-hab" role="radiogroup" aria-label="Tipo de habitación">
+                  @for (o of opciones(); track o.nombre; let i = $index) {
+                    <button type="button" role="radio" class="hab-opcion" [class.activa]="elegida()?.nombre === o.nombre"
+                            [class.sin-cupo]="!o.producto && !o.accion" [attr.aria-checked]="elegida()?.nombre === o.nombre"
+                            [disabled]="!o.producto && !o.accion" (click)="elegir(o)">
+                      <span class="hab-punto" aria-hidden="true"></span>
+                      <span class="hab-texto">
+                        <strong>{{ o.nombre }}</strong>
+                        <small>Hasta {{ plural(o.capacidad, 'huésped', 'huéspedes') }}
+                          @if (o.producto && o.producto.available_rooms <= 3) { · <span class="pocas">Quedan pocas</span> }</small>
+                      </span>
+                      <span class="hab-precio">
+                        @if (o.producto; as p) { <strong>{{ porNoche(p) | currency: 'USD' }}</strong><small>noche</small> }
+                        @else if (o.accion) { <small>Ajustar a {{ o.accion.habitaciones }} hab.</small> }
+                        @else { <small>No disponible</small> }
+                      </span>
+                    </button>
+                  }
+                </div>
+                @if (elegida(); as e) {
+                  @if (e.producto; as p) {
+                    @if (esAdmin()) {
+                      <p class="ayuda">El administrador no puede reservar.</p>
+                    } @else {
+                      <button class="btn btn-primario ancho-total w-100 btn-reservar" type="button" (click)="reservar(p)">Reservar</button>
+                    }
+                    <dl class="desglose desglose-vivo" aria-live="polite">
                       <dt>{{ porNoche(p) | currency: 'USD' }} × {{ plural(p.nights, 'noche') }}{{ habitaciones() > 1 ? ' × ' + plural(habitaciones(), 'habitación', 'habitaciones') : '' }}</dt>
                       <dd>{{ p.price.base | currency: 'USD' }}</dd>
                       @if (p.price.cleaning_fee) { <dt>Limpieza</dt><dd>{{ p.price.cleaning_fee | currency: 'USD' }}</dd> }
                       @if (p.price.service_fee) { <dt>Servicio (10 %)</dt><dd>{{ p.price.service_fee | currency: 'USD' }}</dd> }
                       <dt>IVA</dt><dd>{{ p.price.taxes | currency: 'USD' }}</dd>
+                      <dt class="total">Total</dt><dd class="total">{{ p.price.total | currency: 'USD' }}</dd>
                     </dl>
-                    </details>
-                    @if (esAdmin()) {
-                      <p class="ayuda">El administrador no puede reservar.</p>
-                    } @else {
-                      <button class="btn btn-primario ancho-total w-100" type="button" (click)="reservar(p)">Reservar</button>
-                    }
                   } @else {
-                    <p class="aviso-capacidad" [id]="'motivo-' + $index">{{ o.motivo }}</p>
-                    @if (o.accion; as ac) { <button class="btn btn-secundario ancho-total w-100" type="button" [attr.aria-describedby]="'motivo-' + $index" (click)="habitaciones.set(ac.habitaciones)">{{ ac.texto }}</button> }
+                    <p class="aviso-capacidad">{{ e.motivo }}</p>
                   }
-                </article>
-              } @empty {
+                }
+              } @else {
                 <app-vacio texto="No hay habitaciones disponibles para esas fechas." />
               }
-              <p class="ayuda centro text-center d-block">Aún no se te cobrará nada.</p>
             }
           }
         </aside>
@@ -203,6 +215,16 @@ export class DetalleComponent implements OnInit {
   readonly ninos = signal(0);
   readonly habitaciones = signal(1);
   readonly huespedesAbierto = signal(false);
+  /** Tipo de habitación elegido en el panel (por nombre); si no hay, el primero reservable. */
+  readonly seleccion = signal<string | null>(null);
+  readonly elegida = computed<Opcion | null>(() => {
+    const ops = this.opciones();
+    return ops.find((o) => o.nombre === this.seleccion()) ?? ops.find((o) => o.producto) ?? ops[0] ?? null;
+  });
+  elegir(o: Opcion): void {
+    this.seleccion.set(o.nombre);
+    if (!o.producto && o.accion) this.habitaciones.set(o.accion.habitaciones);
+  }
   readonly totalHuespedes = computed(() => this.adultos() + this.ninos());
   readonly resumen = computed(() => textoHuespedes(this.totalHuespedes(), this.habitaciones()));
   readonly resumenEstadia = computed(() => {

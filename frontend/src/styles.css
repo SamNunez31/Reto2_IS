@@ -789,3 +789,25 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .desglose-plegable[open] summary::after { content: "Ocultar"; }
 .desglose-plegable summary span { margin-right: auto; }
 .desglose-plegable summary strong { order: 2; }
+
+/* Panel de reserva estilo Airbnb/Booking: una habitación elegida, un botón, desglose en vivo */
+.tarjeta-reserva .fechas-reserva { margin: 0; border: 1px solid #b9b3a9; border-radius: 14px 14px 0 0; overflow: hidden; --bs-gutter-x: 0; }
+.tarjeta-reserva .fechas-reserva > label { padding: .5rem .8rem; font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.tarjeta-reserva .fechas-reserva > label + label { border-left: 1px solid #b9b3a9; }
+.tarjeta-reserva .fechas-reserva input { border: 0; padding: .1rem 0; background: transparent; font-size: .9rem; font-weight: 500; width: 100%; box-shadow: none; text-transform: none; letter-spacing: 0; }
+.tarjeta-reserva .huespedes-plegable { border: 1px solid #b9b3a9; border-top: 0; border-radius: 0 0 14px 14px; margin-bottom: .6rem; }
+.tarjeta-reserva .resumen-estadia { display: none; }
+.selector-hab { display: grid; gap: .5rem; margin: .8rem 0; }
+.hab-opcion { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .7rem .8rem; text-align: left; background: #fff; border: 1.5px solid var(--gris-200, #e9e5de); border-radius: 14px; cursor: pointer; font: inherit; color: inherit; transition: border-color .15s, background .15s; }
+.hab-opcion:hover:not(:disabled) { border-color: #b9b3a9; }
+.hab-opcion.activa { border-color: var(--c-primario, #1f5c4d); box-shadow: 0 0 0 1px var(--c-primario, #1f5c4d); background: var(--c-primario-suave, #eef5f2); }
+.hab-opcion.sin-cupo { opacity: .55; cursor: not-allowed; background: var(--gris-100, #f4f1ec); }
+.hab-opcion:focus-visible { outline: 2px solid var(--c-primario, #1f5c4d); outline-offset: 2px; }
+.hab-punto { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #b9b3a9; display: inline-block; }
+.hab-opcion.activa .hab-punto { border-color: var(--c-primario, #1f5c4d); background: radial-gradient(circle, var(--c-primario, #1f5c4d) 45%, transparent 50%); }
+.hab-texto, .hab-precio { display: flex; flex-direction: column; gap: .1rem; line-height: 1.2; }
+.hab-precio { text-align: right; }
+.hab-texto small, .hab-precio small { color: var(--gris-700, #5a5650); font-size: .78rem; }
+.btn-reservar { margin: .2rem 0 .9rem; padding: .85rem 1rem; font-size: 1.05rem; }
+.desglose-vivo { margin: 0; font-size: .92rem; }
+.desglose-vivo .total { font-size: 1.05rem; }
