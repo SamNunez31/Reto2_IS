@@ -8,8 +8,7 @@ import { CriteriosBusqueda, DetalleAlojamiento } from '../../core/models/api.mod
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { fechaMasDias, hoyEcuador, motivoFechas } from '../../shared/fechas';
-import { CalificacionComponent } from '../../shared/calificacion';
-import { noches, plural, rangoCorto, textoHuespedes, textoPersonas } from '../../shared/textos';
+import { aEstrellas, noches, plural, rangoCorto, textoHuespedes, textoPersonas } from '../../shared/textos';
 import { AlertaErrorComponent, EstrellasComponent } from '../../shared/ui';
 import { FiltroDirective } from '../../shared/entrada';
 import { motivoPrecio } from '../../shared/validadores';
@@ -38,7 +37,7 @@ export function motivoBusqueda(
 
 @Component({
   selector: 'app-busqueda',
-  imports: [ReactiveFormsModule, RouterLink, CurrencyPipe, AlertaErrorComponent, EstrellasComponent, CalificacionComponent, FiltroDirective],
+  imports: [ReactiveFormsModule, RouterLink, CurrencyPipe, AlertaErrorComponent, EstrellasComponent, FiltroDirective],
   template: `
     <section class="banner" aria-labelledby="titulo-banner">
       <div class="banner-texto">
@@ -129,6 +128,19 @@ export function motivoBusqueda(
       }
     </form>
 
+    <nav class="categorias" aria-label="Filtrar por tipo de alojamiento">
+      <div class="categorias-fila">
+        <button type="button" class="categoria" [class.activa]="!form.controls.tipo.value" [attr.aria-pressed]="!form.controls.tipo.value" (click)="elegirTipo(null)">
+          <span class="ic ic-todos" aria-hidden="true"></span><span>Todos</span>
+        </button>
+        @for (t of constantes()?.accommodation_types ?? []; track t.id) {
+          <button type="button" class="categoria" [class.activa]="form.controls.tipo.value === t.id" [attr.aria-pressed]="form.controls.tipo.value === t.id" (click)="elegirTipo(t.id)">
+            <span class="ic" [class]="'ic ' + icono(t.name)" aria-hidden="true"></span><span>{{ t.name }}</span>
+          </button>
+        }
+      </div>
+    </nav>
+
     <app-alerta-error [error]="error()" />
     @if (cargando()) {
       <p class="sr-only" role="status">Buscando alojamientos…</p>
@@ -156,22 +168,34 @@ export function motivoBusqueda(
       }
       <div class="grid-tarjetas">
         @for (a of resultados(); track a.id) {
-          <a class="tarjeta-aloj" [routerLink]="['/alojamientos', a.id]">
-            <div class="tarjeta-foto">
-              <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" />
-              <span class="tarjeta-tipo">{{ a.type }}</span>
-            </div>
-            <div class="cuerpo">
-              <h2>{{ a.name }}</h2>
-              <app-calificacion [nota]="a.rating.score" [resenas]="a.rating.reviews" [chica]="true" />
-              <p class="ubicacion"><span>{{ a.city.name }}, {{ a.city.province }}</span><app-estrellas [n]="a.stars" /></p>
-              <div class="pie-tarjeta solo-precio">
+          <article class="tarjeta-aloj">
+            <a class="tarjeta-enlace" [routerLink]="['/alojamientos', a.id]">
+              <div class="tarjeta-foto">
+                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" />
+                <span class="tarjeta-tipo">{{ a.type }}</span>
+                @if (destacado(a)) { <span class="tarjeta-favorito">Favorito de huéspedes</span> }
+              </div>
+              <div class="cuerpo">
+                <div class="fila-titulo">
+                  <h2>{{ a.name }}</h2>
+                  @if (a.rating.score !== null && a.rating.reviews > 0) {
+                    <span class="nota-corta" role="img" [attr.aria-label]="notaTexto(a) + ' de 5 estrellas, ' + plural(a.rating.reviews, 'reseña')">
+                      <span aria-hidden="true">★ {{ notaTexto(a) }}</span>
+                    </span>
+                  } @else { <span class="nota-corta nuevo">Nuevo</span> }
+                </div>
+                <p class="ubicacion"><span>{{ a.city.name }}, {{ a.city.province }}</span></p>
+                <p class="detalle-corto">{{ a.type }}@if (a.stars) { · <app-estrellas [n]="a.stars" /> }@if (a.rating.reviews > 0) { · {{ plural(a.rating.reviews, 'reseña') }} }</p>
                 @if (a.price_from) {
-                  <span class="precio-desde"><small>desde</small><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>/ noche</span></span>
+                  <p class="precio-noche"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>por noche</span></p>
                 }
               </div>
-            </div>
-          </a>
+            </a>
+            <button class="corazon" type="button" [class.activo]="esFavorito(a.id)" [attr.aria-pressed]="esFavorito(a.id)"
+                    [attr.aria-label]="(esFavorito(a.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + a.name" (click)="alternarFavorito(a.id)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6s-7.6-4.7-9.3-9.4C1.4 7.7 3.7 4.5 6.9 4.5c2 0 3.5 1.1 5.1 3 1.6-1.9 3.1-3 5.1-3 3.2 0 5.5 3.2 4.2 6.7-1.7 4.7-9.3 9.4-9.3 9.4z" /></svg>
+            </button>
+          </article>
         }
       </div>
       @if (resultados().length) {
@@ -235,6 +259,61 @@ export class BusquedaComponent implements OnInit {
   readonly masFiltros = signal(false);
   readonly panelHuespedes = signal(false);
   readonly esqueletos = [1, 2, 3, 4, 5, 6, 7, 8];
+  readonly plural = plural;
+
+  // ---- Presentación (no cambia criterios ni llamadas al API) ----
+  /** Favoritos: solo en este navegador (localStorage); si no está disponible, viven en memoria. */
+  private static readonly CLAVE_FAVORITOS = 'posadaec.favoritos';
+  readonly favoritos = signal<number[]>(BusquedaComponent.leerFavoritos());
+
+  private static leerFavoritos(): number[] {
+    try {
+      const v = JSON.parse(localStorage.getItem(BusquedaComponent.CLAVE_FAVORITOS) ?? '[]');
+      return Array.isArray(v) ? v.filter((n): n is number => typeof n === 'number') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  esFavorito(id: number): boolean {
+    return this.favoritos().includes(id);
+  }
+
+  alternarFavorito(id: number): void {
+    this.favoritos.update((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
+    try {
+      localStorage.setItem(BusquedaComponent.CLAVE_FAVORITOS, JSON.stringify(this.favoritos()));
+    } catch {
+      /* sin almacenamiento: queda solo en memoria */
+    }
+  }
+
+  /** "Favorito de huéspedes": nota muy alta con reseñas suficientes. */
+  destacado(a: DetalleAlojamiento): boolean {
+    return (a.rating.score ?? 0) >= 9 && a.rating.reviews >= 20;
+  }
+
+  notaTexto(a: DetalleAlojamiento): string {
+    const n = aEstrellas(a.rating.score ?? 0);
+    return n.toLocaleString('es-EC', { minimumFractionDigits: n % 1 ? 1 : 0 });
+  }
+
+  /** Clase del ícono de la franja de categorías según el nombre del tipo. */
+  icono(nombre: string): string {
+    const n = nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (n.includes('hostal') || n.includes('hostel')) return 'ic-hostal';
+    if (n.includes('caba') || n.includes('glamping') || n.includes('lodge')) return 'ic-cabana';
+    if (n.includes('casa') || n.includes('villa')) return 'ic-casa';
+    if (n.includes('depart') || n.includes('apart') || n.includes('suite')) return 'ic-depto';
+    if (n.includes('hotel') || n.includes('hosteria') || n.includes('resort')) return 'ic-hotel';
+    return 'ic-pin';
+  }
+
+  /** Un toque en la franja filtra por tipo (el mismo filtro de "Más filtros"). */
+  elegirTipo(id: number | null): void {
+    this.form.controls.tipo.setValue(id);
+    this.buscar();
+  }
   private readonly valores = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
   readonly resumenHuespedes = computed(() => {
     const v = this.valores();
