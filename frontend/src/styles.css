@@ -775,3 +775,17 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .volver { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: 1rem; padding: .4rem .9rem .4rem .6rem; border: 1px solid var(--gris-200, #e9e5de); border-radius: 999px; background: #fff; color: inherit; font-weight: 600; font-size: .9rem; text-decoration: none; transition: background .15s, box-shadow .15s; }
 .volver:hover { background: var(--gris-100, #f4f1ec); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .volver:focus-visible { outline: 2px solid var(--c-primario, #1f5c4d); outline-offset: 2px; }
+
+/* Panel de reserva más limpio */
+.tarjeta-reserva .producto { border: 1px solid var(--gris-200, #e9e5de); border-radius: 16px; padding: .9rem 1rem; margin-top: .8rem; background: #fff; }
+.tarjeta-reserva .producto.no-disponible { background: var(--gris-100, #f4f1ec); border-style: dashed; }
+.tarjeta-reserva .producto h3 { font-size: 1rem; }
+.tarjeta-reserva .aviso-capacidad { background: none; color: var(--gris-700, #5a5650); padding: 0; margin: .3rem 0 .6rem; font-weight: 500; font-size: .88rem; }
+.desglose-plegable { margin: .5rem 0; }
+.desglose-plegable summary { display: flex; justify-content: space-between; align-items: baseline; cursor: pointer; list-style: none; font-size: .95rem; }
+.desglose-plegable summary::-webkit-details-marker { display: none; }
+.desglose-plegable summary strong { font-size: 1.25rem; }
+.desglose-plegable summary::after { content: "Ver desglose"; order: 3; margin-left: .6rem; font-size: .78rem; text-decoration: underline; color: var(--gris-700, #5a5650); }
+.desglose-plegable[open] summary::after { content: "Ocultar"; }
+.desglose-plegable summary span { margin-right: auto; }
+.desglose-plegable summary strong { order: 2; }

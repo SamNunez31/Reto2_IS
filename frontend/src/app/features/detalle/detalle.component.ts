@@ -137,14 +137,16 @@ interface Opcion {
                   <p class="meta">Capacidad: {{ plural(o.capacidad, 'huésped', 'huéspedes') }} por habitación
                     @if (o.producto && o.producto.available_rooms <= 3) { · <span class="pocas">Pocas disponibles</span> }</p>
                   @if (o.producto; as p) {
+                    <details class="desglose-plegable">
+                      <summary><span>Total {{ plural(p.nights, 'noche') }}</span><strong>{{ p.price.total | currency: 'USD' }}</strong></summary>
                     <dl class="desglose">
                       <dt>{{ porNoche(p) | currency: 'USD' }} × {{ plural(p.nights, 'noche') }}{{ habitaciones() > 1 ? ' × ' + plural(habitaciones(), 'habitación', 'habitaciones') : '' }}</dt>
                       <dd>{{ p.price.base | currency: 'USD' }}</dd>
                       @if (p.price.cleaning_fee) { <dt>Limpieza</dt><dd>{{ p.price.cleaning_fee | currency: 'USD' }}</dd> }
                       @if (p.price.service_fee) { <dt>Servicio (10 %)</dt><dd>{{ p.price.service_fee | currency: 'USD' }}</dd> }
                       <dt>IVA</dt><dd>{{ p.price.taxes | currency: 'USD' }}</dd>
-                      <dt class="total">Total</dt><dd class="total">{{ p.price.total | currency: 'USD' }}</dd>
                     </dl>
+                    </details>
                     @if (esAdmin()) {
                       <p class="ayuda">El administrador no puede reservar.</p>
                     } @else {
@@ -152,8 +154,7 @@ interface Opcion {
                     }
                   } @else {
                     <p class="aviso-capacidad" [id]="'motivo-' + $index">{{ o.motivo }}</p>
-                    @if (o.accion; as ac) { <button class="btn btn-chico" type="button" (click)="habitaciones.set(ac.habitaciones)">{{ ac.texto }}</button> }
-                    <button class="btn btn-primario ancho-total w-100" type="button" disabled [attr.aria-describedby]="'motivo-' + $index">Reservar</button>
+                    @if (o.accion; as ac) { <button class="btn btn-secundario ancho-total w-100" type="button" [attr.aria-describedby]="'motivo-' + $index" (click)="habitaciones.set(ac.habitaciones)">{{ ac.texto }}</button> }
                   }
                 </article>
               } @empty {
@@ -236,7 +237,7 @@ export class DetalleComponent implements OnInit {
         return {
           ...t, producto: null, accion: alcanza ? { texto: `Usar ${plural(necesarias, 'habitación', 'habitaciones')}`, habitaciones: necesarias } : null,
           motivo: alcanza
-            ? `Con ${plural(huespedes, 'huésped', 'huéspedes')} necesitas al menos ${plural(necesarias, 'habitación', 'habitaciones')} de este tipo.`
+            ? `Para ${plural(huespedes, 'huésped', 'huéspedes')} necesitas ${plural(necesarias, 'habitación', 'habitaciones')}.`
             : `Este tipo de habitación no alcanza para ${plural(huespedes, 'huésped', 'huéspedes')}.`,
         };
       }
