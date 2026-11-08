@@ -197,17 +197,25 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Usuarios</caption>
-            <thead><tr><th scope="col">Correo</th><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Activo</th><th scope="col"></th></tr></thead>
+            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
             <tbody>
               @for (u of filas(); track u['id']) {
-                <tr><td>{{ u['email'] }}</td><td>{{ u['nombres'] }} {{ u['apellidos'] }}</td><td>{{ u['rol'] === 'ADMIN' ? 'Administrador' : 'Huésped' }}</td>
-                  <td>{{ u['activo'] ? 'Sí' : 'No' }}</td>
-                  <td>@if (u['rol'] !== 'ADMIN') {
-                    <button class="btn btn-chico" type="button" (click)="estadoUsuario(u)">{{ u['activo'] ? 'Desactivar' : 'Activar' }}</button>
+                <tr class="fila-usuario" [class.inactivo]="!u['activo']">
+                  <td>
+                    <div class="usuario-celda">
+                      <span class="avatar" [attr.data-tono]="tono(u)" aria-hidden="true">{{ iniciales(u) }}</span>
+                      <span class="usuario-datos"><strong>{{ u['nombres'] }} {{ u['apellidos'] }}</strong><small>{{ u['email'] }}</small></span>
+                    </div>
+                  </td>
+                  <td><span class="pildora" [class.pildora-admin]="u['rol'] === 'ADMIN'">{{ u['rol'] === 'ADMIN' ? 'Administrador' : 'Huésped' }}</span></td>
+                  <td><span class="estado-punto" [class.on]="!!u['activo']">{{ u['activo'] ? 'Activo' : 'Inactivo' }}</span></td>
+                  <td class="acciones-fila">@if (u['rol'] !== 'ADMIN') {
                     @if (u['activo']) {
                       <button class="btn btn-chico" type="button" (click)="hacerAdmin(u)">Hacer administrador</button>
                     }
-                  }</td></tr>
+                    <button class="btn btn-chico" [class.btn-peligro-suave]="!!u['activo']" type="button" (click)="estadoUsuario(u)">{{ u['activo'] ? 'Desactivar' : 'Activar' }}</button>
+                  }</td>
+                </tr>
               }
             </tbody>
           </table>
@@ -574,6 +582,20 @@ export class AdminComponent implements OnInit {
       apellidos: motivoNombre(u.apellidos, 'apellidos') ?? undefined,
       password: motivoClave(u.password) ?? undefined,
     };
+  }
+
+  /** Iniciales para el avatar de la tabla de usuarios. */
+  iniciales(u: Record<string, unknown>): string {
+    const n = String(u['nombres'] ?? '').trim()[0] ?? '';
+    const a = String(u['apellidos'] ?? '').trim()[0] ?? '';
+    return (n + a).toUpperCase() || '?';
+  }
+  /** Tono (0-4) estable según el correo, para variar el color del avatar. */
+  tono(u: Record<string, unknown>): number {
+    const e = String(u['email'] ?? '');
+    let h = 0;
+    for (let i = 0; i < e.length; i++) h = (h * 31 + e.charCodeAt(i)) % 5;
+    return h;
   }
 
   abrirFormUsuario(): void {

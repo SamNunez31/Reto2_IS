@@ -854,3 +854,27 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .busqueda-campo input { width: 100%; padding-left: 2.5rem; height: 2.75rem; border-radius: 999px; }
 .busqueda-barra .btn { height: 2.75rem; border-radius: 999px; padding: 0 1.4rem; }
 @media (max-width: 640px) { .form-usuario-grid { grid-template-columns: minmax(0, 1fr); } .form-usuario-acciones { flex-direction: column-reverse; } .form-usuario-acciones .btn { width: 100%; } }
+
+/* Admin > Usuarios: tabla */
+.tabla .fila-usuario td { padding-top: .75rem; padding-bottom: .75rem; vertical-align: middle; }
+.tabla .fila-usuario:hover { background: var(--gris-100, #f4f1ec); }
+.tabla .fila-usuario.inactivo .usuario-celda { opacity: .55; }
+.usuario-celda { display: flex; align-items: center; gap: .8rem; }
+.usuario-datos { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.usuario-datos small { color: var(--c-suave); font-size: .82rem; overflow: hidden; text-overflow: ellipsis; }
+.avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; display: inline-grid; place-items: center; font-weight: 800; font-size: .82rem; letter-spacing: .02em; color: #fff; background: #1f5c4d; }
+.avatar[data-tono="1"] { background: #b5531a; }
+.avatar[data-tono="2"] { background: #3a5a8a; }
+.avatar[data-tono="3"] { background: #7a5a2a; }
+.avatar[data-tono="4"] { background: #6a4a7a; }
+.pildora { display: inline-block; padding: .2rem .7rem; border-radius: 999px; font-size: .8rem; font-weight: 700; background: var(--gris-100, #f4f1ec); color: var(--gris-700, #5a5650); }
+.pildora-admin { background: #e1efe9; color: #1f5c4d; }
+.estado-punto { display: inline-flex; align-items: center; gap: .45rem; font-size: .88rem; color: var(--c-suave); }
+.estado-punto::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #b9b3a9; }
+.estado-punto.on::before { background: #2e9b5e; }
+.estado-punto.on { color: var(--c-texto, #1c2523); }
+.acciones-fila { text-align: right; white-space: nowrap; }
+.acciones-fila .btn + .btn { margin-left: .4rem; }
+.btn-peligro-suave { color: #a3342b; border-color: #e8c9c5; }
+.btn-peligro-suave:hover:not(:disabled) { background: #fbeeec; color: #8c2a22; border-color: #d9a9a3; }
+@media (max-width: 640px) { .acciones-fila { white-space: normal; } .acciones-fila .btn { margin: .2rem .2rem 0 0; } }
