@@ -103,12 +103,6 @@ export function motivoBusqueda(
 
       @if (masFiltros()) {
         <div class="mas-filtros" id="mas-filtros">
-          <label>Tipo
-            <select formControlName="tipo">
-              <option [ngValue]="null">Todos</option>
-              @for (t of constantes()?.accommodation_types ?? []; track t.id) { <option [ngValue]="t.id">{{ t.name }}</option> }
-            </select>
-          </label>
           <label>Estrellas mín.
             <select formControlName="estrellas">
               <option [ngValue]="null">Cualquiera</option>
