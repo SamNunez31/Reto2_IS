@@ -815,3 +815,5 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .desglose-vivo { column-gap: 0; row-gap: .35rem; }
 .desglose-vivo dd { padding-left: 1rem; white-space: nowrap; }
 .desglose-vivo .total { margin-top: .35rem; padding-top: .6rem; }
+
+.desglose-vivo dt .sub { display: block; font-size: .78rem; color: var(--gris-700, #5a5650); font-weight: 400; }
