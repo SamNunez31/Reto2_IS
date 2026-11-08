@@ -11,6 +11,7 @@ import { AnfitrionService, ResenaHost, ReservaHost } from '../../core/services/a
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { avisoTemporal } from '../../shared/aviso';
 import { CalificacionComponent } from '../../shared/calificacion';
+import { OjoClaveComponent } from '../../shared/campo';
 import { PagoComponent } from '../../shared/pago';
 import { fechaMasDias } from '../../shared/fechas';
 import { indicePestana } from '../../shared/pestanas';
@@ -27,7 +28,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
   selector: 'app-admin',
   imports: [
     CurrencyPipe, DatePipe, JsonPipe, FormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, EstadoComponent, CalificacionComponent, PagoComponent,
-    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective,
+    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent,
   ],
   template: `
     <h1>Administración</h1>
@@ -154,30 +155,45 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
         @if (!formUsuario()) {
           <p><button class="btn" type="button" aria-expanded="false" aria-controls="form-usuario" (click)="abrirFormUsuario()">Agregar usuario</button></p>
         } @else {
-        <form class="tarjeta" id="form-usuario" (ngSubmit)="crearUsuario()" novalidate>
-          <h2>Agregar usuario</h2>
-          <p>Se crea activo y con rol de huésped; después puedes hacerlo administrador desde la tabla.</p>
-          <div class="fila">
-            <label>Correo <input name="ue" type="email" autocomplete="off" maxlength="160" [(ngModel)]="nuevoUsuario.email"
-                   [attr.aria-invalid]="!!nuevoUsuario.email && !!problemaUsuario().email" aria-describedby="msg-u-email" /></label>
-            <label>Nombres <input name="un" appFiltro="nombre" autocomplete="off" maxlength="80" [(ngModel)]="nuevoUsuario.nombres"
-                   [attr.aria-invalid]="!!nuevoUsuario.nombres && !!problemaUsuario().nombres" aria-describedby="msg-u-nombres" /></label>
-            <label>Apellidos <input name="ua" appFiltro="nombre" autocomplete="off" maxlength="80" [(ngModel)]="nuevoUsuario.apellidos"
-                   [attr.aria-invalid]="!!nuevoUsuario.apellidos && !!problemaUsuario().apellidos" aria-describedby="msg-u-apellidos" /></label>
-            <label>Contraseña <input name="up" type="password" autocomplete="new-password" maxlength="72" [(ngModel)]="nuevoUsuario.password"
-                   [attr.aria-invalid]="!!nuevoUsuario.password && !!problemaUsuario().password" aria-describedby="msg-u-password" /></label>
+        <form class="tarjeta form-usuario" id="form-usuario" (ngSubmit)="crearUsuario()" novalidate>
+          <header class="form-usuario-cab">
+            <h2>Agregar usuario</h2>
+            <p>Se crea activo y con rol de huésped; después puedes hacerlo administrador desde la tabla.</p>
+          </header>
+          <div class="form-usuario-grid">
+            <label class="campo-ancho">Correo electrónico
+              <input name="ue" type="email" autocomplete="off" maxlength="160" placeholder="nombre@correo.com" [(ngModel)]="nuevoUsuario.email"
+                     [attr.aria-invalid]="!!nuevoUsuario.email && !!problemaUsuario().email" aria-describedby="msg-u-email" /></label>
+            <label>Nombres
+              <input name="un" appFiltro="nombre" autocomplete="off" maxlength="80" [(ngModel)]="nuevoUsuario.nombres"
+                     [attr.aria-invalid]="!!nuevoUsuario.nombres && !!problemaUsuario().nombres" aria-describedby="msg-u-nombres" /></label>
+            <label>Apellidos
+              <input name="ua" appFiltro="nombre" autocomplete="off" maxlength="80" [(ngModel)]="nuevoUsuario.apellidos"
+                     [attr.aria-invalid]="!!nuevoUsuario.apellidos && !!problemaUsuario().apellidos" aria-describedby="msg-u-apellidos" /></label>
+            <div class="campo-ancho">
+              <label for="u-pass">Contraseña</label>
+              <app-ojo-clave #ojo>
+                <input id="u-pass" name="up" [type]="ojo.visible() ? 'text' : 'password'" autocomplete="new-password" maxlength="72" [(ngModel)]="nuevoUsuario.password"
+                       [attr.aria-invalid]="!!nuevoUsuario.password && !!problemaUsuario().password" aria-describedby="msg-u-password" />
+              </app-ojo-clave>
+            </div>
           </div>
           @if (nuevoUsuario.email && problemaUsuario().email; as p) { <p class="msg-campo msg-error" id="msg-u-email" role="alert"><span aria-hidden="true">✗</span> Correo: {{ p }}</p> }
           @if (nuevoUsuario.nombres && problemaUsuario().nombres; as p) { <p class="msg-campo msg-error" id="msg-u-nombres" role="alert"><span aria-hidden="true">✗</span> {{ p }}</p> }
           @if (nuevoUsuario.apellidos && problemaUsuario().apellidos; as p) { <p class="msg-campo msg-error" id="msg-u-apellidos" role="alert"><span aria-hidden="true">✗</span> {{ p }}</p> }
           @if (nuevoUsuario.password && problemaUsuario().password; as p) { <p class="msg-campo msg-error" id="msg-u-password" role="alert"><span aria-hidden="true">✗</span> {{ p }}</p> }
-          <div class="fila">
-            <button class="btn" type="submit" [disabled]="hayProblemaUsuario() || creandoUsuario()">{{ creandoUsuario() ? 'Guardando…' : 'Guardar' }}</button>
-            <button class="btn" type="button" [disabled]="creandoUsuario()" (click)="cancelarFormUsuario()">Cancelar</button>
+          <div class="form-usuario-acciones">
+            <button class="btn btn-fantasma" type="button" [disabled]="creandoUsuario()" (click)="cancelarFormUsuario()">Cancelar</button>
+            <button class="btn btn-primario" type="submit" [disabled]="hayProblemaUsuario() || creandoUsuario()">{{ creandoUsuario() ? 'Guardando…' : 'Guardar usuario' }}</button>
           </div>
         </form>
         }
-        <form class="busqueda-barra" role="search" (ngSubmit)="ir('usuarios')"><label>Buscar <input name="q" [(ngModel)]="busqueda" maxlength="80" placeholder="Correo o nombre" /></label><button class="btn" type="submit">Buscar</button></form>
+        <form class="busqueda-barra" role="search" (ngSubmit)="ir('usuarios')">
+          <label class="busqueda-campo"><span class="sr-only">Buscar usuarios</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input name="q" [(ngModel)]="busqueda" maxlength="80" placeholder="Buscar por correo o nombre" /></label>
+          <button class="btn btn-primario" type="submit">Buscar</button>
+        </form>
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Usuarios</caption>
