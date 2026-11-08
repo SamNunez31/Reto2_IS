@@ -90,3 +90,21 @@ Pedido de la cátedra para el flujo crear habitación → reservar desde Booking
 - Auditoría: evento `operacion_critica` con `accion: checkin_recepcion`.
 - Migración `database/06_v2_clientes_checkin.sql` (tabla `cliente_v2` + columnas de check-in en `orden_v2`).
 - Pruebas: `test:roles` (ruteo), Pact (5 interacciones) y bloque `[clientes]` en `prueba-v2.cjs`.
+
+## 2026-11-08 — Correcciones tras la auditoría del backend
+
+Auditoría de solo lectura (`AUDITORIA_BACKEND.md`, 7,5/10). Corregido en código:
+
+- **H-07 Idempotencia:** una clave «en proceso» que lleva más de 2 min sin respuesta (el proceso murió) se reclama de forma atómica y la operación puede reintentarse; antes devolvía 409 hasta la purga de 24 h. Prueba nueva: `idempotencia.interceptor.spec.ts`.
+- **H-17 Perfil:** el `UPDATE` dinámico de `cuenta.service.ts` usa una lista blanca fija de columnas (`COLUMNAS_PERFIL`).
+- **H-13 gRPC:** `STOCK_GRPC_TLS=true` cifra el canal hacia Booking (sin TLS solo en red privada/Tailscale).
+- **H-14 Swagger:** `SWAGGER_ENABLED=false` oculta `/api/docs`.
+- **H-15/H-16:** comentarios de Render actualizados a Azure; CI con Node 22 (igual que la imagen).
+- **H-01 Despliegue:** `scripts/desplegar-microservicios-azure.sh` crea las variables sensibles como secretos de Container Apps (`secretref:`), genera `METRICS_TOKEN` si falta y borra los temporales de `/tmp` al terminar.
+
+Decisiones documentadas (no se cambian ahora):
+
+- **H-03 Límites en memoria:** el rate limit del backend y de Kong es por réplica (`policy: local`). Aceptable con 1 réplica; para varias réplicas usar Redis.
+- **H-09 Rotación de `SERVICE_API_KEY`:** cambiar la llave en el gateway y en los 4 servicios en la misma ventana y avisar a Booking; durante el cambio las llamadas de Booking recibirán 401.
+- **H-08 Bloqueo por cuenta en login:** no se añade antes de la defensa para no bloquear cuentas de demo; el límite actual es 5 intentos/min por IP.
+- **H-19 Dependencias:** `npm audit --omit=dev` reporta 18 (11 moderadas, 7 altas), todas en cadenas de NestJS 10 (`@nestjs/platform-express`, `@nestjs/swagger`, `@nestjs/config`) cuya corrección exige subir de versión mayor. Se deja como tarea posterior a la entrega.

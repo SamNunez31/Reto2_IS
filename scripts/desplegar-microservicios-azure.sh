@@ -6,8 +6,11 @@
 #   TAG_BACKEND=2.0.0 TAG_GATEWAY=1.0.0 bash desplegar-microservicios-azure.sh
 #
 # Copia las variables de entorno (DATABASE_URL, JWT_SECRET, SERVICE_API_KEY, STOCK_REST_*, ...) de la app
-# original, así no se escriben secretos en ningún archivo. NO toca la app original.
+# original. Las sensibles se crean como SECRETOS de Container Apps (secretref:), no como variables en claro.
+# Los archivos temporales con valores se crean con permisos 600 y se borran al terminar (trap). NO toca la app original.
 set -euo pipefail
+umask 077
+trap 'rm -f /tmp/env_original.json /tmp/env_base.txt /tmp/env_secretos.txt' EXIT
 : "${RG:?define RG (grupo de recursos)}"
 APP_ORIGINAL="${APP_ORIGINAL:-posada-alojamientos-api}"
 TAG_BACKEND="${TAG_BACKEND:-2.0.0}"
@@ -24,7 +27,24 @@ fi
 # Solo las variables con valor; se quitan las que el script define por servicio.
 jq -r '.[] | select(.value != null) | select(.name != "SERVICE_ROLE" and .name != "PORT" and .name != "API_PUBLIC_URL" and .name != "NODE_ENV") | "\(.name)=\(.value)"' /tmp/env_original.json > /tmp/env_base.txt
 echo "Variables copiadas: $(wc -l < /tmp/env_base.txt)"
+# Se separan las variables sensibles (secretos de Azure) de las normales.
+PATRON_SECRETO='^(DATABASE_URL|JWT_SECRET|SERVICE_API_KEY|METRICS_TOKEN|[A-Z_]*(PASSWORD|TOKEN|SECRET|KEY)[A-Z_]*)='
+grep -E "$PATRON_SECRETO" /tmp/env_base.txt > /tmp/env_secretos.txt || true
+grep -vE "$PATRON_SECRETO" /tmp/env_base.txt > /tmp/env_base_plano.txt || true
+mv /tmp/env_base_plano.txt /tmp/env_base.txt
+# Si la app original no tenía METRICS_TOKEN, se genera uno para proteger /metrics de cada servicio.
+grep -q '^METRICS_TOKEN=' /tmp/env_secretos.txt || echo "METRICS_TOKEN=$(openssl rand -hex 24)" >> /tmp/env_secretos.txt
 mapfile -t BASE < /tmp/env_base.txt
+mapfile -t SECRETOS < /tmp/env_secretos.txt
+# nombre de secreto de Azure: minúsculas y guiones (JWT_SECRET -> jwt-secret)
+nombre_secreto() { echo "$1" | tr 'A-Z_' 'a-z-'; }
+SECRETS_ARGS=(); ENV_SECRETOS=()
+for kv in "${SECRETOS[@]}"; do
+  k="${kv%%=*}"; v="${kv#*=}"
+  SECRETS_ARGS+=("$(nombre_secreto "$k")=$v")
+  ENV_SECRETOS+=("$k=secretref:$(nombre_secreto "$k")")
+done
+echo "Secretos de Azure: ${#SECRETOS[@]} · variables normales: ${#BASE[@]}"
 
 crear_servicio() { # nombre rol min
   local nombre="$1" rol="$2" min="$3"
@@ -33,7 +53,8 @@ crear_servicio() { # nombre rol min
     --image "docker.io/$HUB/posada-backend:$TAG_BACKEND" \
     --ingress internal --target-port 3000 --transport auto \
     --cpu 0.25 --memory 0.5Gi --min-replicas "$min" --max-replicas 2 \
-    --env-vars "${BASE[@]}" NODE_ENV=production PORT=3000 "SERVICE_ROLE=$rol" -o none
+    --secrets "${SECRETS_ARGS[@]}" \
+    --env-vars "${BASE[@]}" "${ENV_SECRETOS[@]}" NODE_ENV=production PORT=3000 "SERVICE_ROLE=$rol" -o none
 }
 
 crear_servicio posada-identity     identity     0
@@ -42,7 +63,7 @@ crear_servicio posada-reservations reservations "$MIN_ACTIVAS"
 crear_servicio posada-integration  integration  "$MIN_ACTIVAS"
 
 fqdn() { az containerapp show -n "$1" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv; }
-API_KEY=$(grep '^SERVICE_API_KEY=' /tmp/env_base.txt | cut -d= -f2-)
+API_KEY=$(grep '^SERVICE_API_KEY=' /tmp/env_secretos.txt | cut -d= -f2-)
 [ -n "$API_KEY" ] || { echo "No encontré SERVICE_API_KEY en la app original"; exit 1; }
 
 echo ">> posada-gateway (Kong)"
@@ -50,12 +71,13 @@ az containerapp create -n posada-gateway -g "$RG" --environment "$ENV_ID" \
   --image "docker.io/$HUB/posada-gateway:$TAG_GATEWAY" \
   --ingress external --target-port 8000 --transport auto \
   --cpu 0.5 --memory 1Gi --min-replicas "$MIN_ACTIVAS" --max-replicas 2 \
+  --secrets "service-api-key=$API_KEY" \
   --env-vars \
     "UPSTREAM_IDENTITY=https://$(fqdn posada-identity)" \
     "UPSTREAM_CATALOG=https://$(fqdn posada-catalog)" \
     "UPSTREAM_RESERVATIONS=https://$(fqdn posada-reservations)" \
     "UPSTREAM_INTEGRATION=https://$(fqdn posada-integration)" \
-    "SERVICE_API_KEY=$API_KEY" -o none
+    "SERVICE_API_KEY=secretref:service-api-key" -o none
 
 GW="https://$(fqdn posada-gateway)"
 echo ">> Actualizando API_PUBLIC_URL de los servicios a $GW"

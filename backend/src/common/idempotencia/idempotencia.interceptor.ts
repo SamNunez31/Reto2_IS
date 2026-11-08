@@ -10,6 +10,8 @@ import { construirProblema, ProblemBody, ProblemException } from '../problem/pro
 import { traducirErrorPostgres } from '../problem/postgres-errors';
 
 export const OPERACION_IDEMPOTENTE = 'operacionIdempotente';
+/** Minutos tras los cuales una operación "en proceso" se considera huérfana y puede reintentarse. */
+export const PLAZO_EN_PROCESO_MIN = 2;
 /** Marca una operación como idempotente (tabla `idempotencia`), p. ej. @Idempotente('orders.create'). */
 export const Idempotente = (operacion: string) => SetMetadata(OPERACION_IDEMPOTENTE, operacion);
 
@@ -23,7 +25,7 @@ interface FilaIdem {
  * Idempotency-Key persistente:
  *  - misma clave + mismo cuerpo  -> se reproduce la respuesta guardada (cabecera Idempotent-Replayed: true)
  *  - misma clave + otro cuerpo   -> 409
- *  - clave aún en proceso        -> 409 + Retry-After
+ *  - clave aún en proceso        -> 409 + Retry-After (si pasan PLAZO_EN_PROCESO_MIN minutos sin respuesta, se puede reintentar)
  *  - error 5xx                   -> se borra la fila para permitir reintentar
  */
 @Injectable()
@@ -69,6 +71,16 @@ export class IdempotenciaInterceptor implements NestInterceptor {
       [propietario, clave, operacion, hash],
     );
     if (insertada.length) return null;
+    // Una clave "en proceso" que lleva más de PLAZO_EN_PROCESO_MIN minutos quedó huérfana (el proceso murió antes de responder):
+    // se reclama de forma atómica para permitir el reintento, en vez de dejar al cliente con 409 hasta la purga de 24 h.
+    const reclamada = await this.db.query<{ clave: string }>(
+      `UPDATE idempotencia SET hash_solicitud = $3, creado_en = now()
+        WHERE propietario = $1 AND clave = $2 AND estado_http IS NULL
+          AND creado_en < now() - make_interval(mins => $4::int)
+        RETURNING clave`,
+      [propietario, clave, hash, PLAZO_EN_PROCESO_MIN],
+    );
+    if (reclamada.length) return null;
     return this.db.uno<FilaIdem>(
       `SELECT hash_solicitud, estado_http, respuesta FROM idempotencia WHERE propietario = $1 AND clave = $2`,
       [propietario, clave],

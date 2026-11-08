@@ -51,6 +51,9 @@ export interface EventoTraza {
   payload: Record<string, unknown>;
 }
 
+/** Columnas de `usuario` que el propio usuario puede cambiar (lista blanca para el UPDATE dinámico). */
+const COLUMNAS_PERFIL: readonly string[] = ['nombres', 'apellidos', 'telefono', 'tipo_documento', 'numero_documento', 'razon_social'];
+
 const SQL_PERFIL = `
   SELECT u.id, u.email, u.nombres, u.apellidos, u.telefono, u.tipo_documento::text AS tipo_documento, u.numero_documento,
          u.razon_social, u.rol::text AS rol, EXISTS (SELECT 1 FROM alojamiento a WHERE a.anfitrion_id = u.id) AS es_anfitrion,
@@ -71,9 +74,9 @@ export class CuentaService {
   }
 
   async actualizarPerfil(id: string, dto: ActualizarPerfilDto): Promise<Perfil> {
-    const campos = Object.entries(dto).filter(([, v]) => v !== undefined);
+    const campos = Object.entries(dto).filter(([k, v]) => v !== undefined && COLUMNAS_PERFIL.includes(k));
     if (campos.length) {
-      // Los nombres de columna salen del DTO (lista blanca por whitelist del ValidationPipe), los valores van parametrizados
+      // Los nombres de columna salen de una lista blanca fija (COLUMNAS_PERFIL), los valores van parametrizados
       const sets = campos.map(([k], i) => `${k} = $${i + 2}`).join(', ');
       await this.db.query(`UPDATE usuario SET ${sets} WHERE id = $1`, [id, ...campos.map(([, v]) => v)]);
     }

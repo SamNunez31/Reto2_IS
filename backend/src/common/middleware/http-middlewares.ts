@@ -30,7 +30,7 @@ export function correlacionMiddleware(req: Request, res: Response, next: NextFun
   next();
 }
 
-/** En producción (detrás del proxy de Render) redirige HTTP -> HTTPS. */
+/** En producción (detrás del proxy/ingress) redirige HTTP -> HTTPS. */
 export function redireccionHttpsMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (req.header('x-forwarded-proto') === 'http') {
     res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);

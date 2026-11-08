@@ -67,7 +67,7 @@ const CONCURRENCIA = 10;
 
 /**
  * Cliente gRPC del stock (contrato v2, §5). Posada EC es CLIENTE: empuja a Booking `available_units` absolutos,
- * una vez por noche. Se activa con STOCK_GRPC_TARGET (p. ej. 100.x.y.z:50051). Sin TLS en la prueba local.
+ * una vez por noche. Se activa con STOCK_GRPC_TARGET (p. ej. 100.x.y.z:50051). Sin TLS en la prueba local; con STOCK_GRPC_TLS=true se cifra el canal.
  * Nunca bloquea una reserva: los fallos se registran y la siguiente actualización (o `npm run stock:cargar`) reconcilia.
  */
 @Injectable()
@@ -280,7 +280,9 @@ export class StockGrpcService implements OnModuleInit {
       const ruta = join(__dirname, '..', '..', '..', 'proto', 'inventory.proto');
       const def = protoLoader.loadSync(ruta, { keepCase: true, longs: Number, defaults: true, oneofs: true });
       const paquete = grpc.loadPackageDefinition(def) as unknown as { inventory: { InventoryStockService: InventoryClientCtor } };
-      this.cliente = new paquete.inventory.InventoryStockService(this.objetivo, grpc.credentials.createInsecure());
+      // STOCK_GRPC_TLS=true cifra el canal (obligatorio si Booking está en Internet; sin TLS solo en red privada/Tailscale)
+      const credenciales = process.env.STOCK_GRPC_TLS === 'true' ? grpc.credentials.createSsl() : grpc.credentials.createInsecure();
+      this.cliente = new paquete.inventory.InventoryStockService(this.objetivo, credenciales);
     }
     return this.cliente;
   }

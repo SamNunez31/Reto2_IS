@@ -51,6 +51,8 @@ export function crearDocumentoOpenApi(app: INestApplication): OpenAPIObject {
 }
 
 export function montarSwagger(app: INestApplication): void {
+  // SWAGGER_ENABLED=false oculta /api/docs (recomendado en producción si no hace falta mostrar el contrato)
+  if (process.env.SWAGGER_ENABLED === 'false') return;
   SwaggerModule.setup('api/docs', app, crearDocumentoOpenApi(app), {
     swaggerOptions: { persistAuthorization: true },
   });

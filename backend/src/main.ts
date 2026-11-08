@@ -17,7 +17,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   const produccion = esProduccion();
 
-  app.set('trust proxy', 1); // Render/Vercel están detrás de un proxy: IP real para el rate limit
+  app.set('trust proxy', 1); // Azure Container Apps / Kong están detrás de un proxy: IP real para el rate limit
   app.use(correlacionMiddleware);
   app.use('/metrics', metricasHandler); // S10: Prometheus; NO se enruta por el gateway
   app.use(metricasMiddleware);
