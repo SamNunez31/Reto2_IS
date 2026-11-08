@@ -159,7 +159,7 @@ interface Opcion {
                       <button class="btn btn-primario ancho-total w-100 btn-reservar" type="button" (click)="reservar(p)">Reservar</button>
                     }
                     <dl class="desglose desglose-vivo" aria-live="polite">
-                      <dt>{{ porNoche(p) | currency: 'USD' }} × {{ plural(p.nights, 'noche') }}{{ habitaciones() > 1 ? ' × ' + plural(habitaciones(), 'habitación', 'habitaciones') : '' }}</dt>
+                      <dt>{{ porNoche(p) | currency: 'USD' }} × {{ plural(p.nights, 'noche') }}{{ habitaciones() > 1 ? ' × ' + habitaciones() + ' hab.' : '' }}</dt>
                       <dd>{{ p.price.base | currency: 'USD' }}</dd>
                       @if (p.price.cleaning_fee) { <dt>Limpieza</dt><dd>{{ p.price.cleaning_fee | currency: 'USD' }}</dd> }
                       @if (p.price.service_fee) { <dt>Servicio (10 %)</dt><dd>{{ p.price.service_fee | currency: 'USD' }}</dd> }

@@ -811,3 +811,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .btn-reservar { margin: .2rem 0 .9rem; padding: .85rem 1rem; font-size: 1.05rem; }
 .desglose-vivo { margin: 0; font-size: .92rem; }
 .desglose-vivo .total { font-size: 1.05rem; }
+
+.desglose-vivo { column-gap: 0; row-gap: .35rem; }
+.desglose-vivo dd { padding-left: 1rem; white-space: nowrap; }
+.desglose-vivo .total { margin-top: .35rem; padding-top: .6rem; }
