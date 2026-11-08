@@ -770,3 +770,8 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .tarjeta-aloj img, .corazon, .miniaturas img { transition: none; }
   .tarjeta-enlace:hover img, .corazon:hover, .miniaturas button:hover img { transform: none; }
 }
+
+/* Botón volver: píldora discreta con flecha */
+.volver { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: 1rem; padding: .4rem .9rem .4rem .6rem; border: 1px solid var(--gris-200, #e9e5de); border-radius: 999px; background: #fff; color: inherit; font-weight: 600; font-size: .9rem; text-decoration: none; transition: background .15s, box-shadow .15s; }
+.volver:hover { background: var(--gris-100, #f4f1ec); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.volver:focus-visible { outline: 2px solid var(--c-primario, #1f5c4d); outline-offset: 2px; }

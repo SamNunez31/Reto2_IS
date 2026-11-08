@@ -34,7 +34,7 @@ interface Opcion {
     <app-alerta-error [error]="error()" />
     @if (!aloj() && !error()) { <app-cargando /> }
     @if (aloj(); as a) {
-      <a routerLink="/" class="volver">← Volver a la búsqueda</a>
+      <a routerLink="/" class="volver"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Volver</span></a>
       <header class="cabecera-detalle">
         <h1>{{ a.name }} <app-estrellas [n]="a.stars" /></h1>
         <p class="meta cabecera-calif d-flex align-items-center flex-wrap">
