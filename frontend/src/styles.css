@@ -828,3 +828,4 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .dl-total { border-bottom: 0; border-top: 2px solid var(--c-texto, #1c2523); margin-top: .2rem; padding-top: .7rem; align-items: baseline; }
 .dl-total .dl-etq, .dl-total .dl-val { font-size: 1.15rem; font-weight: 800; }
 .dl-total .dl-etq small { display: inline; font-size: .8rem; font-weight: 500; margin-left: .25rem; }
+.dl-total .dl-etq { flex-direction: row; align-items: baseline; }
