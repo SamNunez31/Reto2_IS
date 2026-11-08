@@ -158,14 +158,18 @@ interface Opcion {
                     } @else {
                       <button class="btn btn-primario ancho-total w-100 btn-reservar" type="button" (click)="reservar(p)">Reservar</button>
                     }
-                    <dl class="desglose desglose-vivo" aria-live="polite">
-                      <dt>{{ plural(habitaciones(), 'habitación', 'habitaciones') }} · {{ plural(p.nights, 'noche') }}<small class="sub">{{ porNoche(p) | currency: 'USD' }} por habitación y noche</small></dt>
-                      <dd>{{ p.price.base | currency: 'USD' }}</dd>
-                      @if (p.price.cleaning_fee) { <dt>Limpieza</dt><dd>{{ p.price.cleaning_fee | currency: 'USD' }}</dd> }
-                      @if (p.price.service_fee) { <dt>Servicio (10 %)</dt><dd>{{ p.price.service_fee | currency: 'USD' }}</dd> }
-                      <dt>IVA</dt><dd>{{ p.price.taxes | currency: 'USD' }}</dd>
-                      <dt class="total">Total</dt><dd class="total">{{ p.price.total | currency: 'USD' }}</dd>
-                    </dl>
+                    <div class="desglose-vivo" aria-live="polite">
+                      <p class="desglose-titulo">Detalle del precio</p>
+                      <div class="dl-fila">
+                        <span class="dl-etq">Alojamiento
+                          <small>{{ habitaciones() > 1 ? plural(habitaciones(), 'habitación', 'habitaciones') + ' × ' : '' }}{{ plural(p.nights, 'noche') }} × {{ porNoche(p) | currency: 'USD' }}</small></span>
+                        <span class="dl-val">{{ p.price.base | currency: 'USD' }}</span>
+                      </div>
+                      @if (p.price.cleaning_fee) { <div class="dl-fila"><span class="dl-etq">Limpieza<small>Cargo único</small></span><span class="dl-val">{{ p.price.cleaning_fee | currency: 'USD' }}</span></div> }
+                      @if (p.price.service_fee) { <div class="dl-fila"><span class="dl-etq">Servicio<small>10 % del alojamiento</small></span><span class="dl-val">{{ p.price.service_fee | currency: 'USD' }}</span></div> }
+                      <div class="dl-fila"><span class="dl-etq">IVA<small>Impuesto</small></span><span class="dl-val">{{ p.price.taxes | currency: 'USD' }}</span></div>
+                      <div class="dl-fila dl-total"><span class="dl-etq">Total <small>USD</small></span><span class="dl-val">{{ p.price.total | currency: 'USD' }}</span></div>
+                    </div>
                   } @else {
                     <p class="aviso-capacidad">{{ e.motivo }}</p>
                   }

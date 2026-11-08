@@ -817,3 +817,14 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .desglose-vivo .total { margin-top: .35rem; padding-top: .6rem; }
 
 .desglose-vivo dt .sub { display: block; font-size: .78rem; color: var(--gris-700, #5a5650); font-weight: 400; }
+
+/* Detalle del precio: cada línea dice qué es y cómo se calcula */
+.desglose-vivo { display: block; }
+.desglose-titulo { margin: 0 0 .5rem; font-weight: 800; font-size: 1rem; }
+.dl-fila { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid var(--gris-200, #e9e5de); }
+.dl-etq { display: flex; flex-direction: column; font-weight: 600; font-size: .95rem; }
+.dl-etq small { font-weight: 400; font-size: .8rem; color: var(--gris-700, #5a5650); }
+.dl-val { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dl-total { border-bottom: 0; border-top: 2px solid var(--c-texto, #1c2523); margin-top: .2rem; padding-top: .7rem; align-items: baseline; }
+.dl-total .dl-etq, .dl-total .dl-val { font-size: 1.15rem; font-weight: 800; }
+.dl-total .dl-etq small { display: inline; font-size: .8rem; font-weight: 500; margin-left: .25rem; }
