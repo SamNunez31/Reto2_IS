@@ -50,15 +50,17 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
 
       @case ('alojamientos') {
         <div class="barra-acciones d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-          <form class="fila filtros-aloj" role="search" (ngSubmit)="ir('alojamientos')">
-            <label>Estado
-              <select name="fe" [(ngModel)]="filtroAloj" (change)="ir('alojamientos')">
-                <option value="">Todos</option><option value="BORRADOR">Borrador</option>
+          <form class="filtros-barra" role="search" (ngSubmit)="ir('alojamientos')">
+            <label class="filtro-estado"><span class="sr-only">Estado</span>
+              <select name="fe" aria-label="Estado" [(ngModel)]="filtroAloj" (change)="ir('alojamientos')">
+                <option value="">Todos los estados</option><option value="BORRADOR">Borrador</option>
                 <option value="PUBLICADO">Publicado</option><option value="SUSPENDIDO">Suspendido</option>
               </select>
             </label>
-            <label>Buscar <input name="qa" type="search" [(ngModel)]="busquedaAloj" maxlength="80" placeholder="Nombre, ciudad o código" /></label>
-            <button class="btn" type="submit">Buscar</button>
+            <label class="busqueda-campo"><span class="sr-only">Buscar alojamientos</span>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input name="qa" type="search" [(ngModel)]="busquedaAloj" maxlength="80" placeholder="Nombre, ciudad o código" /></label>
+            <button class="btn btn-primario" type="submit">Buscar</button>
           </form>
           <a class="btn btn-primario" routerLink="/admin/alojamientos/nuevo">+ Nuevo alojamiento</a>
         </div>
@@ -298,7 +300,12 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
       }
 
       @case ('eventos') {
-        <form class="busqueda-barra" role="search" (ngSubmit)="ir('eventos')"><label>Tipo <input name="te" [(ngModel)]="tipoEvento" placeholder="ReservaCreada" /></label><button class="btn" type="submit">Filtrar</button></form>
+        <form class="busqueda-barra" role="search" (ngSubmit)="ir('eventos')">
+          <label class="busqueda-campo"><span class="sr-only">Filtrar por tipo de evento</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input name="te" [(ngModel)]="tipoEvento" placeholder="Tipo de evento, p. ej. ReservaCreada" /></label>
+          <button class="btn btn-primario" type="submit">Filtrar</button>
+        </form>
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Eventos de negocio</caption>
