@@ -126,7 +126,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
                     } @else if (s.canal_booking && s.checkin_en) {
                       <span class="badge">Huésped en el hotel</span>
                     }
-                    @if ((s.estado === 'CONFIRMADA' || s.estado === 'PENDIENTE') && !s.canal_booking && !s.checkin_en) {
+                    @if (s.estado === 'PENDIENTE' && !s.canal_booking) {
                       <button class="btn btn-chico btn-peligro-borde" type="button" (click)="cancelarReserva(s)">Cancelar reserva</button>
                     }
                   </td>

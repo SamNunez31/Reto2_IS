@@ -305,7 +305,7 @@ export class HostService {
   /**
    * Cancelación hecha por el ADMIN (a pedido del huésped o por un problema del alojamiento).
    * Usa fn_cancelar_reserva con el id del admin: como no cancela el huésped, la penalidad es 0 y el reembolso es el 100 % de lo cobrado.
-   * Solo PENDIENTE o CONFIRMADA; no si el huésped ya llegó. Las reservas del canal Booking se cancelan por su propio endpoint v2.
+   * Solo reservas PENDIENTES (aún sin confirmar). Las reservas del canal Booking se cancelan por su propio endpoint v2.
    */
   async cancelar(reservaId: string, motivo: unknown, user: UsuarioToken): Promise<{ reserva: ReservaHost; penalidad: number; reembolso: number }> {
     if (motivo !== undefined && (typeof motivo !== 'string' || motivo.length > 300)) {
@@ -319,8 +319,8 @@ export class HostService {
         `SELECT r.estado::text AS estado, o.checkin_en FROM reserva r LEFT JOIN orden_v2 o ON o.reserva_id = r.id WHERE r.id = $1 FOR UPDATE OF r`,
         [reservaId],
       ))[0];
-      if (!fila || !['PENDIENTE', 'CONFIRMADA'].includes(fila.estado)) {
-        throw conflicto(`La reserva está ${(fila?.estado ?? 'inexistente').toLowerCase()}: solo se cancela una reserva pendiente o confirmada`);
+      if (!fila || fila.estado !== 'PENDIENTE') {
+        throw conflicto(`La reserva está ${(fila?.estado ?? 'inexistente').toLowerCase()}: el administrador solo cancela reservas pendientes`);
       }
       if (fila.checkin_en) throw conflicto('El huésped ya llegó: no se puede cancelar');
       return (await q<{ penalidad: number; reembolso: number }>(`SELECT penalidad, reembolso FROM fn_cancelar_reserva($1, $2, $3)`, [reservaId, user.sub, texto]))[0];

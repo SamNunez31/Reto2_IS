@@ -23,27 +23,27 @@ function crear(opts: { estado: string; checkin?: string | null; booking?: boolea
 }
 
 describe('HostService.cancelar (admin)', () => {
-  it('cancela una reserva confirmada con penalidad 0 y reembolso completo', async () => {
-    const { svc, sqls } = crear({ estado: 'CONFIRMADA' });
+  it('cancela una reserva pendiente con penalidad 0 y reembolso completo', async () => {
+    const { svc, sqls } = crear({ estado: 'PENDIENTE' });
     const r = await svc.cancelar(ID, 'Pedido del huésped', ADMIN);
     expect(r.penalidad).toBe(0);
     expect(r.reembolso).toBe(144.9);
     expect(sqls.some((s) => /fn_cancelar_reserva/.test(s))).toBe(true);
   });
-  it.each(['CANCELADA', 'COMPLETADA', 'EXPIRADA'])('rechaza (409) una reserva %s', async (estado) => {
+  it.each(['CONFIRMADA', 'CANCELADA', 'COMPLETADA', 'EXPIRADA'])('rechaza (409) una reserva %s', async (estado) => {
     const { svc } = crear({ estado });
     await expect(svc.cancelar(ID, undefined, ADMIN)).rejects.toMatchObject({ status: 409 });
   });
   it('rechaza (409) si el huésped ya llegó', async () => {
-    const { svc } = crear({ estado: 'CONFIRMADA', checkin: '2026-11-22T15:00:00Z' });
+    const { svc } = crear({ estado: 'PENDIENTE', checkin: '2026-11-22T15:00:00Z' });
     await expect(svc.cancelar(ID, undefined, ADMIN)).rejects.toMatchObject({ status: 409 });
   });
   it('rechaza (409) una reserva del canal Booking', async () => {
-    const { svc } = crear({ estado: 'CONFIRMADA', booking: true });
+    const { svc } = crear({ estado: 'PENDIENTE', booking: true });
     await expect(svc.cancelar(ID, undefined, ADMIN)).rejects.toMatchObject({ status: 409 });
   });
   it('rechaza (400) un motivo que no es texto o pasa de 300', async () => {
-    const { svc } = crear({ estado: 'CONFIRMADA' });
+    const { svc } = crear({ estado: 'PENDIENTE' });
     await expect(svc.cancelar(ID, 'x'.repeat(301), ADMIN)).rejects.toMatchObject({ status: 400 });
     await expect(svc.cancelar(ID, 123, ADMIN)).rejects.toMatchObject({ status: 400 });
   });

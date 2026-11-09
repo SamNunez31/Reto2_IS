@@ -142,8 +142,8 @@ export class HostController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Cancelar una reserva como administrador',
-    description: 'Cancela una reserva PENDIENTE o CONFIRMADA. Al cancelar el administrador no hay penalidad: se reembolsa todo lo cobrado y se anula la factura. ' +
-      'Body opcional: { "motivo": "…" } (máx. 300). 409 si ya estaba cancelada/completada, si el huésped ya llegó o si es del canal Booking. Queda en la auditoría.',
+    description: 'Cancela una reserva PENDIENTE (aún sin confirmar). Al cancelar el administrador no hay penalidad: se reembolsa todo lo cobrado y se anula la factura. ' +
+      'Body opcional: { "motivo": "…" } (máx. 300). 409 si la reserva no está pendiente o si es del canal Booking. Queda en la auditoría.',
   })
   @ApiResponse({ status: 409, description: 'La reserva no se puede cancelar en su estado actual' })
   async cancelar(
