@@ -138,6 +138,25 @@ export class HostController {
     return ok(r, r.ya_confirmado ? 'El pago ya estaba confirmado' : 'Pago en efectivo confirmado');
   }
 
+  @Post('orders/:id/cancel')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Cancelar una reserva como administrador',
+    description: 'Cancela una reserva PENDIENTE o CONFIRMADA. Al cancelar el administrador no hay penalidad: se reembolsa todo lo cobrado y se anula la factura. ' +
+      'Body opcional: { "motivo": "…" } (máx. 300). 409 si ya estaba cancelada/completada, si el huésped ya llegó o si es del canal Booking. Queda en la auditoría.',
+  })
+  @ApiResponse({ status: 409, description: 'La reserva no se puede cancelar en su estado actual' })
+  async cancelar(
+    @Param('id', uuid('id')) id: string,
+    @Body() body: Record<string, unknown> | undefined,
+    @UsuarioActual() u: UsuarioToken,
+    @Req() req: Request,
+  ): Promise<RespuestaApi<{ reserva: ReservaHost; penalidad: number; reembolso: number }>> {
+    const r = await this.host.cancelar(id, body && typeof body === 'object' ? body['motivo'] : undefined, u);
+    auditar('operacion_critica', req, { reserva_id: id, codigo: r.reserva.codigo, accion: 'cancelacion_admin', reembolso: r.reembolso });
+    return ok(r, 'Reserva cancelada');
+  }
+
   @Post('orders/:id/arrival')
   @HttpCode(200)
   @ApiOperation({

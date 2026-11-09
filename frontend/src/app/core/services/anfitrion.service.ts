@@ -158,6 +158,10 @@ export class AnfitrionService {
   confirmarPago(id: string): Observable<{ reserva: ReservaHost; ya_confirmado: boolean }> {
     return datos(this.http.post<RespuestaApi<{ reserva: ReservaHost; ya_confirmado: boolean }>>(`${this.base}/orders/${id}/confirm-payment`, null));
   }
+  /** Cancelación por el administrador: sin penalidad, reembolso completo. */
+  cancelarReserva(id: string, motivo?: string): Observable<{ reserva: ReservaHost; penalidad: number; reembolso: number }> {
+    return datos(this.http.post<RespuestaApi<{ reserva: ReservaHost; penalidad: number; reembolso: number }>>(`${this.base}/orders/${id}/cancel`, motivo ? { motivo } : {}));
+  }
   ingresos(): Observable<{ mes: string; estancias: number; ingreso_sin_iva: number }[]> {
     return datos(this.http.get<RespuestaApi<{ mes: string; estancias: number; ingreso_sin_iva: number }[]>>(`${this.base}/income`));
   }

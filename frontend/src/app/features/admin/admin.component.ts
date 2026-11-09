@@ -126,6 +126,9 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
                     } @else if (s.canal_booking && s.checkin_en) {
                       <span class="badge">Huésped en el hotel</span>
                     }
+                    @if ((s.estado === 'CONFIRMADA' || s.estado === 'PENDIENTE') && !s.canal_booking && !s.checkin_en) {
+                      <button class="btn btn-chico btn-peligro-borde" type="button" (click)="cancelarReserva(s)">Cancelar reserva</button>
+                    }
                   </td>
                 </tr>
               } @empty { @if (!cargando()) { <tr><td colspan="8">Sin reservas</td></tr> } }
@@ -471,6 +474,18 @@ export class AdminComponent implements OnInit {
     });
     if (!si) return;
     this.accion(this.catalogo.confirmarPago(s.id), `Pago de la reserva ${s.codigo} confirmado`, 'reservas');
+  }
+
+  async cancelarReserva(s: ReservaHost): Promise<void> {
+    const cobrado = s.estado_pago === 'APROBADO' ? ` Se le reembolsará el 100 % (${this.usd(s.total)}) y se anulará la factura.` : ' No había un pago aprobado, así que no hay nada que reembolsar.';
+    const si = await this.confirmar.pedir({
+      titulo: '¿Cancelar esta reserva?',
+      mensaje: `Vas a cancelar la reserva ${s.codigo} de ${s.huesped} en «${s.alojamiento}».${cobrado} Esta acción no se puede deshacer.`,
+      confirmar: 'Sí, cancelar reserva',
+      cancelar: 'No, volver',
+    });
+    if (!si) return;
+    this.accion(this.catalogo.cancelarReserva(s.id), `Reserva ${s.codigo} cancelada`, 'reservas');
   }
 
   async registrarLlegada(s: ReservaHost): Promise<void> {

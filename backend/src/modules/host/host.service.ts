@@ -303,6 +303,33 @@ export class HostService {
 
 
   /**
+   * Cancelación hecha por el ADMIN (a pedido del huésped o por un problema del alojamiento).
+   * Usa fn_cancelar_reserva con el id del admin: como no cancela el huésped, la penalidad es 0 y el reembolso es el 100 % de lo cobrado.
+   * Solo PENDIENTE o CONFIRMADA; no si el huésped ya llegó. Las reservas del canal Booking se cancelan por su propio endpoint v2.
+   */
+  async cancelar(reservaId: string, motivo: unknown, user: UsuarioToken): Promise<{ reserva: ReservaHost; penalidad: number; reembolso: number }> {
+    if (motivo !== undefined && (typeof motivo !== 'string' || motivo.length > 300)) {
+      throw invalido('Motivo no válido', [{ name: 'motivo', reason: 'texto de hasta 300 caracteres' }]);
+    }
+    const texto = `Cancelada por el administrador${typeof motivo === 'string' && motivo.trim() ? `: ${motivo.trim()}` : ''}`.slice(0, 300);
+    const actual = await this.reserva(reservaId, user);
+    if (actual.canal_booking) throw conflicto('Esta reserva viene del canal Booking: se cancela desde ese canal');
+    const r = await this.db.transaccion(async (q) => {
+      const fila = (await q<{ estado: string; checkin_en: string | null }>(
+        `SELECT r.estado::text AS estado, o.checkin_en FROM reserva r LEFT JOIN orden_v2 o ON o.reserva_id = r.id WHERE r.id = $1 FOR UPDATE OF r`,
+        [reservaId],
+      ))[0];
+      if (!fila || !['PENDIENTE', 'CONFIRMADA'].includes(fila.estado)) {
+        throw conflicto(`La reserva está ${(fila?.estado ?? 'inexistente').toLowerCase()}: solo se cancela una reserva pendiente o confirmada`);
+      }
+      if (fila.checkin_en) throw conflicto('El huésped ya llegó: no se puede cancelar');
+      return (await q<{ penalidad: number; reembolso: number }>(`SELECT penalidad, reembolso FROM fn_cancelar_reserva($1, $2, $3)`, [reservaId, user.sub, texto]))[0];
+    });
+    return { reserva: await this.reserva(reservaId, user), penalidad: Number(r?.penalidad ?? 0), reembolso: Number(r?.reembolso ?? 0) };
+  }
+
+
+  /**
    * Check-in en recepción (requisito de la defensa): el recepcionista confirma que el huésped llegó.
    * Solo reservas CONFIRMADAS del canal Booking. Idempotente. Después avisa a Booking
    * (POST /api/v2/reservas/{id}/checkin); si Booking no responde queda en reintentos automáticos.
