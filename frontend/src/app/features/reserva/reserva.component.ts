@@ -38,7 +38,7 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
   imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, CampoMensajeComponent, FiltroDirective],
   template: `
     @if (sel(); as s) {
-      @if (paso() !== 'confirmacion') { <a [routerLink]="['/alojamientos', s.codigo]" class="volver">← Volver al alojamiento</a> }
+      @if (paso() !== 'confirmacion') { <a [routerLink]="['/alojamientos', s.codigo]" class="volver"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Volver al alojamiento</span></a> }
       <h1>{{ paso() === 'confirmacion' ? (metodo() === 'EFECTIVO' ? 'Reserva confirmada' : '¡Pago recibido!') : 'Confirma y paga' }}</h1>
       <ol class="pasos" aria-label="Pasos de la reserva">
         @for (p of pasos; track p.id; let i = $index) {

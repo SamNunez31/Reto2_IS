@@ -44,7 +44,7 @@ type SeccionForm = keyof typeof CAMPOS;
     UnidadesPanelComponent, CalendarioPanelComponent,
   ],
   template: `
-    <a routerLink="/admin" [queryParams]="{ tab: 'alojamientos' }" class="volver">← Volver a Alojamientos</a>
+    <a routerLink="/admin" [queryParams]="{ tab: 'alojamientos' }" class="volver"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Volver a Alojamientos</span></a>
     <div class="edicion-cabecera d-flex align-items-center flex-wrap mb-3">
       <h1>{{ nombre() || 'Editar alojamiento' }}</h1>
       @if (estado()) { <app-estado [estado]="estado()" /> }
