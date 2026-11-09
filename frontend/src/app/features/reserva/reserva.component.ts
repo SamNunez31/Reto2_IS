@@ -13,6 +13,7 @@ import {
   NOMBRE_MARCA, referenciaPago, resultadoSimulado, ResultadoPrueba, soloDigitos, TARJETAS_PRUEBA,
 } from '../../shared/tarjeta';
 import { plural, rangoLargo, textoPersonas, tituloPolitica } from '../../shared/textos';
+import { QrComponent } from '../../shared/qr';
 import { AlertaErrorComponent, CargandoComponent } from '../../shared/ui';
 import { bloquearNoDigitos, FiltroDirective } from '../../shared/entrada';
 import { HORA_CHECKIN_DEFECTO, instanteCheckin, lineaCancelacion } from '../../shared/cancelacion';
@@ -35,7 +36,7 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
 
 @Component({
   selector: 'app-reserva',
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, CampoMensajeComponent, FiltroDirective],
+  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, CampoMensajeComponent, FiltroDirective, QrComponent],
   template: `
     @if (sel(); as s) {
       @if (paso() !== 'confirmacion') { <a [routerLink]="['/alojamientos', s.codigo]" class="volver"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Volver al alojamiento</span></a> }
@@ -236,6 +237,10 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
                   <strong class="localizador">{{ o.locator }}</strong>
                   <button type="button" class="btn btn-chico" (click)="copiar(o.locator)">{{ copiado() ? 'Copiado ✓' : 'Copiar' }}</button>
                   <span class="sr-only" aria-live="polite">{{ copiado() ? 'Código copiado' : '' }}</span>
+                </div>
+                <div class="qr-reserva">
+                  <app-qr [texto]="o.locator" />
+                  <small>Muestra este QR en recepción al llegar</small>
                 </div>
                 <div class="acciones">
                   <a class="btn btn-primario" routerLink="/mis-reservas">Ver mis reservas</a>

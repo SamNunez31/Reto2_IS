@@ -27,6 +27,7 @@
               }
             ],
             "allowedCommonJsDependencies": [
+              "qrcode-generator",
               "leaflet",
               "core-js",
               "html2canvas",
@@ -54,7 +55,15 @@
                   "maximumError": "10kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": false
+              }
             },
             "development": {
               "optimization": false,

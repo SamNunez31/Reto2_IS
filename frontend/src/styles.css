@@ -879,3 +879,4 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .btn-peligro-suave { color: #a3342b; border-color: #e8c9c5; }
 .btn-peligro-suave:hover:not(:disabled) { background: #fbeeec; color: #8c2a22; border-color: #d9a9a3; }
 @media (max-width: 640px) { .acciones-fila { white-space: normal; } .acciones-fila .btn { margin: .2rem .2rem 0 0; } }
+.qr-reserva { display: flex; flex-direction: column; align-items: center; gap: .4rem; margin-bottom: 1.2rem; color: var(--c-suave); font-size: .85rem; }
