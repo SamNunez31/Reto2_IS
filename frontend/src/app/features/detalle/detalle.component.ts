@@ -14,6 +14,7 @@ import { CalificacionComponent, ContadorComponent } from '../../shared/calificac
 import { fechaMasDias, hoyEcuador, motivoFechas } from '../../shared/fechas';
 import { fechaLarga, noches, plural, textoHuespedes, tituloPolitica } from '../../shared/textos';
 import { AlertaErrorComponent, CargandoComponent, EstrellasComponent, VacioComponent } from '../../shared/ui';
+import { MapaUbicacionComponent } from '../../shared/mapa-ubicacion';
 import { lineasTramos } from '../anfitrion/politicas.service';
 
 /** Una opción reservable (tipo de habitación) con su precio o el motivo por el que no se puede reservar. */
@@ -29,7 +30,7 @@ interface Opcion {
 
 @Component({
   selector: 'app-detalle',
-  imports: [FormsModule, RouterLink, CurrencyPipe, AlertaErrorComponent, CargandoComponent, EstrellasComponent, VacioComponent, CalificacionComponent, ContadorComponent],
+  imports: [FormsModule, RouterLink, CurrencyPipe, AlertaErrorComponent, CargandoComponent, EstrellasComponent, VacioComponent, CalificacionComponent, ContadorComponent, MapaUbicacionComponent],
   template: `
     <app-alerta-error [error]="error()" />
     @if (!aloj() && !error()) { <app-cargando /> }
@@ -74,6 +75,15 @@ interface Opcion {
             </ul>
           </section>
 
+          @if (coordenadas(); as c) {
+            <section class="tarjeta">
+              <h2>Dónde vas a estar</h2>
+              <p class="meta">{{ a.location.address }}, {{ a.city.name }}, {{ a.city.province }}</p>
+              <app-mapa-ubicacion [lat]="c.lat" [lon]="c.lon" [titulo]="a.name" />
+              <p class="ayuda">Ubicación aproximada: la dirección exacta se comparte al confirmar la reserva.</p>
+            </section>
+          }
+
           @if (a.policies; as p) {
             <section class="tarjeta">
               <h2>Cancelación: {{ titulo(p.cancellation.name) }}</h2>
@@ -104,7 +114,7 @@ interface Opcion {
         </div>
 
         <!-- Tarjeta de disponibilidad -->
-        <aside class="tarjeta reserva-lateral tarjeta-reserva" aria-label="Disponibilidad y precios">
+        <aside id="panel-reserva" tabindex="-1" class="tarjeta reserva-lateral tarjeta-reserva" aria-label="Disponibilidad y precios">
           @if (a.price_from) { <p class="desde-precio"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>/ noche</span></p> }
           <div class="fechas-reserva row g-2">
             <label class="col-6">Entrada <input type="date" [ngModel]="checkin()" (ngModelChange)="cambiarEntrada($event)" [min]="hoy"
@@ -181,6 +191,18 @@ interface Opcion {
           }
         </aside>
       </div>
+
+      <!-- Barra fija de movil: el panel de reserva queda al final de la pagina, asi se llega en un toque -->
+      @if (!esAdmin()) {
+        <div class="barra-reserva-movil">
+          <p class="brm-precio">
+            @if (precioBarra(); as pn) { <strong>{{ pn | currency: 'USD' }}</strong><span>/ noche</span> }
+            @else { <strong>Ver disponibilidad</strong> }
+            <small>{{ resumenCorto() }}</small>
+          </p>
+          <button class="btn btn-primario" type="button" (click)="irAlPanel()">Reservar</button>
+        </div>
+      }
     }
   `,
 })
@@ -232,6 +254,11 @@ export class DetalleComponent implements OnInit {
   }
   readonly totalHuespedes = computed(() => this.adultos() + this.ninos());
   readonly resumen = computed(() => textoHuespedes(this.totalHuespedes(), this.habitaciones()));
+  /** Linea corta para la barra fija de movil (el panel muestra el resto). */
+  readonly resumenCorto = computed(() => {
+    const n = noches(this.checkin(), this.checkout());
+    return n > 0 ? `${plural(n, 'noche')} \u00b7 ${this.resumen()}` : this.resumen();
+  });
   readonly resumenEstadia = computed(() => {
     const n = noches(this.checkin(), this.checkout());
     return n > 0 ? `${fechaLarga(this.checkin())} → ${fechaLarga(this.checkout())} · ${plural(n, 'noche')}` : '';
@@ -344,6 +371,29 @@ export class DetalleComponent implements OnInit {
       number_of_rooms: this.habitaciones(),
       ...(this.ninos() > 0 ? { children: Array(this.ninos()).fill(8) } : {}),
     };
+  }
+
+  /** Coordenadas del alojamiento, solo si el catalogo las trae completas. */
+  readonly coordenadas = computed<{ lat: number; lon: number } | null>(() => {
+    const u = this.aloj()?.location;
+    const lat = Number(u?.latitude);
+    const lon = Number(u?.longitude);
+    return Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0) ? { lat, lon } : null;
+  });
+
+  /** Precio por noche para la barra de movil: el de la opcion elegida o el "desde" del alojamiento. */
+  readonly precioBarra = computed<number | null>(() => {
+    const p = this.elegida()?.producto;
+    return p ? this.porNoche(p) : this.aloj()?.price_from ?? null;
+  });
+
+  /** Barra fija de movil: lleva la vista y el foco al panel de reserva. */
+  irAlPanel(): void {
+    const panel = document.getElementById('panel-reserva');
+    if (!panel) return;
+    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panel.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+    panel.focus({ preventScroll: true });
   }
 
   /** Precio por noche y por habitación (el "base" del producto es el total de hospedaje). */

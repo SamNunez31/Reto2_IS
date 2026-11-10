@@ -891,3 +891,36 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 
 .dialogo-campo { display: grid; gap: .35rem; margin: .8rem 0 0; font-weight: 600; text-align: left; }
 .dialogo-campo input { width: 8rem; }
+
+/* Barra fija de reserva (solo movil): el panel lateral queda al final de la pagina en pantallas estrechas */
+.barra-reserva-movil { display: none; }
+#panel-reserva { scroll-margin-top: 76px; }
+@media (max-width: 900px) {
+  .barra-reserva-movil { position: fixed; inset: auto 0 0; z-index: 8; display: flex; align-items: center; gap: .8rem;
+    padding: .55rem var(--gutter) calc(.55rem + env(safe-area-inset-bottom)); background: var(--c-superficie);
+    border-top: 1px solid var(--c-borde); box-shadow: 0 -2px 14px rgb(16 32 30 / 10%); }
+  .barra-reserva-movil .brm-precio { flex: 1 1 auto; min-width: 0; margin: 0; line-height: 1.2; }
+  .barra-reserva-movil .brm-precio strong { color: var(--c-acento); font-size: 1.15rem; font-weight: 800; }
+  .barra-reserva-movil .brm-precio span { color: var(--c-suave); font-size: .85rem; margin-left: .2rem; }
+  .barra-reserva-movil .brm-precio small { display: block; color: var(--c-suave); font-size: .78rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .barra-reserva-movil .btn { flex: 0 0 auto; padding-inline: 1.6rem; }
+  body:has(.barra-reserva-movil) { padding-bottom: 78px; }
+}
+
+/* Tipos de alojamiento: aviso de que la fila sigue hacia los lados (en movil se cortaba sin indicacion) */
+.categorias-env { position: relative; }
+.categorias-env::before, .categorias-env::after { content: ''; position: absolute; top: 0; bottom: 3px; width: 44px;
+  pointer-events: none; opacity: 0; transition: opacity var(--transicion); z-index: 1; }
+.categorias-env::before { left: 0; background: linear-gradient(to right, var(--c-fondo) 35%, transparent); }
+.categorias-env::after { right: 0; background: linear-gradient(to left, var(--c-fondo) 35%, transparent); }
+.categorias-env.hay-antes::before, .categorias-env.hay-mas::after { opacity: 1; }
+.cat-flecha { position: absolute; top: 42%; transform: translateY(-50%); z-index: 2; width: 32px; height: 32px;
+  display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--c-borde-control);
+  background: var(--c-superficie); color: var(--c-texto); cursor: pointer; box-shadow: var(--sombra-s); }
+.cat-flecha:hover { border-color: var(--c-texto); }
+.cat-flecha-izq { left: 0; }
+.cat-flecha-der { right: 0; }
+.categorias-fila { scroll-padding-inline: 44px; }
+.categoria { scroll-margin-inline: 44px; }
+@media (hover: none) { .cat-flecha { display: none; } }
