@@ -49,7 +49,7 @@ const esRutaLogin = (url: string): boolean => /^\/login(?:[?#]|$)/.test(url);
               <app-campo-mensaje [control]="form.controls.password" id="msg-login-clave" [mostrarOk]="false" />
             </div>
             <div class="login-acciones">
-              <button class="btn btn-primario" type="submit" [disabled]="enviando() || form.invalid">{{ enviando() ? 'Iniciando sesión…' : 'Iniciar sesión' }}</button>
+              <button class="btn btn-primario" type="submit" [disabled]="enviando()">{{ enviando() ? 'Iniciando sesión…' : 'Iniciar sesión' }}</button>
               <button class="btn" type="button" (click)="irARegistro()">Registrarme</button>
             </div>
           </form>

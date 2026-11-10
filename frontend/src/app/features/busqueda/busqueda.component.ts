@@ -89,7 +89,7 @@ export function motivoBusqueda(
             </div>
           }
         </div>
-        <button class="btn btn-primario btn-buscar" type="submit" [disabled]="form.invalid || cargando()">Buscar</button>
+        <button class="btn btn-primario btn-buscar" type="submit" [disabled]="cargando()">Buscar</button>
       </div>
 
       <div class="buscador-pie d-flex justify-content-between align-items-center flex-wrap gap-3 mt-2">
@@ -99,7 +99,7 @@ export function motivoBusqueda(
           <span class="flecha" aria-hidden="true">▾</span>
         </button>
         <!-- Los errores de fecha ya se muestran bajo su campo -->
-        @if (problema() && !fechas().entrada && !fechas().salida) { <p class="aviso-form" role="alert">{{ problema() }}</p> }
+        @if (problema() && !fechas().entrada && !fechas().salida) { <p class="aviso-form" role="alert" tabindex="-1">{{ problema() }}</p> }
       </div>
 
       @if (masFiltros()) {
@@ -178,7 +178,7 @@ export function motivoBusqueda(
           <article class="tarjeta-aloj">
             <a class="tarjeta-enlace" [routerLink]="['/alojamientos', a.id]">
               <div class="tarjeta-foto">
-                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" />
+                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" decoding="async" width="600" height="450" />
                 <span class="tarjeta-tipo">{{ a.type }}</span>
                 @if (destacado(a)) { <span class="tarjeta-favorito">Favorito de huéspedes</span> }
               </div>
@@ -217,6 +217,7 @@ export function motivoBusqueda(
 })
 export class BusquedaComponent implements OnInit {
   private readonly catalogo = inject(CatalogoService);
+  private readonly raiz = inject<ElementRef<HTMLElement>>(ElementRef);
   /** Hoy en Ecuador (misma referencia que el backend), no la fecha del reloj del navegador. */
   readonly hoy = hoyEcuador();
   readonly constantes = toSignal(this.catalogo.constantes());
@@ -379,6 +380,14 @@ export class BusquedaComponent implements OnInit {
 
   buscar(): void {
     this.panelHuespedes.set(false);
+    // El boton queda activo aunque falte algo: al pulsarlo se lleva el foco a lo que hay que corregir
+    if (this.form.invalid) {
+      setTimeout(() => {
+        const raiz = this.raiz.nativeElement;
+        (raiz.querySelector<HTMLElement>('[aria-invalid="true"]') ?? raiz.querySelector<HTMLElement>('.aviso-form'))?.focus();
+      });
+      return;
+    }
     this.cursores.set([]);
     this.cargar(undefined);
   }

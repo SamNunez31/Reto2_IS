@@ -114,7 +114,7 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
               } @else {
                 <p class="nota">La factura se emitirá a <strong>consumidor final</strong>; no necesitas ingresar más datos.</p>
               }
-              <button class="btn btn-primario" type="submit" [disabled]="factura.invalid">Continuar al pago</button>
+              <button class="btn btn-primario" type="submit">Continuar al pago</button>
             </form>
           }
 
@@ -201,7 +201,7 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
               </div>
 
               @if (rechazo()) { <p class="alerta alerta-error" role="alert">{{ rechazo() }}</p> }
-              <button class="btn btn-primario btn-pagar" type="submit" [disabled]="procesando() || vencido() || tarjeta.invalid">
+              <button class="btn btn-primario btn-pagar" type="submit" [disabled]="procesando() || vencido()">
                 {{ procesando() ? 'Procesando pago…' : 'Pagar ' + (total() | currency: 'USD') }}
               </button>
               <p class="pago-seguro"><span aria-hidden="true">🔒</span> Pago seguro</p>

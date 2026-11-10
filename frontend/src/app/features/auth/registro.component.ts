@@ -65,7 +65,7 @@ export const mensajeCorreoDuplicado = (detalle?: string): string => (detalle?.tr
           <app-campo-mensaje [control]="form.controls.repetir" id="msg-repetir" />
         </div>
 
-        <button class="btn btn-primario" type="submit" [disabled]="enviando() || form.invalid">{{ enviando() ? 'Registrando…' : 'Registrarme' }}</button>
+        <button class="btn btn-primario" type="submit" [disabled]="enviando()">{{ enviando() ? 'Registrando…' : 'Registrarme' }}</button>
       </form>
       <p class="pie">¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a></p>
     </section>
