@@ -1,5 +1,5 @@
 import { CurrencyPipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -37,6 +37,7 @@ export function motivoBusqueda(
 
 @Component({
   selector: 'app-busqueda',
+  host: { '(window:resize)': 'medirCategorias()' },
   imports: [ReactiveFormsModule, RouterLink, CurrencyPipe, AlertaErrorComponent, EstrellasComponent, FiltroDirective],
   template: `
     <section class="banner" aria-labelledby="titulo-banner">
@@ -123,7 +124,18 @@ export function motivoBusqueda(
     </form>
 
     <nav class="categorias" aria-label="Filtrar por tipo de alojamiento">
-      <div class="categorias-fila">
+      <div class="categorias-env" [class.hay-antes]="catAntes()" [class.hay-mas]="catMas()">
+        @if (catAntes()) {
+          <button type="button" class="cat-flecha cat-flecha-izq" aria-label="Ver tipos anteriores" (click)="desplazarCategorias(-1)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+        }
+        @if (catMas()) {
+          <button type="button" class="cat-flecha cat-flecha-der" aria-label="Ver más tipos" (click)="desplazarCategorias(1)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        }
+      <div class="categorias-fila" #filaCategorias (scroll)="medirCategorias()">
         <button type="button" class="categoria" [class.activa]="!form.controls.tipo.value" [attr.aria-pressed]="!form.controls.tipo.value" (click)="elegirTipo(null)">
           <span class="ic ic-todos" aria-hidden="true"></span><span>Todos</span>
         </button>
@@ -132,6 +144,7 @@ export function motivoBusqueda(
             <span class="ic" [class]="'ic ' + icono(t.name)" aria-hidden="true"></span><span>{{ t.name }}</span>
           </button>
         }
+      </div>
       </div>
     </nav>
 
@@ -219,11 +232,38 @@ export class BusquedaComponent implements OnInit {
   });
   readonly cargando = signal(false);
   readonly buscado = signal(false);
+
+  // Fila de tipos de alojamiento: se avisa cuando sigue hacia los lados
+  private readonly filaCategorias = viewChild<ElementRef<HTMLDivElement>>('filaCategorias');
+  readonly catAntes = signal(false);
+  readonly catMas = signal(false);
+  /** Recalcula si la fila de tipos tiene contenido fuera de la vista (al desplazar, al redimensionar y al cargar los tipos). */
+  medirCategorias(): void {
+    const el = this.filaCategorias()?.nativeElement;
+    if (!el) return;
+    this.catAntes.set(el.scrollLeft > 4);
+    this.catMas.set(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }
+  /** Desplaza la fila de tipos ~80 % del ancho visible (botones de flecha). */
+  desplazarCategorias(dir: number): void {
+    const el = this.filaCategorias()?.nativeElement;
+    if (!el) return;
+    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.8), behavior: suave ? 'smooth' : 'auto' });
+  }
+
   readonly error = signal<ErrorVista | null>(null);
   readonly siguientePagina = signal<string | null>(null);
   /** Cursores de las páginas anteriores (para "Anterior"). */
   readonly cursores = signal<(string | undefined)[]>([]);
   private paginaActual: string | undefined;
+
+  constructor() {
+    // Los tipos llegan del API: se mide cuando ya están pintados
+    effect(() => {
+      if (this.constantes()) setTimeout(() => this.medirCategorias());
+    });
+  }
 
   readonly form = inject(FormBuilder).group({
     province: [''],
