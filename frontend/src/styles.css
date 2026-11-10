@@ -888,3 +888,6 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .filtros-barra .busqueda-campo { flex: 1 1 260px; max-width: 380px; }
 .filtros-barra .busqueda-campo input { width: 100%; padding-left: 2.5rem; height: 2.75rem; border-radius: 999px; }
 .filtros-barra .btn { height: 2.75rem; border-radius: 999px; padding: 0 1.4rem; }
+
+.dialogo-campo { display: grid; gap: .35rem; margin: .8rem 0 0; font-weight: 600; text-align: left; }
+.dialogo-campo input { width: 8rem; }

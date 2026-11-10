@@ -151,7 +151,7 @@ export class AnfitrionService {
   }
   /** Marca como recibido el pago en efectivo de la reserva (idempotente). */
   /** Check-in en recepción: el huésped llegó. El backend avisa a Booking. */
-  registrarLlegada(id: string, cuerpo: { observaciones?: string } = {}): Observable<RespuestaLlegada> {
+  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number } = {}): Observable<RespuestaLlegada> {
     return datos(this.http.post<RespuestaApi<RespuestaLlegada>>(`${this.base}/orders/${id}/arrival`, cuerpo));
   }
 

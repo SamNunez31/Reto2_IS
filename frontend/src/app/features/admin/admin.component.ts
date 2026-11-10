@@ -122,7 +122,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
                       <button class="btn btn-chico btn-primario" type="button" (click)="confirmarPago(s)">Confirmar pago recibido</button>
                     }
                     @if (s.canal_booking && s.estado === 'CONFIRMADA' && !s.checkin_en) {
-                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">Registrar llegada</button>
+                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">Registrar check-in</button>
                     } @else if (s.canal_booking && s.checkin_en) {
                       <span class="badge">Huésped en el hotel</span>
                     }
@@ -489,15 +489,16 @@ export class AdminComponent implements OnInit {
   }
 
   async registrarLlegada(s: ReservaHost): Promise<void> {
-    const si = await this.confirmar.pedir({
-      titulo: '¿El huésped ya llegó?',
+    const reales = await this.confirmar.pedirNumero({
+      titulo: 'Registrar check-in',
       mensaje: `Confirma solo si ${s.huesped} se presentó en recepción por la reserva ${s.codigo} («${s.alojamiento}»). Se le asignará habitación y se avisará a Booking.`,
-      confirmar: 'Sí, registrar llegada',
+      campoNumero: { etiqueta: 'Huéspedes que llegaron', valor: s.num_huespedes, min: 1, max: 30 },
+      confirmar: 'Sí, registrar check-in',
       cancelar: 'Todavía no',
     });
-    if (!si) return;
+    if (reales === null) return;
     this.ok.limpiar();
-    this.catalogo.registrarLlegada(s.id).subscribe({
+    this.catalogo.registrarLlegada(s.id, { huespedes_reales: reales }).subscribe({
       next: (r) => {
         this.ok.mostrar(
           `Llegada de la reserva ${s.codigo} registrada (habitación ${r.habitacion_asignada}). ` +

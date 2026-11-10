@@ -6,6 +6,12 @@ import { asegurarCliente } from '../alojamientos-v2/clientes-v2';
 const PLAZO_MS = 8000;
 export const MAX_INTENTOS = 12;
 
+/** Ruta del check-in en Booking (CHECKIN_REST_PATH, con {id}); por defecto la v1 que Booking indicó. */
+export function rutaCheckin(externalOrderId: string): string {
+  const plantilla = (process.env.CHECKIN_REST_PATH || '/api/v1/reservas/{id}/checkin').trim();
+  return plantilla.replace('{id}', encodeURIComponent(externalOrderId));
+}
+
 interface FilaCheckin {
   external: string;
   cliente_id: string | null;
@@ -19,7 +25,9 @@ interface FilaCheckin {
 
 /**
  * Avisa a Booking que el huésped llegó físicamente a recepción:
- *   POST {BOOKING}/api/v2/reservas/{external_order_id}/checkin   (X-API-Key)
+ *   POST {BOOKING}/api/v1/reservas/{external_order_id}/checkin   (X-API-Key)
+ * Cuerpo: { external_order_id, estado: 'CONFIRMADO_ASISTIDO', huespedes_reales }. La ruta se puede cambiar con
+ * CHECKIN_REST_PATH (use {id} como marcador) si Booking publica otra versión; con /v2/ se envían además los campos opcionales del contrato v2.
  * Es idempotente en nuestro lado (checkin_notificado_en) y con reintentos: si Booking no responde,
  * el job `notificar-checkin` vuelve a intentarlo con espera creciente; un 4xx (salvo 408/429) no se reintenta.
  */
@@ -72,19 +80,24 @@ export class NotificadorCheckin {
         }
       }
       const externalOrderId = `ORD-HTL-${f.external.slice(3)}`;
-      const cuerpo = {
+      const ruta = rutaCheckin(externalOrderId);
+      const cuerpo: Record<string, unknown> = {
         external_order_id: externalOrderId,
-        client_id: clientId,
         estado: 'CONFIRMADO_ASISTIDO',
         huespedes_reales: f.huespedes ?? f.num_huespedes,
-        admin_id: f.admin ?? 'recepcionista-hotel',
-        fecha_checkin: f.fecha,
-        observaciones: f.observaciones ?? 'Huésped presentado en recepción',
       };
+      if (ruta.includes('/v2/')) {
+        Object.assign(cuerpo, {
+          client_id: clientId,
+          admin_id: f.admin ?? 'recepcionista-hotel',
+          fecha_checkin: f.fecha,
+          observaciones: f.observaciones ?? 'Huésped presentado en recepción',
+        });
+      }
       let estado = 0;
       let detalle = '';
       try {
-        const r = await fetch(`${cfg.base}/api/v2/reservas/${encodeURIComponent(externalOrderId)}/checkin`, {
+        const r = await fetch(`${cfg.base}${ruta}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-api-key': cfg.llave, 'x-correlation-id': `checkin-${reservaId.slice(0, 8)}-${reclamo[0].intentos}` },
           body: JSON.stringify(cuerpo),
