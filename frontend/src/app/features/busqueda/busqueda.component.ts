@@ -124,7 +124,7 @@ export function motivoBusqueda(
     </form>
 
     <nav class="categorias" aria-label="Filtrar por tipo de alojamiento">
-      <div class="categorias-env" [class.hay-antes]="catAntes()" [class.hay-mas]="catMas()">
+      <div class="categorias-env" [class.desborda]="catDesborda()" [class.hay-antes]="catAntes()" [class.hay-mas]="catMas()">
         @if (catAntes()) {
           <button type="button" class="cat-flecha cat-flecha-izq" aria-label="Ver tipos anteriores" (click)="desplazarCategorias(-1)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
@@ -238,10 +238,13 @@ export class BusquedaComponent implements OnInit {
   private readonly filaCategorias = viewChild<ElementRef<HTMLDivElement>>('filaCategorias');
   readonly catAntes = signal(false);
   readonly catMas = signal(false);
+  /** La fila no cabe entera: se reserva sitio a los lados para que las flechas no tapen un tipo. */
+  readonly catDesborda = signal(false);
   /** Recalcula si la fila de tipos tiene contenido fuera de la vista (al desplazar, al redimensionar y al cargar los tipos). */
   medirCategorias(): void {
     const el = this.filaCategorias()?.nativeElement;
     if (!el) return;
+    this.catDesborda.set(el.scrollWidth > el.clientWidth + 4);
     this.catAntes.set(el.scrollLeft > 4);
     this.catMas.set(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   }

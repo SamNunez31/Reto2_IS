@@ -925,3 +925,5 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .categorias-fila { scroll-padding-inline: 44px; }
 .categoria { scroll-margin-inline: 44px; }
 @media (hover: none) { .cat-flecha { display: none; } }
+/* Con raton y ventana estrecha: sitio a los lados para que las flechas no tapen ningun tipo */
+@media (hover: hover) { .categorias-env.desborda .categorias-fila { padding-inline: 38px; } }
