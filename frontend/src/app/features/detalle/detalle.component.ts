@@ -46,14 +46,14 @@ interface Opcion {
 
       <section class="galeria" aria-label="Galería de fotos">
         @if (fotoActiva() || a.cover_photo; as foto) {
-          <img class="principal" [src]="foto" [alt]="'Foto de ' + a.name" />
+          <img class="principal" [src]="foto" [alt]="'Foto de ' + a.name" width="1280" height="720" decoding="async" fetchpriority="high" />
         } @else {
           <div class="principal sin-foto"><span class="icono" aria-hidden="true">📷</span>Sin foto</div>
         }
         <div class="miniaturas">
           @for (f of a.photos ?? []; track f.url) {
             <button type="button" (click)="fotoActiva.set(f.url)" [attr.aria-label]="'Ver foto ' + (f.order + 1)" [class.activa]="fotoActiva() === f.url">
-              <img [src]="f.url" alt="" loading="lazy" />
+              <img [src]="f.url" alt="" loading="lazy" decoding="async" width="200" height="150" />
             </button>
           }
         </div>

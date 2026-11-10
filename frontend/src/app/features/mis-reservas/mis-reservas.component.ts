@@ -56,7 +56,7 @@ const GRUPO: Record<string, Pestana> = {
           @for (o of visibles(); track o.order_id) {
             <article class="viaje">
               <a class="viaje-foto" [routerLink]="['/alojamientos', o.accommodation_details.id]" tabindex="-1" aria-hidden="true">
-                <img [src]="o.portada || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" />
+                <img [src]="o.portada || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" decoding="async" width="600" height="400" />
               </a>
               <div class="viaje-cuerpo">
                 <div class="viaje-titulo d-flex justify-content-between align-items-start">

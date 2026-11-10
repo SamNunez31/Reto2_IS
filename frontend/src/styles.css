@@ -550,7 +550,8 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .pie-pagina p { margin: .15rem 0; }
 .pie-marca { font-weight: 600; color: var(--gris-700); }
 .pie-aviso { font-size: .78rem; }
-.pie-enlace { color: var(--c-suave); text-decoration: underline; text-underline-offset: 2px; }
+.pie-enlace { display: inline-flex; align-items: center; min-height: 24px; padding: 0 .35rem;
+  color: var(--c-suave); text-decoration: underline; text-underline-offset: 2px; }
 .pie-enlace:hover { color: var(--c-primario); }
 .checkout .resumen-pago { position: sticky; top: 84px; }
 .resumen-pago h2 { font-family: var(--fuente-titulos); font-weight: 400; font-size: 1.35rem; margin-bottom: .2rem; }
