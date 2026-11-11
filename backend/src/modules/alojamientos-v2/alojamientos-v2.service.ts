@@ -6,6 +6,7 @@ import { hoyEcuador, noches as contarNoches } from '../../common/http/respuestas
 import { InvalidParam, ProblemException, invalido } from '../../common/problem/problem';
 import { logJson } from '../../common/logging/log-json';
 import { DbService } from '../../database/db.service';
+import { asignarHabitacion, etiquetaHabitacion, pasarAPreparacion } from '../habitaciones/habitaciones';
 import { vincularTitular } from './clientes-v2';
 import {
   ComunV2,
@@ -39,7 +40,7 @@ const TS = (col: string): string => `to_char(${col} AT TIME ZONE 'America/Guayaq
 
 interface FilaCambio {
   id: string; estado: string; huesped_id: string; entrada: string; hora: string; early_checkin: boolean; early_desde: string | null;
-  checkin_en: string | null; checkout_en: string | null; habitacion: string | null; identificacion: string | null; tipo_nombre: string;
+  checkin_en: string | null; checkout_en: string | null; habitacion: string | null; identificacion: string | null; tipo_nombre: string; unidad_id: string;
 }
 
 interface FilaAloj {
@@ -738,7 +739,7 @@ export class AlojamientosV2Service {
       `SELECT r.id::text AS id, r.estado::text AS estado, r.huesped_id::text AS huesped_id, r.fecha_entrada::text AS entrada,
               a.hora_checkin::text AS hora, o.early_checkin, ${TS('o.early_checkin_desde')} AS early_desde,
               ${TS('o.checkin_en')} AS checkin_en, ${TS('o.checkout_en')} AS checkout_en, o.habitacion_asignada AS habitacion,
-              o.titular->>'identificacion' AS identificacion, u.nombre AS tipo_nombre
+              o.titular->>'identificacion' AS identificacion, u.nombre AS tipo_nombre, o.unidad_id::text AS unidad_id
          FROM reserva r JOIN orden_v2 o ON o.reserva_id = r.id JOIN alojamiento a ON a.id = r.alojamiento_id
          JOIN unidad_alojamiento u ON u.id = o.unidad_id
         WHERE ${cond.replace(/reserva\.id/, 'r.id').replace(/reserva\.codigo/, 'r.codigo')} FOR UPDATE OF r, o`,
@@ -771,7 +772,11 @@ export class AlojamientosV2Service {
       if (Date.now() < habilitado) {
         throw reglaV2('CHECKIN_TIME_NOT_REACHED', 'El check-in digital se habilita a partir de las 14:00 (hora de Guayaquil) del día de llegada.', undefined, { habilitadoDesde: iso5(habilitado) });
       }
-      const habitacion = `${r.tipo_nombre} ${randomInt(101, 600)}`.slice(0, 100);
+      // Hotel: habitación real (queda OCUPADA). Sin habitación libre se conserva la etiqueta anterior para no romper el check-in de Booking.
+      const asignada = await asignarHabitacion(q, r.id, r.unidad_id);
+      const habitacion = asignada.tipo === 'ASIGNADA'
+        ? etiquetaHabitacion(r.tipo_nombre, asignada.numero)
+        : asignada.tipo === 'NO_HOTEL' ? r.tipo_nombre.slice(0, 100) : `${r.tipo_nombre} ${randomInt(101, 600)}`.slice(0, 100);
       const clave = String(randomInt(100000, 1000000));
       const ahora = Date.now();
       await q(`UPDATE orden_v2 SET checkin_en = now(), habitacion_asignada = $2, clave_digital = $3 WHERE reserva_id = $1`, [r.id, habitacion, clave]);
@@ -845,6 +850,7 @@ export class AlojamientosV2Service {
       }
       await q(`UPDATE orden_v2 SET checkout_en = now(), consumos = $2::jsonb, consumos_total = $3, clave_digital = NULL WHERE reserva_id = $1`, [r.id, JSON.stringify(consumos), aMoney(consumosC)]);
       await q(`UPDATE reserva SET estado = 'COMPLETADA' WHERE id = $1`, [r.id]); // dispara EstanciaCompletada (= checkout.completado)
+      await pasarAPreparacion(q, r.id); // la habitación queda EN_PREPARACION hasta que el dueño la marque lista
       logJson('info', 'orden_v2_checkout', { order_id: r.id });
       return {
         orderId: r.id,

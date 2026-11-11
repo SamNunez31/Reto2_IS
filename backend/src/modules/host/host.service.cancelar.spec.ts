@@ -19,7 +19,7 @@ function crear(opts: { estado: string; checkin?: string | null; booking?: boolea
     query: q,
     transaccion: async (f: (qq: typeof q) => Promise<unknown>) => f(q),
   } as unknown as DbService;
-  return { svc: new HostService(db, {} as never), sqls };
+  return { svc: new HostService(db, {} as never, {} as never), sqls };
 }
 
 describe('HostService.cancelar (admin)', () => {

@@ -5,6 +5,7 @@ import { logJson } from '../../common/logging/log-json';
 import { noEncontrado } from '../../common/problem/problem';
 import { Consulta, DbService } from '../../database/db.service';
 import { NotificadorCheckin } from '../integracion/notificador-checkin';
+import { NotificadorCheckout } from '../integracion/notificador-checkout';
 import { BusEventos, EventoNegocio } from './bus-eventos';
 
 export const JOBS = ['completar-estancias', 'publicar-outbox', 'purgar-idempotencia', 'notificar-checkin'] as const;
@@ -37,6 +38,7 @@ export class JobsService {
     private readonly db: DbService,
     private readonly bus: BusEventos,
     private readonly checkin: NotificadorCheckin,
+    private readonly checkout: NotificadorCheckout,
     config: ConfigService,
   ) {
     // Reto 2: los jobs (outbox, completar estancias) solo corren en el servicio de integración o en el monolito
@@ -98,7 +100,7 @@ export class JobsService {
       case 'publicar-outbox':
         return this.publicarOutbox(q);
       case 'notificar-checkin':
-        return this.checkin.reintentarPendientes();
+        return (await this.checkin.reintentarPendientes()) + (await this.checkout.reintentarPendientes());
     }
   }
 

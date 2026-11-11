@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { randomInt } from 'crypto';
 import { UsuarioToken } from '../../common/auth/decorators';
 import { Listado } from '../../common/http/respuestas';
 import { conflicto, invalido, noEncontrado } from '../../common/problem/problem';
 import { Consulta, DbService } from '../../database/db.service';
 import { sqlPago } from '../alojamientos/services/ordenes.service';
 import { NotificadorCheckin } from '../integracion/notificador-checkin';
+import { NotificadorCheckout } from '../integracion/notificador-checkout';
+import {
+  asignarHabitacion, ESTADOS_EDITABLES, esUnidadDeHotel, EstadoHabitacion, etiquetaHabitacion, HabitacionLibre, habitacionesDisponibles, pasarAPreparacion,
+} from '../habitaciones/habitaciones';
 import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, UnidadDto,
 } from './dto/host.dto';
@@ -25,7 +28,7 @@ const SQL_RESERVA_HOST = `
          u.nombres || ' ' || u.apellidos AS huesped, r.fecha_entrada, r.fecha_salida, r.num_huespedes,
          COALESCE(o.total, t.total) AS total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
          o.titular->>'nombreCompleto' AS titular_nombre, o.titular->>'tipoDocumento' AS titular_tipo_documento,
-         o.titular->>'identificacion' AS titular_identificacion
+         o.titular->>'identificacion' AS titular_identificacion, o.habitacion_asignada, o.checkout_en
     FROM reserva r
     LEFT JOIN orden_v2 o ON o.reserva_id = r.id
     JOIN alojamiento a ON a.id = r.alojamiento_id
@@ -85,6 +88,10 @@ export interface ReservaHost {
   titular_nombre: string | null;
   titular_tipo_documento: string | null;
   titular_identificacion: string | null;
+  /** Habitación del hotel asignada en el check-in (p. ej. «Suite Familiar 109»); null en otros tipos o antes de llegar */
+  habitacion_asignada: string | null;
+  /** Momento de salida del huésped; null si aún no salió */
+  checkout_en: string | null;
 }
 
 export interface RespuestaLlegada {
@@ -101,6 +108,29 @@ export interface DatosLlegada {
   huespedes_reales?: number;
   admin_id?: string;
   habitacion?: string;
+  /** Habitación del hotel elegida (id de /host/orders/:id/available-rooms); si falta se asigna la primera libre */
+  habitacion_id?: string;
+}
+
+export interface RespuestaSalida {
+  reserva: ReservaHost;
+  estado: 'CHECKED_OUT';
+  /** Número de la habitación que quedó EN_PREPARACION; null si la estadía no tenía habitación real (no es hotel) */
+  habitacion_en_preparacion: string | null;
+  ya_registrado: boolean;
+  booking_notificado: boolean;
+}
+
+export interface HabitacionHost {
+  id: string;
+  numero: string;
+  estado: EstadoHabitacion;
+  actualizada_en: string;
+  alojamiento_codigo: number;
+  alojamiento: string;
+  unidad: string;
+  /** Reserva que la ocupa ahora (si está OCUPADA) */
+  reserva_codigo: string | null;
 }
 
 /**
@@ -111,7 +141,10 @@ export interface DatosLlegada {
  */
 @Injectable()
 export class HostService {
-  constructor(private readonly db: DbService, private readonly checkin: NotificadorCheckin) {}
+  constructor(private readonly db: DbService, private readonly checkin: NotificadorCheckin, private readonly checkout: NotificadorCheckout) {}
+
+  /** La conexión como `Consulta`, para los ayudantes de habitaciones. */
+  private readonly consulta: Consulta = <T>(sql: string, params?: unknown[]) => this.db.query<T>(sql, params);
 
   /** null = sin filtro de dueño (ADMIN); si no, el id del usuario. */
   private dueno(user: UsuarioToken): string | null {
@@ -345,8 +378,8 @@ export class HostService {
    */
   async registrarLlegada(reservaId: string, datos: DatosLlegada, user: UsuarioToken): Promise<RespuestaLlegada> {
     const actual = await this.reserva(reservaId, user);
-    const fila = await this.db.uno<{ checkin_en: string | null; recepcion: boolean; habitacion: string | null; unidad: string }>(
-      `SELECT o.checkin_en, o.checkin_recepcion AS recepcion, o.habitacion_asignada AS habitacion, u.nombre AS unidad
+    const fila = await this.db.uno<{ checkin_en: string | null; recepcion: boolean; habitacion: string | null; unidad: string; unidad_id: string }>(
+      `SELECT o.checkin_en, o.checkin_recepcion AS recepcion, o.habitacion_asignada AS habitacion, u.nombre AS unidad, u.id::text AS unidad_id
          FROM orden_v2 o JOIN unidad_alojamiento u ON u.id = o.unidad_id WHERE o.reserva_id = $1`,
       [reservaId],
     );
@@ -358,13 +391,18 @@ export class HostService {
     if (datos.huespedes_reales !== undefined && !(Number.isInteger(datos.huespedes_reales) && datos.huespedes_reales >= 1 && datos.huespedes_reales <= 30)) errores.push({ name: 'huespedes_reales', reason: 'entero de 1 a 30' });
     if (datos.admin_id !== undefined && (typeof datos.admin_id !== 'string' || datos.admin_id.length < 1 || datos.admin_id.length > 80)) errores.push({ name: 'admin_id', reason: '1 a 80 caracteres' });
     if (datos.habitacion !== undefined && (typeof datos.habitacion !== 'string' || datos.habitacion.length > 100)) errores.push({ name: 'habitacion', reason: 'máximo 100 caracteres' });
+    if (datos.habitacion_id !== undefined && (typeof datos.habitacion_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(datos.habitacion_id))) errores.push({ name: 'habitacion_id', reason: 'UUID' });
     if (errores.length) throw invalido('Datos de llegada no válidos', errores);
 
     const yaRegistrado = fila.recepcion;
     let habitacion = fila.habitacion;
     if (!yaRegistrado) {
-      habitacion = datos.habitacion ?? fila.habitacion ?? `${fila.unidad} ${randomInt(101, 600)}`.slice(0, 100);
       await this.db.transaccion(async (q) => {
+        // Hotel: se ocupa una habitación real (la elegida o la primera libre). Otros tipos se alquilan completos: sin número.
+        const asignada = await asignarHabitacion(q, reservaId, fila.unidad_id, datos.habitacion_id);
+        if (asignada.tipo === 'SIN_DISPONIBLES') throw conflicto('No hay habitaciones disponibles de este tipo. Marca una como lista en la pestaña Habitaciones.');
+        if (asignada.tipo === 'NO_VALIDA') throw conflicto('La habitación elegida ya no está disponible: elige otra');
+        habitacion = asignada.tipo === 'ASIGNADA' ? etiquetaHabitacion(fila.unidad, asignada.numero) : (datos.habitacion ?? fila.habitacion ?? fila.unidad).slice(0, 100);
         await q(
           `UPDATE orden_v2 SET checkin_recepcion = true, checkin_en = COALESCE(checkin_en, now()), habitacion_asignada = $2,
                   checkin_admin = $3, checkin_observaciones = $4, checkin_huespedes = $5
@@ -378,6 +416,80 @@ export class HostService {
     }
     const notificado = await this.checkin.notificar(reservaId); // idempotente: si ya se avisó, devuelve true sin reenviar
     return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_IN', habitacion_asignada: habitacion ?? '', ya_registrado: yaRegistrado, booking_notificado: notificado };
+  }
+
+  /** Habitaciones libres del tipo reservado, para elegir en el check-in. Fuera de hoteles: es_hotel false y lista vacía. */
+  async habitacionesParaCheckin(reservaId: string, user: UsuarioToken): Promise<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }> {
+    await this.reserva(reservaId, user);
+    const fila = await this.db.uno<{ unidad_id: string }>(`SELECT unidad_id::text AS unidad_id FROM orden_v2 WHERE reserva_id = $1`, [reservaId]);
+    if (!fila) throw conflicto('El check-in en recepción se registra solo para reservas del canal Booking');
+    if (!(await esUnidadDeHotel(this.consulta, fila.unidad_id))) return { es_hotel: false, habitaciones: [] };
+    return { es_hotel: true, habitaciones: await habitacionesDisponibles(this.consulta, fila.unidad_id) };
+  }
+
+  /**
+   * Check-out en recepción: el huésped salió. La reserva pasa a COMPLETADA, la habitación queda EN_PREPARACION
+   * (el dueño la marca DISPONIBLE cuando esté lista) y se avisa a Booking. Idempotente.
+   */
+  async registrarSalida(reservaId: string, datos: { observaciones?: unknown }, user: UsuarioToken): Promise<RespuestaSalida> {
+    const actual = await this.reserva(reservaId, user);
+    const fila = await this.db.uno<{ checkin_en: string | null; checkout_en: string | null }>(
+      `SELECT o.checkin_en, o.checkout_en FROM orden_v2 o WHERE o.reserva_id = $1`,
+      [reservaId],
+    );
+    if (!fila) throw conflicto('El check-out en recepción se registra solo para reservas del canal Booking');
+    if (!fila.checkin_en) throw conflicto('El huésped aún no hizo check-in: registra primero su llegada');
+    if (datos.observaciones !== undefined && (typeof datos.observaciones !== 'string' || datos.observaciones.length > 300)) {
+      throw invalido('Datos de salida no válidos', [{ name: 'observaciones', reason: 'máximo 300 caracteres' }]);
+    }
+    const yaRegistrado = fila.checkout_en !== null;
+    let numero: string | null = null;
+    if (!yaRegistrado) {
+      if (actual.estado !== 'CONFIRMADA' && actual.estado !== 'COMPLETADA') throw conflicto(`La reserva está ${actual.estado.toLowerCase()}: no admite check-out`);
+      numero = await this.db.transaccion(async (q) => {
+        await q(
+          `UPDATE orden_v2 SET checkout_en = now(), checkout_recepcion = true, checkout_observaciones = $2, clave_digital = NULL WHERE reserva_id = $1`,
+          [reservaId, (datos.observaciones as string | undefined) ?? null],
+        );
+        // El job de estancias puede haberla completado ya al pasar la fecha de salida
+        if (actual.estado === 'CONFIRMADA') await q(`UPDATE reserva SET estado = 'COMPLETADA' WHERE id = $1`, [reservaId]);
+        return pasarAPreparacion(q, reservaId);
+      });
+    }
+    const notificado = await this.checkout.notificar(reservaId);
+    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_OUT', habitacion_en_preparacion: numero, ya_registrado: yaRegistrado, booking_notificado: notificado };
+  }
+
+  /** Habitaciones de un hotel con su estado. */
+  async habitaciones(codigo: number, user: UsuarioToken): Promise<HabitacionHost[]> {
+    const alojId = await this.idPropio(codigo, user);
+    return this.db.query<HabitacionHost>(
+      `SELECT h.id::text AS id, h.numero, h.estado::text AS estado, h.actualizada_en, a.codigo AS alojamiento_codigo, a.nombre AS alojamiento,
+              u.nombre AS unidad,
+              (SELECT r.codigo FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
+                WHERE o.habitacion_id = h.id AND o.checkin_en IS NOT NULL AND o.checkout_en IS NULL LIMIT 1) AS reserva_codigo
+         FROM habitacion h
+         JOIN alojamiento a ON a.id = h.alojamiento_id
+         JOIN unidad_alojamiento u ON u.id = h.unidad_id
+        WHERE h.alojamiento_id = $1::uuid
+        ORDER BY u.nombre, length(h.numero), h.numero`,
+      [alojId],
+    );
+  }
+
+  /** El dueño cambia el estado de una habitación: EN_PREPARACION ↔ DISPONIBLE. OCUPADA se libera solo con el check-out. */
+  async cambiarEstadoHabitacion(codigo: number, id: string, estado: unknown, user: UsuarioToken): Promise<{ id: string; estado: EstadoHabitacion }> {
+    const alojId = await this.idPropio(codigo, user);
+    if (typeof estado !== 'string' || !(ESTADOS_EDITABLES as readonly string[]).includes(estado)) {
+      throw invalido('Estado no válido', [{ name: 'estado', reason: 'DISPONIBLE o EN_PREPARACION' }]);
+    }
+    const actual = await this.db.uno<{ estado: EstadoHabitacion }>(`SELECT estado::text AS estado FROM habitacion WHERE id = $1::uuid AND alojamiento_id = $2::uuid`, [id, alojId]);
+    if (!actual) throw noEncontrado('La habitación no existe');
+    if (actual.estado === 'OCUPADA') throw conflicto('La habitación está ocupada: se libera con el check-out del huésped');
+    if (actual.estado !== estado) {
+      await this.db.query(`UPDATE habitacion SET estado = $2::estado_habitacion, actualizada_en = now() WHERE id = $1`, [id, estado]);
+    }
+    return { id, estado: estado as EstadoHabitacion };
   }
 
   /** Ingresos por mes (v_ingresos_anfitrion; para el ADMIN, suma de todo el catálogo). */

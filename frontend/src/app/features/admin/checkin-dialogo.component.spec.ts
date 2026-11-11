@@ -5,7 +5,7 @@ import { CheckinDialogoComponent, DatosCheckin } from './checkin-dialogo.compone
 const RESERVA: ReservaHost = {
   id: 'r1', codigo: 'BK-079C37F1', estado: 'CONFIRMADA', alojamiento: 'Prueba Martes', alojamiento_codigo: 7,
   huesped: 'ESB Booking Cuenta de servicio', fecha_entrada: '2026-11-12', fecha_salida: '2026-11-14', num_huespedes: 2, total: 119,
-  created_at: '2026-11-10T20:26:00Z', metodo_pago: 'TARJETA', estado_pago: 'APROBADO', canal_booking: true, checkin_en: null,
+  created_at: '2026-11-10T20:26:00Z', metodo_pago: 'TARJETA', estado_pago: 'APROBADO', canal_booking: true, checkin_en: null, checkout_en: null, habitacion_asignada: null,
   titular_nombre: 'Liz Cadena', titular_tipo_documento: 'CEDULA', titular_identificacion: '1722718150',
 };
 
@@ -109,5 +109,55 @@ describe('CheckinDialogoComponent', () => {
     await abrir(null);
     await abrir({ ...RESERVA, id: 'r2', codigo: 'BK-OTRA0001' });
     expect(boton().disabled).toBeTrue();
+  });
+});
+
+describe('CheckinDialogoComponent · hoteles', () => {
+  let fixture: ComponentFixture<CheckinDialogoComponent>;
+  let el: HTMLElement;
+  const abrir = async (): Promise<void> => {
+    fixture.componentRef.setInput('reserva', RESERVA);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  };
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [CheckinDialogoComponent] });
+    fixture = TestBed.createComponent(CheckinDialogoComponent);
+    el = fixture.nativeElement as HTMLElement;
+  });
+
+  it('fuera de hoteles no pide habitación', async () => {
+    await abrir();
+    expect(el.querySelector('#ck-hab')).toBeNull();
+  });
+
+  it('en un hotel muestra las habitaciones libres y envía la elegida', async () => {
+    fixture.componentRef.setInput('esHotel', true);
+    fixture.componentRef.setInput('habitaciones', [{ id: 'h1', numero: '109' }, { id: 'h2', numero: '110' }]);
+    await abrir();
+    const opciones = Array.from(el.querySelectorAll('#ck-hab option')).map((o) => o.textContent?.trim());
+    expect(opciones).toEqual(['Habitación 109', 'Habitación 110']);
+    const enviados: DatosCheckin[] = [];
+    fixture.componentInstance.confirmar.subscribe((d) => enviados.push(d));
+    (el.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    (el.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    expect(enviados[0].habitacion_id).toBe('h1');
+  });
+
+  it('en un hotel sin habitaciones libres avisa y bloquea la confirmación', async () => {
+    fixture.componentRef.setInput('esHotel', true);
+    fixture.componentRef.setInput('habitaciones', []);
+    await abrir();
+    expect(el.textContent).toContain('No quedan habitaciones disponibles');
+    (el.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((el.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
   });
 });

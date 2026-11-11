@@ -12,7 +12,7 @@ function crear(): { svc: HostService; sqls: string[] } {
       return [{ id: 'r1', codigo: 'BK-079C37F1', total: '119.00', total_filas: 1, anfitrion_id: 'x' }];
     },
   } as unknown as DbService;
-  return { svc: new HostService(db, {} as never), sqls };
+  return { svc: new HostService(db, {} as never, {} as never), sqls };
 }
 
 describe('HostService.reservas: total mostrado en el panel', () => {

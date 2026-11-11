@@ -9,7 +9,7 @@ import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, RangoFechasDto,
   ResponderResenaDto, UnidadDto,
 } from './dto/host.dto';
-import { HostService, ReservaHost, RespuestaLlegada, ResumenAlojamiento, UnidadHost } from './host.service';
+import { HabitacionHost, HostService, ReservaHost, RespuestaLlegada, RespuestaSalida, ResumenAlojamiento, UnidadHost } from './host.service';
 
 const uuid = (n: string) =>
   new ParseUUIDPipe({ exceptionFactory: () => invalido(`${n} debe ser un UUID`, [{ name: n, reason: 'formato UUID requerido' }]) });
@@ -179,11 +179,61 @@ export class HostController {
         huespedes_reales: b.huespedes_reales as number | undefined,
         admin_id: b.admin_id as string | undefined,
         habitacion: b.habitacion as string | undefined,
+        habitacion_id: b.habitacion_id as string | undefined,
       },
       u,
     );
     auditar('operacion_critica', req, { reserva_id: id, accion: 'checkin_recepcion', ya_registrado: r.ya_registrado, booking_notificado: r.booking_notificado });
     return ok(r, r.booking_notificado ? 'Llegada registrada y Booking notificado' : 'Llegada registrada; Booking se notificará en breve (reintento automático)');
+  }
+
+  @Get('orders/:id/available-rooms')
+  @ApiOperation({ summary: 'Habitaciones libres del tipo reservado (para elegir en el check-in de un hotel)' })
+  async habitacionesLibres(
+    @Param('id', uuid('id')) id: string,
+    @UsuarioActual() u: UsuarioToken,
+  ): Promise<RespuestaApi<{ es_hotel: boolean; habitaciones: { id: string; numero: string }[] }>> {
+    return ok(await this.host.habitacionesParaCheckin(id, u));
+  }
+
+  @Post('orders/:id/departure')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Check-out en recepción: el huésped salió',
+    description: 'Solo reservas del canal Booking con check-in. Completa la reserva, deja la habitación EN_PREPARACION y avisa a Booking. Idempotente.',
+  })
+  @ApiResponse({ status: 409, description: 'La reserva no es del canal Booking, aún no hizo check-in o no admite check-out' })
+  async salida(
+    @Param('id', uuid('id')) id: string,
+    @Body() body: Record<string, unknown> | undefined,
+    @UsuarioActual() u: UsuarioToken,
+    @Req() req: Request,
+  ): Promise<RespuestaApi<RespuestaSalida>> {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const r = await this.host.registrarSalida(id, { observaciones: b.observaciones }, u);
+    auditar('operacion_critica', req, { reserva_id: id, accion: 'checkout_recepcion', ya_registrado: r.ya_registrado, booking_notificado: r.booking_notificado });
+    return ok(r, r.ya_registrado ? 'El check-out ya estaba registrado' : 'Salida registrada; la habitación quedó en preparación');
+  }
+
+  @Get('accommodations/:codigo/rooms')
+  @ApiOperation({ summary: 'Habitaciones de un hotel con su estado' })
+  async habitaciones(@Param('codigo', entero('codigo')) codigo: number, @UsuarioActual() u: UsuarioToken): Promise<RespuestaApi<HabitacionHost[]>> {
+    return ok(await this.host.habitaciones(codigo, u));
+  }
+
+  @Patch('accommodations/:codigo/rooms/:id')
+  @ApiOperation({ summary: 'El dueño cambia el estado de una habitación (EN_PREPARACION ↔ DISPONIBLE)' })
+  @ApiResponse({ status: 409, description: 'La habitación está ocupada: se libera con el check-out' })
+  async estadoHabitacion(
+    @Param('codigo', entero('codigo')) codigo: number,
+    @Param('id', uuid('id')) id: string,
+    @Body() body: Record<string, unknown> | undefined,
+    @UsuarioActual() u: UsuarioToken,
+    @Req() req: Request,
+  ): Promise<RespuestaApi<{ id: string; estado: string }>> {
+    const r = await this.host.cambiarEstadoHabitacion(codigo, id, body && typeof body === 'object' ? body['estado'] : undefined, u);
+    auditar('operacion_critica', req, { habitacion_id: id, accion: 'estado_habitacion', estado: r.estado });
+    return ok(r, 'Estado de la habitación actualizado');
   }
 
   @Get('income')

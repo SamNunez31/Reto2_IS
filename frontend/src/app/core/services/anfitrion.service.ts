@@ -87,6 +87,10 @@ export interface ReservaHost {
   canal_booking: boolean;
   /** Momento de llegada del huésped; null si aún no llegó */
   checkin_en: string | null;
+  /** Momento de salida (check-out); null si aún no salió */
+  checkout_en: string | null;
+  /** Habitación asignada en el check-in (hotel: «Suite Familiar 109») */
+  habitacion_asignada: string | null;
   /** Titular real de la reserva de Booking (null en reservas del canal propio) */
   titular_nombre: string | null;
   titular_tipo_documento: string | null;
@@ -99,6 +103,32 @@ export interface RespuestaLlegada {
   habitacion_asignada: string;
   ya_registrado: boolean;
   booking_notificado: boolean;
+}
+
+export interface RespuestaSalida {
+  reserva: ReservaHost;
+  estado: 'CHECKED_OUT';
+  habitacion_en_preparacion: string | null;
+  ya_registrado: boolean;
+  booking_notificado: boolean;
+}
+
+export type EstadoHabitacion = 'DISPONIBLE' | 'OCUPADA' | 'EN_PREPARACION';
+
+export interface HabitacionHost {
+  id: string;
+  numero: string;
+  estado: EstadoHabitacion;
+  actualizada_en: string;
+  alojamiento_codigo: number;
+  alojamiento: string;
+  unidad: string;
+  reserva_codigo: string | null;
+}
+
+export interface HabitacionLibre {
+  id: string;
+  numero: string;
 }
 
 export interface ResenaHost {
@@ -155,8 +185,24 @@ export class AnfitrionService {
   }
   /** Marca como recibido el pago en efectivo de la reserva (idempotente). */
   /** Check-in en recepción: el huésped llegó. El backend avisa a Booking. */
-  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number } = {}): Observable<RespuestaLlegada> {
+  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number; habitacion_id?: string } = {}): Observable<RespuestaLlegada> {
     return datos(this.http.post<RespuestaApi<RespuestaLlegada>>(`${this.base}/orders/${id}/arrival`, cuerpo));
+  }
+
+  /** Habitaciones libres del tipo reservado (solo hoteles) para elegir en el check-in. */
+  habitacionesLibres(id: string): Observable<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }> {
+    return datos(this.http.get<RespuestaApi<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }>>(`${this.base}/orders/${id}/available-rooms`));
+  }
+  /** Check-out en recepción: la habitación queda EN_PREPARACION y se avisa a Booking. */
+  registrarSalida(id: string, cuerpo: { observaciones?: string } = {}): Observable<RespuestaSalida> {
+    return datos(this.http.post<RespuestaApi<RespuestaSalida>>(`${this.base}/orders/${id}/departure`, cuerpo));
+  }
+  habitaciones(codigo: number): Observable<HabitacionHost[]> {
+    return datos(this.http.get<RespuestaApi<HabitacionHost[]>>(`${this.base}/accommodations/${codigo}/rooms`));
+  }
+  /** El dueño marca una habitación EN_PREPARACION o DISPONIBLE. */
+  estadoHabitacion(codigo: number, id: string, estado: 'DISPONIBLE' | 'EN_PREPARACION'): Observable<{ id: string; estado: EstadoHabitacion }> {
+    return datos(this.http.patch<RespuestaApi<{ id: string; estado: EstadoHabitacion }>>(`${this.base}/accommodations/${codigo}/rooms/${id}`, { estado }));
   }
 
   confirmarPago(id: string): Observable<{ reserva: ReservaHost; ya_confirmado: boolean }> {
