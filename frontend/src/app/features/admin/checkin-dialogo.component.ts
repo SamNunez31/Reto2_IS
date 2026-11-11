@@ -2,7 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Component, effect, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ReservaHost } from '../../core/services/anfitrion.service';
-import { noches, plural, rangoLargo } from '../../shared/textos';
+import { plural, rangoLargo } from '../../shared/textos';
 
 export interface DatosCheckin {
   huespedes_reales: number;
@@ -24,12 +24,15 @@ export interface DatosCheckin {
       @if (reserva(); as r) {
         <form class="ck-cuerpo" (ngSubmit)="enviar()" novalidate>
           <h2 id="ck-titulo">Registrar check-in · <span class="ck-codigo">{{ r.codigo }}</span></h2>
-          <p id="ck-resumen" class="ck-resumen">{{ r.huesped }} · {{ r.alojamiento }} · {{ rango(r) }}</p>
+          <p id="ck-resumen" class="ck-resumen">{{ titular(r) }} · {{ r.alojamiento }} · {{ rango(r) }}</p>
 
           <dl class="ck-datos">
-            <div><dt>Titular de la reserva</dt><dd>{{ r.huesped }}</dd></div>
+            <div><dt>Titular de la reserva</dt><dd>{{ titular(r) }}</dd></div>
+            @if (r.titular_identificacion) {
+              <div><dt>{{ tipoDoc(r) }}</dt><dd class="ck-doc">{{ r.titular_identificacion }}</dd></div>
+            }
             <div><dt>Alojamiento</dt><dd>{{ r.alojamiento }}</dd></div>
-            <div><dt>Estadía</dt><dd>{{ rango(r) }} · {{ nochesTxt(r) }}</dd></div>
+            <div><dt>Estadía</dt><dd>{{ rango(r) }}</dd></div>
             <div><dt>Huéspedes reservados</dt><dd>{{ personas(r.num_huespedes) }}</dd></div>
             <div><dt>Total de la reserva</dt><dd>{{ r.total | currency: 'USD' }}</dd></div>
           </dl>
@@ -50,7 +53,7 @@ export interface DatosCheckin {
 
           <label class="ck-verificado">
             <input type="checkbox" name="verificado" [(ngModel)]="verificado" aria-describedby="ck-ayuda-verif" />
-            <span>Verifiqué el documento de identidad del titular</span>
+            <span>Verifiqué el documento de identidad del titular{{ r.titular_identificacion ? ' (' + r.titular_identificacion + ')' : '' }}</span>
           </label>
           <p id="ck-ayuda-verif" class="ck-ayuda">
             {{ verificado ? 'Al confirmar se asignará la habitación y se avisará a Booking.' : 'Marca esta casilla para poder confirmar.' }}
@@ -76,13 +79,14 @@ export interface DatosCheckin {
     .ck-datos dt { color: var(--gris-700); }
     .ck-datos dd { margin: 0; font-weight: 600; text-align: right; }
     .ck-campo { display: grid; gap: .3rem; margin-bottom: .9rem; }
-    .ck-campo label { font-weight: 600; }
+    .ck-campo label { margin: 0; font-size: 1rem; color: var(--c-texto); font-weight: 600; flex-direction: row; display: block; }
+    .ck-doc { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
     .ck-opcional { font-weight: 400; color: var(--gris-700); }
     .ck-campo input { width: 8rem; }
     .ck-campo textarea { width: 100%; resize: vertical; font: inherit; }
     .ck-ayuda { margin: 0; font-size: .85rem; color: var(--gris-700); }
     .ck-error { margin: 0; font-size: .875rem; color: var(--c-error-texto, #b3261e); font-weight: 600; }
-    .ck-verificado { display: flex; align-items: flex-start; gap: .6rem; font-weight: 600; cursor: pointer; margin-top: .4rem; }
+    .ck-verificado { display: flex; flex-direction: row; align-items: flex-start; gap: .6rem; font-size: 1rem; color: var(--c-texto); font-weight: 600; cursor: pointer; margin: .4rem 0 0; }
     .ck-verificado input { width: 1.25rem; height: 1.25rem; margin-top: .1rem; flex: none; }
     .ck-verificado + .ck-ayuda { margin: .25rem 0 0 1.85rem; }
     .ck-acciones { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.1rem; flex-wrap: wrap; }
@@ -122,7 +126,9 @@ export class CheckinDialogoComponent {
   }
 
   protected rango = (r: ReservaHost): string => rangoLargo(r.fecha_entrada, r.fecha_salida);
-  protected nochesTxt = (r: ReservaHost): string => plural(noches(r.fecha_entrada, r.fecha_salida), 'noche');
+  protected titular = (r: ReservaHost): string => r.titular_nombre || r.huesped;
+  protected tipoDoc = (r: ReservaHost): string =>
+    ({ CEDULA: 'Cédula', PASAPORTE: 'Pasaporte', RUC: 'RUC' })[r.titular_tipo_documento ?? ''] ?? 'Documento';
   protected personas = (n: number): string => plural(n, 'huésped', 'huéspedes');
 
   protected enviar(): void {

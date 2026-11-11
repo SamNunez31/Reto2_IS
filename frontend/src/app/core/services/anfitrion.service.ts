@@ -87,6 +87,10 @@ export interface ReservaHost {
   canal_booking: boolean;
   /** Momento de llegada del huésped; null si aún no llegó */
   checkin_en: string | null;
+  /** Titular real de la reserva de Booking (null en reservas del canal propio) */
+  titular_nombre: string | null;
+  titular_tipo_documento: string | null;
+  titular_identificacion: string | null;
 }
 
 export interface RespuestaLlegada {

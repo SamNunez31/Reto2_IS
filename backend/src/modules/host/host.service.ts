@@ -20,7 +20,9 @@ const COLUMNAS_ALOJ = [
 const SQL_RESERVA_HOST = `
   SELECT r.id, r.codigo, r.estado::text AS estado, a.nombre AS alojamiento, a.codigo AS alojamiento_codigo, a.anfitrion_id,
          u.nombres || ' ' || u.apellidos AS huesped, r.fecha_entrada, r.fecha_salida, r.num_huespedes,
-         t.total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en
+         t.total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
+         o.titular->>'nombreCompleto' AS titular_nombre, o.titular->>'tipoDocumento' AS titular_tipo_documento,
+         o.titular->>'identificacion' AS titular_identificacion
     FROM reserva r
     LEFT JOIN orden_v2 o ON o.reserva_id = r.id
     JOIN alojamiento a ON a.id = r.alojamiento_id
@@ -76,6 +78,10 @@ export interface ReservaHost {
   canal_booking: boolean;
   /** Momento en que el huésped llegó (null si aún no) */
   checkin_en: string | null;
+  /** Titular real de la reserva de Booking (null en reservas del canal propio) */
+  titular_nombre: string | null;
+  titular_tipo_documento: string | null;
+  titular_identificacion: string | null;
 }
 
 export interface RespuestaLlegada {
