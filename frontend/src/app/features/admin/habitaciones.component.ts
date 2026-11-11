@@ -22,7 +22,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
   template: `
     <p class="ayuda">
       Cada hotel tiene una habitación por unidad publicada. Al hacer check-out la habitación pasa a «En preparación»;
-      cuando esté lista, márcala como «Disponible». Las ocupadas se liberan con el check-out del huésped.
+      mientras esté así no se puede reservar (baja el cupo de su tipo). Cuando esté lista, márcala como «Disponible». Las ocupadas se liberan con el check-out del huésped.
     </p>
     @if (ok.texto()) { <p class="alerta alerta-ok" role="status">{{ ok.texto() }}</p> }
     <app-alerta-error [error]="error()" />

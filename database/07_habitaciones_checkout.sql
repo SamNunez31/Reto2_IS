@@ -84,6 +84,21 @@ CREATE TRIGGER trg_unidad_habitaciones AFTER INSERT OR UPDATE OF cantidad ON uni
 SELECT fn_sincronizar_habitaciones(id) FROM unidad_alojamiento;
 
 -- Pendientes de avisar a Booking el check-out (los recorre el job notificar-checkin)
+-- Una habitación EN_PREPARACION no se puede reservar: se descuenta del cupo del tipo hasta que el dueño la marque
+-- DISPONIBLE (misma firma que en 01_esquema.sql; esta versión reemplaza a aquella, por eso 07 va después de 01).
+CREATE OR REPLACE FUNCTION fn_cupo_unidad(p_unidad uuid, p_entrada date, p_salida date) RETURNS integer
+LANGUAGE sql STABLE AS $$
+  SELECT GREATEST(COALESCE(min(
+           COALESCE(c.cantidad_a_la_venta, u.cantidad)
+           - COALESCE((SELECT sum(d.cantidad) FROM reserva_detalle d JOIN reserva r ON r.id = d.reserva_id
+                        WHERE d.unidad_id = u.id AND r.estado IN ('PENDIENTE','CONFIRMADA','COMPLETADA')
+                          AND r.fecha_entrada <= n::date AND r.fecha_salida > n::date), 0)
+           - (SELECT count(*) FROM habitacion h WHERE h.unidad_id = u.id AND h.estado = 'EN_PREPARACION')), 0), 0)
+  FROM unidad_alojamiento u
+  CROSS JOIN generate_series(p_entrada, p_salida - 1, interval '1 day') n
+  LEFT JOIN calendario_unidad c ON c.unidad_id = u.id AND c.fecha = n::date
+  WHERE u.id = p_unidad $$;
+
 CREATE INDEX IF NOT EXISTS ix_orden_v2_checkout_pendiente
   ON orden_v2 (checkout_en)
   WHERE checkout_recepcion AND checkout_notificado_en IS NULL;

@@ -1499,13 +1499,16 @@ function desglose(p: Precio): Record<string, unknown> {
   };
 }
 
-/** {orderId} acepta UUID, ORD-HTL-… o BK-HOTEL-… -> [condición SQL, valor]. */
-function condicionDeReferencia(ref: string): [string, string] {
+/** {orderId} acepta UUID, ORD-HTL-…, BK-HOTEL-… o el código propio de Booking (BKG-…) -> [condición SQL, valor]. */
+export function condicionDeReferencia(ref: string): [string, string] {
   if (RE_UUID.test(ref)) return ['reserva.id = $1::uuid', ref];
   const ord = /^ORD-HTL-([A-Z0-9]{3,20})$/.exec(ref);
   if (ord) return ['reserva.codigo = $1', `BK-${ord[1]}`];
   const bk = /^BK-HOTEL-([A-Z0-9]{3,20})$/.exec(ref);
   if (bk) return ['reserva.codigo = $1', `BK-${bk[1]}`];
-  throw invalido('Referencia de reserva inválida', [{ name: 'orderId', reason: 'UUID, ORD-HTL-… o BK-HOTEL-…' }]);
+  // Código interno de Booking (p. ej. BKG-763424): se resuelve si lo enviaron como saga_id o payment_reference al crear la orden;
+  // si no, la búsqueda no encuentra nada y el contrato pide 404 (no 400)
+  if (/^BKG-[A-Z0-9]{3,20}$/.test(ref)) return ['reserva.id IN (SELECT reserva_id FROM orden_v2 WHERE saga_id = $1 OR payment_reference = $1)', ref];
+  throw invalido('Referencia de reserva inválida', [{ name: 'orderId', reason: 'UUID, ORD-HTL-…, BK-HOTEL-… o BKG-…' }]);
 }
 
