@@ -8,7 +8,7 @@ import { CriteriosBusqueda, DetalleAlojamiento } from '../../core/models/api.mod
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { fechaMasDias, hoyEcuador, motivoFechas } from '../../shared/fechas';
-import { aEstrellas, noches, plural, rangoCorto, textoHuespedes, textoPersonas } from '../../shared/textos';
+import { aEstrellas, noches, plural, rangoCorto, textoHuespedes, textoPersonas, tituloPolitica } from '../../shared/textos';
 import { AlertaErrorComponent, EstrellasComponent } from '../../shared/ui';
 import { FiltroDirective } from '../../shared/entrada';
 import { motivoPrecio } from '../../shared/validadores';
@@ -192,7 +192,16 @@ export function motivoBusqueda(
                   } @else { <span class="nota-corta nuevo">Nuevo</span> }
                 </div>
                 <p class="ubicacion"><span>{{ a.city.name }}, {{ a.city.province }}</span></p>
-                <p class="detalle-corto">{{ a.type }}@if (a.stars) { · <app-estrellas [n]="a.stars" /> }@if (a.rating.reviews > 0) { · {{ plural(a.rating.reviews, 'reseña') }} }</p>
+                @if (a.stars || a.rating.reviews > 0) {
+                  <p class="detalle-corto">@if (a.stars) { <app-estrellas [n]="a.stars" /> }@if (a.stars && a.rating.reviews > 0) { · }@if (a.rating.reviews > 0) { {{ plural(a.rating.reviews, 'reseña') }} }</p>
+                }
+                @if (servicios(a); as sv) { <p class="tarjeta-servicios">{{ sv }}</p> }
+                @if (a.policies?.cancellation?.name; as pol) {
+                  <p class="tarjeta-cancelacion" [class.sin-reembolso]="pol === 'NO_REEMBOLSABLE'">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                    Cancelación {{ titulo(pol).toLowerCase() }}
+                  </p>
+                }
                 @if (a.price_from) {
                   <p class="precio-noche"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>por noche</span></p>
                 }
@@ -220,6 +229,7 @@ export class BusquedaComponent implements OnInit {
   private readonly raiz = inject<ElementRef<HTMLElement>>(ElementRef);
   /** Hoy en Ecuador (misma referencia que el backend), no la fecha del reloj del navegador. */
   readonly hoy = hoyEcuador();
+  readonly titulo = tituloPolitica;
   readonly constantes = toSignal(this.catalogo.constantes());
   readonly resultados = signal<DetalleAlojamiento[]>([]);
   /** "10 alojamientos · 19–21 oct · 2 noches · 5 huéspedes, 3 habitaciones" (criterios de la última búsqueda). */
@@ -240,6 +250,12 @@ export class BusquedaComponent implements OnInit {
   readonly catMas = signal(false);
   /** La fila no cabe entera: se reserva sitio a los lados para que las flechas no tapen un tipo. */
   readonly catDesborda = signal(false);
+  /** Hasta tres comodidades para la tarjeta ("Wi-Fi · Desayuno · Parqueadero"); vacio si no hay. */
+  servicios(a: DetalleAlojamiento): string {
+    const f = (a.facilities ?? []).slice(0, 3).map((x) => x.name);
+    return f.join(' · ');
+  }
+
   /** Recalcula si la fila de tipos tiene contenido fuera de la vista (al desplazar, al redimensionar y al cargar los tipos). */
   medirCategorias(): void {
     const el = this.filaCategorias()?.nativeElement;
@@ -449,7 +465,7 @@ export class BusquedaComponent implements OnInit {
         switchMap((r) => {
           this.siguientePagina.set(r.next_page);
           orden = r.data.map((d) => d.id);
-          return this.catalogo.detalles(orden);
+          return this.catalogo.detalles(orden, ['facilities', 'policies']);
         }),
       )
       .subscribe({
