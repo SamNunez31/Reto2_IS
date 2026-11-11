@@ -16,11 +16,14 @@ const COLUMNAS_ALOJ = [
   'hora_checkin', 'hora_checkout', 'noches_min', 'noches_max', 'tarifa_limpieza', 'modo_reserva', 'reglas_casa',
   'categoria_estrellas',
 ] as const;
-/** Una fila por reserva para el panel del ADMIN (incluye método y estado del pago). */
+/**
+ * Una fila por reserva para el panel del ADMIN (incluye método y estado del pago).
+ * El total de una reserva de Booking es el de su orden (incluye tasa municipal); v_reserva_total no la suma.
+ */
 const SQL_RESERVA_HOST = `
   SELECT r.id, r.codigo, r.estado::text AS estado, a.nombre AS alojamiento, a.codigo AS alojamiento_codigo, a.anfitrion_id,
          u.nombres || ' ' || u.apellidos AS huesped, r.fecha_entrada, r.fecha_salida, r.num_huespedes,
-         t.total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
+         COALESCE(o.total, t.total) AS total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
          o.titular->>'nombreCompleto' AS titular_nombre, o.titular->>'tipoDocumento' AS titular_tipo_documento,
          o.titular->>'identificacion' AS titular_identificacion
     FROM reserva r
