@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
 import { Listado } from '../../core/models/api.models';
 import { AdminService, Catalogos, Fila } from '../../core/services/admin.service';
+import { CheckinDialogoComponent, DatosCheckin } from './checkin-dialogo.component';
 import { DashboardAdminComponent } from './dashboard.component';
 import { ObservabilidadComponent } from './observabilidad.component';
 import { AnfitrionService, ResenaHost, ReservaHost } from '../../core/services/anfitrion.service';
@@ -28,7 +29,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
   selector: 'app-admin',
   imports: [
     CurrencyPipe, DatePipe, JsonPipe, FormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, EstadoComponent, CalificacionComponent, PagoComponent,
-    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent,
+    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent, CheckinDialogoComponent,
   ],
   template: `
     <h1>Administración</h1>
@@ -340,6 +341,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'resenas' | 'usuari
       }
     }
     </div>
+    <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
   `,
   styles: `.mt { margin-top: 1rem; } .filtro-inline { max-width: 240px; } pre { white-space: pre-wrap; font-size: .8rem; max-width: 420px; }
     .busqueda-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; margin-bottom: 1rem; }
@@ -353,6 +355,9 @@ export class AdminComponent implements OnInit {
   private readonly ruta = inject(ActivatedRoute);
   private readonly confirmar = inject(ConfirmarService);
   readonly ok = avisoTemporal();
+  /** Reserva cuyo diálogo de check-in está abierto (null = cerrado). */
+  readonly checkin = signal<ReservaHost | null>(null);
+  readonly enviandoCheckin = signal(false);
   readonly pestanas: { id: Pestana; nombre: string }[] = [
     { id: 'indicadores', nombre: 'Dashboard' },
     { id: 'alojamientos', nombre: 'Alojamientos' },
@@ -488,25 +493,34 @@ export class AdminComponent implements OnInit {
     this.accion(this.catalogo.cancelarReserva(s.id), `Reserva ${s.codigo} cancelada`, 'reservas');
   }
 
-  async registrarLlegada(s: ReservaHost): Promise<void> {
-    const reales = await this.confirmar.pedirNumero({
-      titulo: 'Registrar check-in',
-      mensaje: `Confirma solo si ${s.huesped} se presentó en recepción por la reserva ${s.codigo} («${s.alojamiento}»). Se le asignará habitación y se avisará a Booking.`,
-      campoNumero: { etiqueta: 'Huéspedes que llegaron', valor: s.num_huespedes, min: 1, max: 30 },
-      confirmar: 'Sí, registrar check-in',
-      cancelar: 'Todavía no',
-    });
-    if (reales === null) return;
+  registrarLlegada(s: ReservaHost): void {
+    this.checkin.set(s);
+  }
+
+  cerrarCheckin(): void {
+    if (!this.enviandoCheckin()) this.checkin.set(null);
+  }
+
+  confirmarCheckin(datos: DatosCheckin): void {
+    const s = this.checkin();
+    if (!s || this.enviandoCheckin()) return;
     this.ok.limpiar();
-    this.catalogo.registrarLlegada(s.id, { huespedes_reales: reales }).subscribe({
+    this.enviandoCheckin.set(true);
+    this.catalogo.registrarLlegada(s.id, datos).subscribe({
       next: (r) => {
+        this.enviandoCheckin.set(false);
+        this.checkin.set(null);
         this.ok.mostrar(
           `Llegada de la reserva ${s.codigo} registrada (habitación ${r.habitacion_asignada}). ` +
             (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
         );
         this.ir('reservas');
       },
-      error: (e) => this.error.set(leerError(e)),
+      error: (e) => {
+        this.enviandoCheckin.set(false);
+        this.checkin.set(null);
+        this.error.set(leerError(e));
+      },
     });
   }
 
