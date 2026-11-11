@@ -42,17 +42,24 @@ interface Opcion {
           <app-calificacion [nota]="a.rating.score" [resenas]="a.rating.reviews" />
           <span>· {{ a.type }} · {{ a.city.name }}, {{ a.city.province }}</span>
         </p>
+        @if (resumenRapido(); as datos) {
+          <ul class="resumen-rapido">
+            @for (d of datos; track d) { <li>{{ d }}</li> }
+          </ul>
+        }
       </header>
 
-      <section class="galeria" aria-label="Galería de fotos">
-        @if (fotoActiva() || a.cover_photo; as foto) {
+      <section class="galeria" [attr.aria-label]="etiquetaGaleria()">
+        @if (fotoMostrada(); as foto) {
           <img class="principal" [src]="foto" [alt]="'Foto de ' + a.name" width="1280" height="720" decoding="async" fetchpriority="high" />
         } @else {
           <div class="principal sin-foto"><span class="icono" aria-hidden="true">📷</span>Sin foto</div>
         }
+        @if (posicionFoto(); as pos) { <p class="galeria-contador" aria-hidden="true">{{ pos.i }} / {{ pos.total }}</p> }
         <div class="miniaturas">
-          @for (f of a.photos ?? []; track f.url) {
-            <button type="button" (click)="fotoActiva.set(f.url)" [attr.aria-label]="'Ver foto ' + (f.order + 1)" [class.activa]="fotoActiva() === f.url">
+          @for (f of a.photos ?? []; track f.url; let i = $index) {
+            <button type="button" (click)="fotoActiva.set(f.url)" [attr.aria-label]="'Ver foto ' + (i + 1) + ' de ' + (a.photos?.length ?? 0)"
+                    [attr.aria-current]="fotoMostrada() === f.url ? 'true' : null" [class.activa]="fotoMostrada() === f.url">
               <img [src]="f.url" alt="" loading="lazy" decoding="async" width="200" height="150" />
             </button>
           }
@@ -117,7 +124,7 @@ interface Opcion {
         <aside id="panel-reserva" tabindex="-1" class="tarjeta reserva-lateral tarjeta-reserva" aria-label="Disponibilidad y precios">
           @if (a.price_from) { <p class="desde-precio"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>/ noche</span></p> }
           <div class="fechas-reserva row g-2">
-            <label class="col-6">Entrada <input type="date" [ngModel]="checkin()" (ngModelChange)="cambiarEntrada($event)" [min]="hoy"
+            <label class="col-6">Entrada <input id="det-checkin" type="date" [ngModel]="checkin()" (ngModelChange)="cambiarEntrada($event)" [min]="hoy"
                    [attr.aria-invalid]="!!fechas().entrada" [attr.aria-describedby]="fechas().entrada ? 'err-det-checkin' : null" />
               @if (fechas().entrada) { <small class="msg-fecha" id="err-det-checkin" role="alert">{{ fechas().entrada }}</small> }</label>
             <label class="col-6">Salida <input type="date" [ngModel]="checkout()" (ngModelChange)="checkout.set($event)" [min]="checkin()"
@@ -185,7 +192,9 @@ interface Opcion {
                   }
                 }
               } @else {
-                <app-vacio texto="No hay habitaciones disponibles para esas fechas." />
+                <app-vacio texto="No hay habitaciones libres para esas fechas.">
+                  <button class="btn btn-secundario btn-chico" type="button" (click)="enfocarFechas()">Probar otras fechas</button>
+                </app-vacio>
               }
             }
           }
@@ -373,6 +382,31 @@ export class DetalleComponent implements OnInit {
     };
   }
 
+  /**
+   * Datos de un vistazo bajo el titulo: capacidad, composicion y horarios.
+   * Hasta ahora solo se veian dentro de la tarjeta de cancelacion, al final de la pagina.
+   */
+  readonly resumenRapido = computed<string[] | null>(() => {
+    const a = this.aloj();
+    if (!a) return null;
+    const datos: string[] = [];
+    const habs = a.rooms ?? [];
+    if (habs.length) {
+      datos.push(`Hasta ${plural(Math.max(...habs.map((h) => h.max_occupancy)), 'huésped', 'huéspedes')} por habitación`);
+      if (habs.length > 1) datos.push(`${habs.length} tipos de habitación`);
+      else {
+        if (habs[0].beds) datos.push(plural(habs[0].beds, 'cama'));
+        if (habs[0].bathrooms) datos.push(plural(habs[0].bathrooms, 'baño'));
+      }
+    }
+    const p = a.policies;
+    if (p) {
+      datos.push(`Check-in desde ${p.checkin_from}`);
+      datos.push(`Check-out hasta ${p.checkout_until}`);
+    }
+    return datos.length ? datos : null;
+  });
+
   /** Coordenadas del alojamiento, solo si el catalogo las trae completas. */
   readonly coordenadas = computed<{ lat: number; lon: number } | null>(() => {
     const u = this.aloj()?.location;
@@ -386,6 +420,25 @@ export class DetalleComponent implements OnInit {
     const p = this.elegida()?.producto;
     return p ? this.porNoche(p) : this.aloj()?.price_from ?? null;
   });
+
+  /** Foto que se esta viendo: la elegida en las miniaturas o la portada. */
+  readonly fotoMostrada = computed<string | null>(() => this.fotoActiva() ?? this.aloj()?.cover_photo ?? null);
+  /** Posicion de esa foto dentro de la galeria, para el contador "2 / 7". */
+  readonly posicionFoto = computed<{ i: number; total: number } | null>(() => {
+    const fotos = this.aloj()?.photos ?? [];
+    if (!fotos.length) return null;
+    const i = fotos.findIndex((f) => f.url === this.fotoMostrada());
+    return { i: (i < 0 ? 0 : i) + 1, total: fotos.length };
+  });
+  readonly etiquetaGaleria = computed(() => {
+    const total = this.aloj()?.photos?.length ?? 0;
+    return total ? `Galería de fotos: ${plural(total, 'foto')}` : 'Galería de fotos';
+  });
+
+  /** Estado vacio de disponibilidad: lleva el foco al campo de entrada para probar otras fechas. */
+  enfocarFechas(): void {
+    document.getElementById('det-checkin')?.focus();
+  }
 
   /** Barra fija de movil: lleva la vista y el foco al panel de reserva. */
   irAlPanel(): void {

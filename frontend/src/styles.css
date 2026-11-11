@@ -578,6 +578,10 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 /* ---------- 7. Detalle y reserva ---------- */
 .cabecera-detalle { margin-bottom: 1rem; }
 .galeria { margin-bottom: 1rem; }
+.galeria { position: relative; }
+.galeria-contador { position: absolute; top: 12px; right: 12px; z-index: 1; margin: 0;
+  background: rgb(27 37 35 / 80%); color: var(--blanco); font-size: .8rem; font-weight: 700;
+  padding: .25rem .65rem; border-radius: var(--radio-pildora); }
 .galeria .principal { width: 100%; max-height: 480px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radio); }
 .miniaturas { display: flex; gap: .5rem; overflow-x: auto; padding: .5rem 0; }
 .miniaturas button { border: 2px solid transparent; border-radius: var(--radio-s); padding: 0; background: none; cursor: pointer; flex: 0 0 auto; }
@@ -728,6 +732,12 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .tarjeta-aloj .ubicacion { margin: 0; font-size: .92rem; color: var(--c-suave); }
 .detalle-corto { margin: 0; font-size: .86rem; color: var(--c-suave); }
 .detalle-corto .estrellas { font-size: .78rem; }
+.tarjeta-servicios { margin: .1rem 0 0; font-size: .84rem; color: var(--c-suave);
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.tarjeta-cancelacion { display: flex; align-items: center; gap: .3rem; margin: .25rem 0 0;
+  font-size: .82rem; font-weight: 600; color: var(--c-ok-texto); }
+.tarjeta-cancelacion.sin-reembolso { color: var(--c-suave); font-weight: 500; }
+.tarjeta-cancelacion.sin-reembolso svg { display: none; }
 .precio-noche { margin: .45rem 0 0; font-size: .95rem; color: var(--c-suave); }
 .precio-noche span { margin-left: .3rem; }
 .precio-noche strong { color: var(--c-acento); font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
@@ -750,11 +760,17 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .miniaturas img { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 0; transition: transform .4s ease, opacity var(--transicion); }
   .miniaturas button:hover img { transform: scale(1.05); }
   .miniaturas button.activa::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--c-acento); border-radius: inherit; }
+  .galeria-contador { top: auto; right: auto; left: 16px; bottom: 16px; }
 }
 
 /* Detalle: título editorial y precio de la tarjeta de reserva */
 .cabecera-detalle h1 { font-family: var(--fuente-titulos); font-weight: 400; font-size: clamp(1.9rem, 4vw, 2.7rem); line-height: 1.1; letter-spacing: -.01em; margin-bottom: .4rem; }
 .cabecera-detalle h1 .estrellas { font-size: .5em; vertical-align: .35em; margin-left: .4rem; }
+/* Datos de un vistazo: antes solo estaban al final, dentro de la tarjeta de cancelacion */
+.resumen-rapido { display: flex; flex-wrap: wrap; gap: .25rem .6rem; list-style: none; margin: .5rem 0 1rem; padding: 0;
+  font-size: .9rem; color: var(--c-texto); }
+.resumen-rapido li { display: flex; align-items: center; gap: .6rem; }
+.resumen-rapido li + li::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--c-borde-control); }
 .tarjeta-reserva .desde-precio { margin: 0 0 .8rem; }
 .tarjeta-reserva .desde-precio strong { color: var(--c-acento); font-size: 1.7rem; font-weight: 800; letter-spacing: -.01em; }
 .tarjeta-reserva .desde-precio span { margin-left: .25rem; color: var(--c-suave); }
