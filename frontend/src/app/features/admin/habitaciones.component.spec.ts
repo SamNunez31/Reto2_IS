@@ -87,3 +87,39 @@ describe('HabitacionesComponent · cuándo se numera', () => {
     expect(el.querySelector('tbody tr strong')?.textContent).toBe('Casa Colón');
   });
 });
+
+describe('HabitacionesComponent · próxima reserva', () => {
+  const base = (): HabitacionHost => ({
+    id: 'h1', numero: '101', estado: 'DISPONIBLE', actualizada_en: '2026-11-11T10:00:00Z', alojamiento_codigo: 7, alojamiento: 'Hotel 7', unidad: 'Suite',
+    reserva_codigo: null, proxima_codigo: 'BK-1', proxima_entrada: '2026-11-14', proxima_salida: '2026-11-16', proxima_huesped: 'Elizabeth Chávez',
+  });
+  const montar = (h: HabitacionHost[]) => {
+    const api = {
+      alojamientos: () => of([hotel(7)]), habitaciones: () => of(h), estadoHabitacion: () => of({ id: 'h1', estado: 'DISPONIBLE' }),
+    };
+    TestBed.configureTestingModule({ imports: [HabitacionesComponent], providers: [{ provide: AnfitrionService, useValue: api }] });
+    const fixture = TestBed.createComponent(HabitacionesComponent);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  it('muestra fechas y huésped de la próxima reserva', () => {
+    const el = montar([base()]).nativeElement as HTMLElement;
+    expect(el.textContent).toContain('14–16 nov');
+    expect(el.textContent).toContain('Elizabeth Chávez');
+  });
+
+  it('«Reservada» solo si está disponible y la llegada es hoy o mañana', () => {
+    const c = montar([base()]).componentInstance;
+    expect(c.reservadaPronto(base(), new Date(2026, 10, 13))).toBeTrue();
+    expect(c.reservadaPronto(base(), new Date(2026, 10, 14))).toBeTrue();
+    expect(c.reservadaPronto(base(), new Date(2026, 10, 12))).toBeFalse();
+    expect(c.reservadaPronto({ ...base(), estado: 'EN_PREPARACION' }, new Date(2026, 10, 13))).toBeFalse();
+    expect(c.reservadaPronto({ ...base(), proxima_entrada: null }, new Date(2026, 10, 13))).toBeFalse();
+  });
+
+  it('el rango cambia de mes cuando hace falta', () => {
+    const c = montar([base()]).componentInstance;
+    expect(c.rangoCorto('2026-11-30', '2026-12-02')).toBe('30 nov–2 dic');
+  });
+});

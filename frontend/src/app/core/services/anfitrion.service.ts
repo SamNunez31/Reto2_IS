@@ -147,6 +147,11 @@ export interface HabitacionHost {
   alojamiento: string;
   unidad: string;
   reserva_codigo: string | null;
+  /** Próxima llegada con esta habitación asignada y sin check-in (fechas AAAA-MM-DD) */
+  proxima_codigo?: string | null;
+  proxima_entrada?: string | null;
+  proxima_salida?: string | null;
+  proxima_huesped?: string | null;
 }
 
 export interface SugerenciaHabitacion {

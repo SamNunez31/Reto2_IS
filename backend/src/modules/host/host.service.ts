@@ -223,6 +223,11 @@ export interface HabitacionHost {
   unidad: string;
   /** Reserva que la ocupa ahora (si está OCUPADA) */
   reserva_codigo: string | null;
+  /** Próxima llegada con esta habitación ya asignada (aún sin check-in) */
+  proxima_codigo: string | null;
+  proxima_entrada: string | null;
+  proxima_salida: string | null;
+  proxima_huesped: string | null;
 }
 
 /**
@@ -611,8 +616,17 @@ export class HostService {
       `SELECT h.id::text AS id, h.numero, h.estado::text AS estado, h.actualizada_en, a.codigo AS alojamiento_codigo, a.nombre AS alojamiento,
               u.nombre AS unidad,
               (SELECT r.codigo FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
-                WHERE o.habitacion_id = h.id AND o.checkin_en IS NOT NULL AND o.checkout_en IS NULL LIMIT 1) AS reserva_codigo
+                WHERE o.habitacion_id = h.id AND o.checkin_en IS NOT NULL AND o.checkout_en IS NULL LIMIT 1) AS reserva_codigo,
+              pr.codigo AS proxima_codigo, to_char(pr.fecha_entrada, 'YYYY-MM-DD') AS proxima_entrada,
+              to_char(pr.fecha_salida, 'YYYY-MM-DD') AS proxima_salida, pr.huesped AS proxima_huesped
          FROM habitacion h
+         LEFT JOIN LATERAL (
+              SELECT r.codigo, r.fecha_entrada, r.fecha_salida, COALESCE(o.titular->>'nombreCompleto', us.nombres || ' ' || us.apellidos) AS huesped
+                FROM orden_v2 o
+                JOIN reserva r ON r.id = o.reserva_id
+                LEFT JOIN usuario us ON us.id = r.huesped_id
+               WHERE o.habitacion_id = h.id AND r.estado = 'CONFIRMADA' AND o.checkin_en IS NULL AND r.fecha_salida >= current_date
+               ORDER BY r.fecha_entrada LIMIT 1) pr ON true
          JOIN alojamiento a ON a.id = h.alojamiento_id
          JOIN unidad_alojamiento u ON u.id = h.unidad_id
         WHERE h.alojamiento_id = $1::uuid

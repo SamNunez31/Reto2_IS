@@ -37,11 +37,12 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
     @else {
       <div class="resumen-hab" aria-live="polite">
         @for (e of estados; track e) { <span class="badge">{{ etiqueta[e] }}: {{ cuenta()[e] }}</span> }
+        @if (reservadas() > 0) { <span class="badge hab-reservada">Con llegada hoy o mañana: {{ reservadas() }}</span> }
       </div>
       <div class="tabla-scroll tarjeta">
         <table class="tabla">
           <caption class="sr-only">Unidades del alojamiento</caption>
-          <thead><tr><th scope="col">{{ numerar() ? 'N.º' : 'Unidad' }}</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Última limpieza</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+          <thead><tr><th scope="col">{{ numerar() ? 'N.º' : 'Unidad' }}</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Próxima reserva</th><th scope="col">Última limpieza</th><th scope="col" class="th-der">Acciones</th></tr></thead>
           <tbody>
             @for (h of habitaciones(); track h.id) {
               <tr>
@@ -50,8 +51,18 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
                 </td>
                 <td>{{ h.unidad }}</td>
                 <td>
-                  <span class="badge" [class.hab-ocupada]="h.estado === 'OCUPADA'" [class.hab-prep]="h.estado === 'EN_PREPARACION'">{{ etiqueta[h.estado] }}</span>
+                  @if (reservadaPronto(h)) {
+                    <span class="badge hab-reservada" title="Tiene una llegada hoy o mañana">Reservada</span>
+                  } @else {
+                    <span class="badge" [class.hab-ocupada]="h.estado === 'OCUPADA'" [class.hab-prep]="h.estado === 'EN_PREPARACION'">{{ etiqueta[h.estado] }}</span>
+                  }
                   @if (h.reserva_codigo) { <small> · {{ h.reserva_codigo }}</small> }
+                </td>
+                <td>
+                  @if (h.proxima_entrada && h.proxima_salida) {
+                    <strong class="prox-fechas">{{ rangoCorto(h.proxima_entrada, h.proxima_salida) }}</strong>
+                    @if (h.proxima_huesped) { <small class="prox-huesped">{{ h.proxima_huesped }}</small> }
+                  } @else { <span class="gris">—</span> }
                 </td>
                 <td>
                   @if (h.estado === 'DISPONIBLE') {
@@ -62,7 +73,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
                     <span class="gris">Ocupada desde {{ h.actualizada_en | date: 'dd/MM/yyyy HH:mm' }}</span>
                   }
                 </td>
-                <td>
+                <td class="th-der">
                   @if (h.estado === 'EN_PREPARACION') {
                     <button type="button" class="btn btn-chico btn-primario" [disabled]="cambiando() === h.id" (click)="cambiar(h, 'DISPONIBLE')">
                       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['publicar']" /></svg>Marcar disponible</button>
@@ -72,7 +83,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
                   }
                 </td>
               </tr>
-            } @empty { <tr><td colspan="5">Este alojamiento aún no tiene unidades registradas.</td></tr> }
+            } @empty { <tr><td colspan="6">Este alojamiento aún no tiene unidades registradas.</td></tr> }
           </tbody>
         </table>
       </div>
@@ -86,6 +97,9 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
     .tabla tbody tr:hover { background: var(--c-fondo, #faf9f7); }
     .hab-ocupada { background: #fde8e6; color: #8a1c13; }
     .hab-prep { background: #fff4d6; color: #7a5200; }
+    .hab-reservada { background: #e3eefb; color: #1b4a8a; }
+    th.th-der, td.th-der { text-align: right; }
+    .prox-fechas { display: block; font-weight: 600; } .prox-huesped { display: block; color: var(--gris-700); }
     .limpia { color: #1d6b3f; font-weight: 600; }
     .pendiente { color: #7a5200; font-weight: 600; }
     .gris { color: var(--gris-700); }
@@ -110,6 +124,26 @@ export class HabitacionesComponent implements OnInit {
     for (const h of this.habitaciones()) c[h.estado]++;
     return c;
   });
+
+  /** Habitaciones libres hoy pero con una llegada hoy o mañana. */
+  readonly reservadas = computed(() => this.habitaciones().filter((h) => this.reservadaPronto(h)).length);
+
+  /** Disponible, pero la reserva que la tiene asignada llega hoy o mañana: no debe leerse como «libre». */
+  reservadaPronto(h: HabitacionHost, hoy: Date = new Date()): boolean {
+    if (h.estado !== 'DISPONIBLE' || !h.proxima_entrada) return false;
+    const dia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const manana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1);
+    return h.proxima_entrada <= dia(manana);
+  }
+
+  /** «2026-11-14», «2026-11-16» → «14–16 nov» (o «30 nov–2 dic» si cambia de mes). */
+  rangoCorto(entrada: string, salida: string): string {
+    const f = (iso: string, mes: boolean) => {
+      const d = new Date(`${iso}T00:00:00`);
+      return mes ? `${d.getDate()} ${d.toLocaleDateString('es', { month: 'short' }).replace('.', '')}` : `${d.getDate()}`;
+    };
+    return entrada.slice(0, 7) === salida.slice(0, 7) ? `${f(entrada, false)}–${f(salida, true)}` : `${f(entrada, true)}–${f(salida, true)}`;
+  }
 
   ngOnInit(): void {
     this.cargando.set(true);
