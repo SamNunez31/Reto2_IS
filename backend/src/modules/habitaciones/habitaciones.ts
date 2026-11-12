@@ -50,7 +50,9 @@ export async function asignarHabitacionParaFechas(
       WHERE h.unidad_id = $1::uuid
         AND NOT EXISTS (SELECT 1 FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
                          WHERE o.habitacion_id = h.id AND r.estado <> 'CANCELADA'
-                           AND r.fecha_entrada < $3::date AND r.fecha_salida > $2::date)
+                           AND r.fecha_entrada < $3::date AND r.fecha_salida > $2::date
+                           -- Si ese huésped ya se fue antes de esta llegada, la habitación vuelve a estar libre
+                           AND (o.checkout_en IS NULL OR (o.checkout_en AT TIME ZONE 'America/Guayaquil')::date > $2::date))
       ORDER BY h.numero::integer LIMIT 1`,
     [unidadId, entrada, salida],
   );
