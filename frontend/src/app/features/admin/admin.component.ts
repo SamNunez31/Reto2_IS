@@ -94,8 +94,8 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <label class="buscador-estado" for="estado-aloj">
               <span class="buscador-etiqueta">Estado</span>
               <select id="estado-aloj" name="fe" [(ngModel)]="filtroAloj" (change)="ir('alojamientos')">
-                <option value="">Todos</option><option value="BORRADOR">Borrador</option>
-                <option value="PUBLICADO">Publicado</option><option value="SUSPENDIDO">Suspendido</option>
+                <option value="">Todos</option><option value="PUBLICADO">En el catálogo</option>
+                <option value="BORRADOR">Suspendidos</option><option value="SUSPENDIDO">Eliminados</option>
               </select>
             </label>
             <button class="buscador-ir" type="submit" title="Buscar" aria-label="Buscar alojamientos">
@@ -123,33 +123,33 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                   </td>
                   <td>{{ a['ciudad'] }}</td>
                   <td>{{ a['unidades_activas'] }}</td>
-                  <td><app-estado [estado]="texto(a['estado'])" /></td>
+                  <td><app-estado [estado]="texto(a['estado'])" [nombre]="etiquetaEstado(a['estado'])" /></td>
                   <td class="acciones-fila">
                     <a class="ico-btn" [routerLink]="['/admin/alojamientos', a['codigo']]" title="Editar" aria-label="Editar alojamiento">
                       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['editar']" /></svg>
                     </a>
                     @if (a['estado'] === 'BORRADOR') {
-                      <button class="ico-btn ico-ok" type="button" (click)="publicar(a, true)" title="Publicar" aria-label="Publicar alojamiento">
-                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['publicar']" /></svg>
+                      <button class="ico-btn ico-ok" type="button" (click)="publicar(a, true)"
+                              title="Reactivar: vuelve a verse y a poder reservarse" aria-label="Reactivar alojamiento">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['reactivar']" /></svg>
                       </button>
                     }
                     @if (a['estado'] === 'PUBLICADO') {
                       <a class="ico-btn" [routerLink]="['/alojamientos', a['codigo']]" title="Ver anuncio" aria-label="Ver anuncio público">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['ver']" /></svg>
                       </a>
-                      <button class="ico-btn" type="button" (click)="publicar(a, false)" title="Despublicar" aria-label="Despublicar alojamiento">
-                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['despublicar']" /></svg>
-                      </button>
-                      <button class="ico-btn" type="button" (click)="estadoAloj(a, 'SUSPENDIDO')" title="Suspender" aria-label="Suspender alojamiento">
+                      <button class="ico-btn" type="button" (click)="publicar(a, false)"
+                              title="Suspender: deja de verse y de poder reservarse" aria-label="Suspender alojamiento">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['suspender']" /></svg>
                       </button>
                       <button class="ico-btn ico-peligro" type="button" (click)="eliminar(a)" [disabled]="eliminando() === a['codigo']"
-                              [title]="eliminando() === a['codigo'] ? 'Revisando reservas…' : 'Eliminar'" aria-label="Eliminar alojamiento">
+                              [title]="eliminando() === a['codigo'] ? 'Revisando reservas…' : 'Eliminar: no se puede deshacer'" aria-label="Eliminar alojamiento">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['eliminar']" /></svg>
                       </button>
                     }
                     @if (a['estado'] === 'SUSPENDIDO') {
-                      <button class="ico-btn ico-ok" type="button" (click)="estadoAloj(a, 'PUBLICADO')" title="Reactivar" aria-label="Reactivar alojamiento">
+                      <button class="ico-btn ico-ok" type="button" (click)="estadoAloj(a, 'PUBLICADO')"
+                              title="Reactivar: vuelve a verse y a poder reservarse" aria-label="Reactivar alojamiento">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['reactivar']" /></svg>
                       </button>
                     }
@@ -528,6 +528,11 @@ export class AdminComponent implements OnInit {
   readonly salida = signal<ReservaHost | null>(null);
   readonly saliendo = signal<string | null>(null);
   readonly iconos = ICONOS;
+  /** En este panel: BORRADOR es «Suspendido» y SUSPENDIDO es un alojamiento ya eliminado del catálogo. */
+  protected etiquetaEstado(e: unknown): string {
+    return ({ PUBLICADO: 'En el catálogo', BORRADOR: 'Suspendido', SUSPENDIDO: 'Eliminado' })[String(e ?? '')] ?? String(e ?? '');
+  }
+
   protected iconoDeTipo = (t: unknown): string => iconoTipo(String(t ?? ''));
   protected icono = (id: Pestana): string => ICONOS[id] ?? ICONOS['catalogos'];
 
@@ -701,11 +706,11 @@ export class AdminComponent implements OnInit {
     const nombre = this.texto(a['nombre']);
     const si = await this.confirmar.pedir(
       publicar
-        ? { titulo: '¿Publicar este alojamiento?', mensaje: `«${nombre}» aparecerá en las búsquedas y los huéspedes podrán reservarlo al instante.`, confirmar: 'Publicar' }
-        : { titulo: '¿Despublicar este alojamiento?', mensaje: `«${nombre}» volverá a borrador y dejará de aparecer en las búsquedas; las reservas existentes no se cancelan.`, confirmar: 'Despublicar', tono: 'peligro' },
+        ? { titulo: '¿Reactivar este alojamiento?', mensaje: `«${nombre}» volverá a aparecer en las búsquedas y los huéspedes podrán reservarlo al instante.`, confirmar: 'Reactivar' }
+        : { titulo: '¿Suspender este alojamiento?', mensaje: `«${nombre}» dejará de aparecer en las búsquedas y no se podrá reservar. Las reservas que ya existen no se cancelan y puedes reactivarlo cuando quieras.`, confirmar: 'Suspender', tono: 'peligro' },
     );
     if (!si) return;
-    this.accion(this.catalogo.publicar(Number(a['codigo']), publicar), publicar ? `«${nombre}» ya está publicado` : `«${nombre}» volvió a borrador`, 'alojamientos');
+    this.accion(this.catalogo.publicar(Number(a['codigo']), publicar), publicar ? `«${nombre}» volvió al catálogo` : `«${nombre}» quedó suspendido`, 'alojamientos');
   }
 
   async confirmarPago(s: ReservaHost): Promise<void> {

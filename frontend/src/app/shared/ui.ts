@@ -57,7 +57,11 @@ export class EstrellasComponent {
 })
 export class EstadoComponent {
   readonly estado = input.required<string>();
+  /** Nombre a mostrar cuando una pantalla llama a ese estado de otra forma (p. ej. BORRADOR = «Suspendido» en el panel). */
+  readonly nombre = input<string | null>(null);
   etiqueta(): string {
+    const propio = this.nombre();
+    if (propio) return propio;
     const nombres: Record<string, string> = {
       CONFIRMADA: 'Confirmada', PENDIENTE: 'Pendiente', CANCELADA: 'Cancelada', RECHAZADA: 'Rechazada',
       EXPIRADA: 'Expirada', COMPLETADA: 'Completada', PUBLICADO: 'Publicado', BORRADOR: 'Borrador', SUSPENDIDO: 'Suspendido',
