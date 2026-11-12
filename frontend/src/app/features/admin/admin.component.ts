@@ -261,9 +261,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
       }
 
       @case ('usuarios') {
-        @if (!formUsuario()) {
-          <p><button class="btn" type="button" aria-expanded="false" aria-controls="form-usuario" (click)="abrirFormUsuario()">Agregar usuario</button></p>
-        } @else {
+        @if (formUsuario()) {
         <form class="tarjeta form-usuario" id="form-usuario" (ngSubmit)="crearUsuario()" novalidate>
           <header class="form-usuario-cab">
             <h2>Agregar usuario</h2>
@@ -297,12 +295,24 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
           </div>
         </form>
         }
-        <form class="busqueda-barra" role="search" (ngSubmit)="ir('usuarios')">
-          <label class="busqueda-campo"><span class="sr-only">Buscar usuarios</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-            <input name="q" [(ngModel)]="busqueda" maxlength="80" placeholder="Buscar por correo o nombre" /></label>
-          <button class="btn btn-primario" type="submit">Buscar</button>
-        </form>
+        <div class="barra-admin">
+          <form class="buscador" role="search" (ngSubmit)="ir('usuarios')">
+            <span class="buscador-texto">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['buscar']" /></svg>
+              <input id="q-usr" name="q" type="search" [(ngModel)]="busqueda" maxlength="80" placeholder="Buscar por correo o nombre" />
+              <label class="sr-only" for="q-usr">Buscar usuarios</label>
+            </span>
+            <button class="buscador-ir" type="submit" title="Buscar" aria-label="Buscar usuarios">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['buscar']" /></svg>
+            </button>
+          </form>
+          @if (!formUsuario()) {
+            <button class="btn btn-primario nuevo-aloj" type="button" aria-expanded="false" aria-controls="form-usuario" (click)="abrirFormUsuario()">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['agregarUsuario']" /></svg>Agregar usuario
+            </button>
+          }
+        </div>
+        <p class="meta">{{ total() }} usuario{{ total() === 1 ? '' : 's' }}</p>
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Usuarios</caption>
@@ -320,9 +330,20 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                   <td><span class="estado-punto" [class.on]="!!u['activo']">{{ u['activo'] ? 'Activo' : 'Inactivo' }}</span></td>
                   <td class="acciones-fila">@if (u['rol'] !== 'ADMIN') {
                     @if (u['activo']) {
-                      <button class="btn btn-chico" type="button" (click)="hacerAdmin(u)">Hacer administrador</button>
+                      <button class="ico-btn" type="button" (click)="hacerAdmin(u)"
+                              title="Hacer administrador: acceso al panel de administración" aria-label="Hacer administrador a este usuario">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['admin']" /></svg>
+                      </button>
+                      <button class="ico-btn ico-peligro" type="button" (click)="estadoUsuario(u)"
+                              title="Desactivar: no podrá iniciar sesión" aria-label="Desactivar usuario">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['desactivar']" /></svg>
+                      </button>
+                    } @else {
+                      <button class="ico-btn ico-ok" type="button" (click)="estadoUsuario(u)"
+                              title="Activar: vuelve a poder iniciar sesión" aria-label="Activar usuario">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['reactivar']" /></svg>
+                      </button>
                     }
-                    <button class="btn btn-chico" [class.btn-peligro-suave]="!!u['activo']" type="button" (click)="estadoUsuario(u)">{{ u['activo'] ? 'Desactivar' : 'Activar' }}</button>
                   }</td>
                 </tr>
               }
@@ -474,9 +495,11 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
       .buscador-estado { flex: 1 1 auto; }
     }
     /* Acciones de cada fila: compactas, con la destructiva separada del resto */
-    .acciones-fila { display: flex; justify-content: flex-end; align-items: center; gap: .35rem; flex-wrap: wrap; }
-    .acciones-fila .btn { margin: 0; height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }
-    .acciones-fila .btn-peligro-borde { margin-left: .35rem; }
+    td.acciones-fila { text-align: right; white-space: nowrap; }
+    .acciones-fila > * { vertical-align: middle; margin: 0 0 0 .35rem; }
+    .acciones-fila .btn { height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }
+    .fila-usuario.inactivo .usuario-datos, .fila-usuario.inactivo .avatar { opacity: .55; }
+    .fila-usuario td { vertical-align: middle; }
     .meta { color: var(--gris-700); margin: 0 0 .6rem; }
     /* Iconos de línea: heredan el color del texto y nunca se deforman */
     .ico { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -508,7 +531,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .badge-cancelada { background: #fde8e6; color: #8a1c13; margin-left: .35rem; } .filtro-inline { max-width: 240px; } pre { white-space: pre-wrap; font-size: .8rem; max-width: 420px; }
     .busqueda-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; margin-bottom: 1rem; }
     .busqueda-barra label { flex: 1 1 260px; max-width: 420px; } .busqueda-barra .btn { flex: 0 0 auto; }
-    .filtros-aloj { align-items: flex-end; flex-wrap: wrap; } .acciones-fila { white-space: nowrap; } .acciones-fila .btn { margin: .1rem; }`,
+    .filtros-aloj { align-items: flex-end; flex-wrap: wrap; } `,
 })
 export class AdminComponent implements OnInit {
   private readonly api = inject(AdminService);
