@@ -110,7 +110,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Alojamientos del catálogo</caption>
-            <thead><tr><th scope="col">#</th><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">Ciudad</th><th scope="col">Opciones</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+            <thead><tr><th scope="col">#</th><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">Ciudad</th><th scope="col">Opciones</th><th scope="col">Estado</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
               @for (a of filas(); track a['codigo']) {
                 <tr><td class="num">{{ a['codigo'] }}</td>
@@ -138,10 +138,6 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                       <a class="ico-btn" [routerLink]="['/alojamientos', a['codigo']]" title="Ver anuncio" aria-label="Ver anuncio público">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['ver']" /></svg>
                       </a>
-                      <button class="ico-btn" type="button" (click)="publicar(a, false)"
-                              title="Suspender: deja de verse y de poder reservarse" aria-label="Suspender alojamiento">
-                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['suspender']" /></svg>
-                      </button>
                       <button class="ico-btn ico-peligro" type="button" (click)="eliminar(a)" [disabled]="eliminando() === a['codigo']"
                               [title]="eliminando() === a['codigo'] ? 'Revisando reservas…' : 'Eliminar: no se puede deshacer'" aria-label="Eliminar alojamiento">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['eliminar']" /></svg>
@@ -163,21 +159,26 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
       }
 
       @case ('reservas') {
-        <label class="filtro-inline">Estado
-          <select [(ngModel)]="filtroReservas" (change)="ir('reservas')">
-            <option value="">Todas</option><option value="CONFIRMADA">Confirmadas</option><option value="COMPLETADA">Completadas</option>
-            <option value="CANCELADA">Canceladas</option>
-          </select>
-        </label>
-        <label class="filtro-inline">Pago
-          <select [(ngModel)]="filtroPago" (change)="ir('reservas')">
-            <option value="">Todos</option><option value="PENDIENTE">Pago pendiente (efectivo)</option><option value="APROBADO">Pagado</option>
-          </select>
-        </label>
-        <button class="btn btn-chico" type="button" [disabled]="sincronizando()" (click)="sincronizarBooking()">
-          <svg class="ico" [class.girando]="sincronizando()" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['sincronizar']" /></svg>
-          {{ sincronizando() ? 'Sincronizando…' : 'Sincronizar con Booking' }}
-        </button>
+        <div class="barra-admin">
+          <div class="filtros-res">
+            <label class="filtro-campo">Estado
+              <select name="fr" [(ngModel)]="filtroReservas" (change)="ir('reservas')">
+                <option value="">Todas</option><option value="CONFIRMADA">Confirmadas</option><option value="COMPLETADA">Completadas</option>
+                <option value="CANCELADA">Canceladas</option>
+              </select>
+            </label>
+            <label class="filtro-campo">Pago
+              <select name="fp" [(ngModel)]="filtroPago" (change)="ir('reservas')">
+                <option value="">Todos</option><option value="PENDIENTE">Pago pendiente (efectivo)</option><option value="APROBADO">Pagado</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn nuevo-aloj" type="button" [disabled]="sincronizando()" (click)="sincronizarBooking()"
+                  title="Trae de Booking las reservas y cancelaciones nuevas">
+            <svg class="ico" [class.girando]="sincronizando()" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['sincronizar']" /></svg>
+            {{ sincronizando() ? 'Sincronizando…' : 'Sincronizar con Booking' }}
+          </button>
+        </div>
         <div class="vistas-recepcion" role="group" aria-label="Vista de recepción">
           @for (v of vistasRecepcion; track v.id) {
             <button type="button" class="chip" [class.chip-activo]="vista() === v.id" [attr.aria-pressed]="vista() === v.id" (click)="vista.set(v.id)">
@@ -188,17 +189,18 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Reservas</caption>
-            <thead><tr><th scope="col">Código de reserva</th><th scope="col">Alojamiento</th><th scope="col">Huésped</th><th scope="col">Fechas</th><th scope="col">Total</th><th scope="col">Estado</th><th scope="col">Pago</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+            <thead><tr><th scope="col">Reserva</th><th scope="col">Alojamiento</th><th scope="col">Huésped</th><th scope="col">Fechas</th><th scope="col" class="th-der">Total</th><th scope="col">Estado</th><th scope="col">Pago</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
               @for (s of reservasVisibles(); track s.id) {
-                <tr>
+                <tr class="fila-reserva">
                   <td>
-                    {{ s.codigo }}
-                    @if (s.estado === 'CANCELADA') { <span class="badge badge-cancelada">Cancelada</span> }
+                    <span class="cod-reserva">{{ s.codigo }}</span>
+                    <small class="canal">{{ s.canal_booking ? 'Booking' : 'Directa' }}</small>
                   </td>
-                  <td>{{ s.alojamiento }}</td>
+                  <td class="nombre-celda">{{ s.alojamiento }}</td>
                   <td>
-                    {{ s.titular_nombre || s.huesped }} ({{ s.num_huespedes }})
+                    <strong class="huesped-nombre">{{ s.titular_nombre || s.huesped }}</strong>
+                    <small class="doc">{{ s.num_huespedes }} huésped{{ s.num_huespedes === 1 ? '' : 'es' }}</small>
                     @if (s.canal_booking && s.estado !== 'CANCELADA') {
                       @if (s.titular_identificacion) {
                         <small class="doc">{{ tipoDoc(s) }} {{ s.titular_identificacion }}</small>
@@ -213,26 +215,31 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                       </small>
                     }
                   </td>
-                  <td>{{ rango(s.fecha_entrada, s.fecha_salida) }}</td><td>{{ s.total | currency: 'USD' }}</td>
+                  <td class="nowrap">{{ rango(s.fecha_entrada, s.fecha_salida) }}</td>
+                  <td class="num-der">{{ s.total | currency: 'USD' }}</td>
                   <td><app-estado [estado]="s.estado" /></td>
                   <td><app-pago [metodo]="s.metodo_pago" [estado]="s.estado_pago" vista="admin" /></td>
-                  <td>
+                  <td class="acciones-fila">
+                    <div class="acciones-col">
                     @if (s.metodo_pago === 'EFECTIVO' && s.estado_pago === 'PENDIENTE' && (s.estado === 'CONFIRMADA' || s.estado === 'COMPLETADA')) {
-                      <button class="btn btn-chico btn-primario" type="button" (click)="confirmarPago(s)">Confirmar pago recibido</button>
+                      <button class="btn btn-chico btn-primario" type="button" (click)="confirmarPago(s)">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['publicar']" /></svg>Confirmar pago</button>
                     }
                     @if (s.canal_booking && s.estado === 'CONFIRMADA' && !s.checkin_en) {
                       <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">
-                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkin']" /></svg>Registrar check-in</button>
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkin']" /></svg>Check-in</button>
                     } @else if (s.canal_booking && s.checkin_en && !s.checkout_en) {
                       <span class="badge">{{ s.habitacion_asignada ? 'En ' + s.habitacion_asignada : 'Huésped en el hotel' }}</span>
                       <button class="btn btn-chico btn-primario" type="button" (click)="registrarSalida(s)">
-                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkout']" /></svg>Registrar check-out</button>
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkout']" /></svg>Check-out</button>
                     } @else if (s.canal_booking && s.checkout_en) {
                       <span class="badge">Check-out hecho</span>
                     }
                     @if (s.estado === 'PENDIENTE' && !s.canal_booking) {
-                      <button class="btn btn-chico btn-peligro-borde" type="button" (click)="cancelarReserva(s)">Cancelar reserva</button>
+                      <button class="btn btn-chico btn-peligro-borde" type="button" (click)="cancelarReserva(s)">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['cancelar']" /></svg>Cancelar</button>
                     }
+                    </div>
                   </td>
                 </tr>
               } @empty { @if (!cargando()) { <tr><td colspan="8">{{ reservas().length ? 'Ninguna reserva en esta vista' : 'Sin reservas' }}</td></tr> } }
@@ -316,7 +323,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Usuarios</caption>
-            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
               @for (u of filas(); track u['id']) {
                 <tr class="fila-usuario" [class.inactivo]="!u['activo']">
@@ -522,23 +529,23 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
   styles: `.mt { margin-top: 1rem; }
     /* Buscador: un solo control continuo (texto · estado · lupa), como en los portales de reservas */
     .barra-admin { display: flex; align-items: center; justify-content: space-between; gap: 1rem 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    .buscador { display: flex; align-items: stretch; gap: 0; flex: 1 1 26rem; max-width: 42rem; min-width: 16rem; margin: 0;
-                background: var(--c-superficie, #fff); border: 1px solid var(--gris-300, #ddd); border-radius: 999px; padding: .3rem .3rem .3rem 1rem;
-                box-shadow: 0 1px 2px rgb(0 0 0 / .04); transition: box-shadow .15s ease, border-color .15s ease; }
-    .buscador:focus-within { border-color: var(--c-texto); box-shadow: 0 2px 10px rgb(0 0 0 / .08); }
+    .buscador { display: flex; align-items: center; gap: 0; flex: 1 1 26rem; max-width: 40rem; min-width: 16rem; margin: 0; height: 3rem;
+                background: var(--c-superficie, #fff); border: 1px solid var(--gris-300, #ddd); border-radius: 999px; padding: 0 .3rem 0 1.1rem;
+                transition: box-shadow .15s ease, border-color .15s ease; }
+    .buscador:focus-within { border-color: var(--c-acento); box-shadow: 0 0 0 3px rgb(0 0 0 / .06); }
     .buscador-texto { display: flex; align-items: center; gap: .55rem; flex: 1 1 auto; min-width: 0; color: var(--c-suave, #8a8a82); }
-    .buscador-texto input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; height: 2.4rem; padding: 0; font: inherit; color: var(--c-texto); }
+    .buscador-texto input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; height: 2.6rem; padding: 0; font: inherit; color: var(--c-texto); }
     .buscador-texto input:focus { outline: none; box-shadow: none; }
-    .buscador-sep { width: 1px; background: var(--gris-300, #e4e2dd); margin: .45rem .85rem; flex: none; }
-    .buscador-estado { display: flex; flex-direction: column; justify-content: center; gap: 0; margin: 0; flex: none; }
-    .buscador-etiqueta { font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-700); line-height: 1; }
-    .buscador-estado select { border: 0; background: transparent; height: 1.5rem; padding: 0 1.4rem 0 0; font: inherit; font-weight: 600; width: auto; min-width: 7rem; }
+    .buscador-sep { width: 1px; height: 1.6rem; background: var(--gris-300, #e4e2dd); margin: 0 .9rem; flex: none; }
+    .buscador-estado { display: flex; align-items: center; gap: .5rem; margin: 0; flex: none; }
+    .buscador-etiqueta { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gris-700); line-height: 1; }
+    .buscador-estado select { border: 0; background-color: transparent; height: 2rem; padding: 0 1.4rem 0 0; font: inherit; font-weight: 600; width: auto; min-width: 7rem; }
     .buscador-estado select:focus { outline: none; box-shadow: none; }
-    .buscador-ir { flex: none; width: 2.5rem; height: 2.5rem; margin-left: .6rem; border: 0; border-radius: 50%; cursor: pointer;
-                   background: var(--c-primario, #b4521f); color: #fff; display: inline-flex; align-items: center; justify-content: center; transition: .15s ease; }
-    .buscador-ir:hover { filter: brightness(1.08); transform: scale(1.04); }
+    .buscador-ir { flex: none; width: 2.4rem; height: 2.4rem; margin-left: .6rem; border: 0; border-radius: 50%; cursor: pointer;
+                   background: var(--c-acento); color: #fff; display: inline-flex; align-items: center; justify-content: center; transition: .15s ease; }
+    .buscador-ir:hover { background: var(--c-acento-osc); }
     .buscador-ir .ico { width: 1.15rem; height: 1.15rem; stroke-width: 2.1; margin: 0; }
-    .nuevo-aloj { flex: none; }
+    .nuevo-aloj { flex: none; height: 3rem; padding: 0 1.3rem; border-radius: 999px; }
     @media (max-width: 680px) {
       .buscador { flex-wrap: wrap; border-radius: var(--radio-l, 1rem); padding: .6rem .8rem; }
       .buscador-texto { flex-basis: 100%; }
@@ -573,6 +580,18 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .cat-form-fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .75rem; align-items: end; }
     .cat-form-fila label { margin: 0; } .cat-form-fila .btn { height: 2.75rem; margin: 0; white-space: nowrap; }
     @media (max-width: 680px) { .cat-form-fila { grid-template-columns: 1fr; } }
+    /* Reservas: filtros en línea y tabla legible */
+    .filtros-res { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
+    .filtro-campo { display: grid; gap: .25rem; margin: 0; font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-700); }
+    .filtro-campo select { width: auto; min-width: 11rem; height: 2.6rem; border-radius: 999px; padding: 0 2rem 0 1rem; font-size: .92rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--c-texto); }
+    th.th-der, td.num-der { text-align: right; } .nowrap { white-space: nowrap; }
+    .num-der { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .fila-reserva td { vertical-align: middle; padding-top: .8rem; padding-bottom: .8rem; }
+    .cod-reserva { display: block; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+    .canal { display: inline-block; margin-top: .15rem; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-700); }
+    .huesped-nombre { display: block; font-weight: 600; }
+    .acciones-col { display: flex; flex-direction: column; align-items: flex-end; gap: .35rem; }
+    .acciones-col > * { margin: 0 !important; }
     td.acciones-fila { text-align: right; white-space: nowrap; }
     .acciones-fila > * { vertical-align: middle; margin: 0 0 0 .35rem; }
     .acciones-fila .btn { height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }
