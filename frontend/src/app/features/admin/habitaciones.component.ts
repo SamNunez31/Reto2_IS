@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AnfitrionService, EstadoHabitacion, HabitacionHost, ResumenAlojamiento } from '../../core/services/anfitrion.service';
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { avisoTemporal } from '../../shared/aviso';
+import { ICONOS } from '../../shared/iconos';
 import { AlertaErrorComponent, CargandoComponent } from '../../shared/ui';
 
 export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
@@ -61,9 +62,11 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
                 </td>
                 <td>
                   @if (h.estado === 'EN_PREPARACION') {
-                    <button type="button" class="btn btn-chico btn-primario" [disabled]="cambiando() === h.id" (click)="cambiar(h, 'DISPONIBLE')">Marcar disponible</button>
+                    <button type="button" class="btn btn-chico btn-primario" [disabled]="cambiando() === h.id" (click)="cambiar(h, 'DISPONIBLE')">
+                      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['publicar']" /></svg>Marcar disponible</button>
                   } @else if (h.estado === 'DISPONIBLE') {
-                    <button type="button" class="btn btn-chico" [disabled]="cambiando() === h.id" (click)="cambiar(h, 'EN_PREPARACION')">Marcar en preparación</button>
+                    <button type="button" class="btn btn-chico" [disabled]="cambiando() === h.id" (click)="cambiar(h, 'EN_PREPARACION')">
+                      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['limpieza']" /></svg>Marcar en preparación</button>
                   }
                 </td>
               </tr>
@@ -76,6 +79,9 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
   styles: `
     .filtro { display: inline-flex; flex-direction: column; gap: .25rem; margin: .5rem 0 1rem; }
     .resumen-hab { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
+    .ico { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-right: .35rem; vertical-align: -.2em; }
+    .tabla tbody tr { transition: background .15s ease; }
+    .tabla tbody tr:hover { background: var(--c-fondo, #faf9f7); }
     .hab-ocupada { background: #fde8e6; color: #8a1c13; }
     .hab-prep { background: #fff4d6; color: #7a5200; }
     .limpia { color: #1d6b3f; font-weight: 600; }
@@ -86,6 +92,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
 export class HabitacionesComponent implements OnInit {
   private readonly api = inject(AnfitrionService);
   readonly ok = avisoTemporal();
+  readonly iconos = ICONOS;
   readonly estados: EstadoHabitacion[] = ['DISPONIBLE', 'EN_PREPARACION', 'OCUPADA'];
   readonly etiqueta = ETIQUETA_ESTADO;
   readonly hoteles = signal<ResumenAlojamiento[]>([]);

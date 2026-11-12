@@ -22,6 +22,7 @@ import { fechaLarga, rangoCorto } from '../../shared/textos';
 import { FiltroDirective } from '../../shared/entrada';
 import { motivoClave, motivoEmail, motivoNombre, motivoNombreLugar, motivoRango, normalizarEmail, normalizarNombre } from '../../shared/validadores';
 import { ConfirmarService } from '../../shared/confirmar';
+import { ICONOS, iconoTipo } from '../../shared/iconos';
 import { AlertaErrorComponent, CargandoComponent, EstadoComponent } from '../../shared/ui';
 
 type VistaRecepcion = 'todas' | 'pendientes' | 'hospedados' | 'completadas' | 'canceladas';
@@ -40,7 +41,10 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     <div class="pestanas" role="tablist" aria-label="Secciones de administración">
       @for (p of pestanas; track p.id) {
         <button type="button" role="tab" [id]="'tab-admin-' + p.id" [attr.aria-selected]="pestana() === p.id" [attr.tabindex]="pestana() === p.id ? 0 : -1"
-                aria-controls="panel-admin" (click)="ir(p.id)" (keydown)="teclaPestana($event)">{{ p.nombre }}</button>
+                aria-controls="panel-admin" (click)="ir(p.id)" (keydown)="teclaPestana($event)">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icono(p.id)" /></svg>
+          <span>{{ p.nombre }}</span>
+        </button>
       }
     </div>
     <app-alerta-error [error]="error()" />
@@ -101,20 +105,46 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <thead><tr><th scope="col">#</th><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">Ciudad</th><th scope="col">Opciones</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
             <tbody>
               @for (a of filas(); track a['codigo']) {
-                <tr><td>{{ a['codigo'] }}</td><td>{{ a['nombre'] }}</td><td>{{ a['tipo'] }}</td><td>{{ a['ciudad'] }}</td>
+                <tr><td class="num">{{ a['codigo'] }}</td>
+                  <td class="nombre-celda">{{ a['nombre'] }}</td>
+                  <td>
+                    <span class="tipo">
+                      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconoDeTipo(a['tipo'])" /></svg>
+                      {{ a['tipo'] }}
+                    </span>
+                  </td>
+                  <td>{{ a['ciudad'] }}</td>
                   <td>{{ a['unidades_activas'] }}</td>
                   <td><app-estado [estado]="texto(a['estado'])" /></td>
                   <td class="acciones-fila">
-                    <a class="btn btn-chico" [routerLink]="['/admin/alojamientos', a['codigo']]">Editar</a>
-                    @if (a['estado'] === 'BORRADOR') { <button class="btn btn-chico btn-primario" type="button" (click)="publicar(a, true)">Publicar</button> }
-                    @if (a['estado'] === 'PUBLICADO') {
-                      <a class="btn btn-chico" [routerLink]="['/alojamientos', a['codigo']]">Ver anuncio</a>
-                      <button class="btn btn-chico" type="button" (click)="publicar(a, false)">Despublicar</button>
-                      <button class="btn btn-chico" type="button" (click)="estadoAloj(a, 'SUSPENDIDO')">Suspender</button>
-                      <button class="btn btn-chico btn-peligro-borde" type="button" (click)="eliminar(a)" [disabled]="eliminando() === a['codigo']">
-                        {{ eliminando() === a['codigo'] ? 'Revisando reservas…' : 'Eliminar' }}</button>
+                    <a class="ico-btn" [routerLink]="['/admin/alojamientos', a['codigo']]" title="Editar" aria-label="Editar alojamiento">
+                      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['editar']" /></svg>
+                    </a>
+                    @if (a['estado'] === 'BORRADOR') {
+                      <button class="ico-btn ico-ok" type="button" (click)="publicar(a, true)" title="Publicar" aria-label="Publicar alojamiento">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['publicar']" /></svg>
+                      </button>
                     }
-                    @if (a['estado'] === 'SUSPENDIDO') { <button class="btn btn-chico" type="button" (click)="estadoAloj(a, 'PUBLICADO')">Reactivar</button> }
+                    @if (a['estado'] === 'PUBLICADO') {
+                      <a class="ico-btn" [routerLink]="['/alojamientos', a['codigo']]" title="Ver anuncio" aria-label="Ver anuncio público">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['ver']" /></svg>
+                      </a>
+                      <button class="ico-btn" type="button" (click)="publicar(a, false)" title="Despublicar" aria-label="Despublicar alojamiento">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['despublicar']" /></svg>
+                      </button>
+                      <button class="ico-btn" type="button" (click)="estadoAloj(a, 'SUSPENDIDO')" title="Suspender" aria-label="Suspender alojamiento">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['suspender']" /></svg>
+                      </button>
+                      <button class="ico-btn ico-peligro" type="button" (click)="eliminar(a)" [disabled]="eliminando() === a['codigo']"
+                              [title]="eliminando() === a['codigo'] ? 'Revisando reservas…' : 'Eliminar'" aria-label="Eliminar alojamiento">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['eliminar']" /></svg>
+                      </button>
+                    }
+                    @if (a['estado'] === 'SUSPENDIDO') {
+                      <button class="ico-btn ico-ok" type="button" (click)="estadoAloj(a, 'PUBLICADO')" title="Reactivar" aria-label="Reactivar alojamiento">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['reactivar']" /></svg>
+                      </button>
+                    }
                   </td></tr>
               } @empty {
                 @if (!cargando()) { <tr><td colspan="7">No hay alojamientos con ese filtro.</td></tr> }
@@ -137,6 +167,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
           </select>
         </label>
         <button class="btn btn-chico" type="button" [disabled]="sincronizando()" (click)="sincronizarBooking()">
+          <svg class="ico" [class.girando]="sincronizando()" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['sincronizar']" /></svg>
           {{ sincronizando() ? 'Sincronizando…' : 'Sincronizar con Booking' }}
         </button>
         <div class="vistas-recepcion" role="group" aria-label="Vista de recepción">
@@ -182,10 +213,12 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                       <button class="btn btn-chico btn-primario" type="button" (click)="confirmarPago(s)">Confirmar pago recibido</button>
                     }
                     @if (s.canal_booking && s.estado === 'CONFIRMADA' && !s.checkin_en) {
-                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">Registrar check-in</button>
+                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkin']" /></svg>Registrar check-in</button>
                     } @else if (s.canal_booking && s.checkin_en && !s.checkout_en) {
                       <span class="badge">{{ s.habitacion_asignada ? 'En ' + s.habitacion_asignada : 'Huésped en el hotel' }}</span>
-                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarSalida(s)">Registrar check-out</button>
+                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarSalida(s)">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkout']" /></svg>Registrar check-out</button>
                     } @else if (s.canal_booking && s.checkout_en) {
                       <span class="badge">Check-out hecho</span>
                     }
@@ -418,6 +451,28 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .acciones-fila .btn { margin: 0; height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }
     .acciones-fila .btn-peligro-borde { margin-left: .35rem; }
     .meta { color: var(--gris-700); margin: 0 0 .6rem; }
+    /* Iconos de línea: heredan el color del texto y nunca se deforman */
+    .ico { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .pestanas button { display: inline-flex; align-items: center; gap: .45rem; }
+    .pestanas button .ico { opacity: .75; }
+    .pestanas button[aria-selected='true'] .ico { opacity: 1; }
+    .btn .ico { margin-right: .35rem; vertical-align: -.2em; }
+    .girando { animation: gira 1s linear infinite; }
+    @keyframes gira { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .girando { animation: none; } }
+    /* Acciones de fila: un botón por icono, con el texto en el tooltip */
+    .ico-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+               border: 1px solid var(--gris-300, #ddd); background: transparent; color: var(--gris-700); cursor: pointer; transition: .15s ease; }
+    .ico-btn:hover { background: var(--c-fondo, #f2f1ee); color: var(--c-texto); border-color: var(--c-texto); transform: translateY(-1px); }
+    .ico-btn:disabled { opacity: .45; cursor: progress; transform: none; }
+    .ico-ok:hover { background: #e7f4ec; color: #1d6b3f; border-color: #1d6b3f; }
+    .ico-peligro:hover { background: #fde8e6; color: #8a1c13; border-color: #8a1c13; }
+    .tipo { display: inline-flex; align-items: center; gap: .4rem; }
+    .tipo .ico { color: var(--c-suave, #8a8a82); }
+    .num { font-variant-numeric: tabular-nums; color: var(--gris-700); }
+    .nombre-celda { font-weight: 600; }
+    .tabla tbody tr { transition: background .15s ease; }
+    .tabla tbody tr:hover { background: var(--c-fondo, #faf9f7); }
     .vistas-recepcion { display: flex; gap: .4rem; flex-wrap: wrap; margin: .75rem 0; }
     .chip { border: 1px solid var(--gris-300, #ccc); background: transparent; color: var(--c-texto); border-radius: 999px; padding: .3rem .8rem; cursor: pointer; font: inherit; font-size: .9rem; }
     .chip-activo { background: var(--c-texto); color: var(--c-superficie); border-color: var(--c-texto); }
@@ -445,6 +500,10 @@ export class AdminComponent implements OnInit {
   /** Reserva cuyo diálogo de check-out está abierto (null = cerrado) */
   readonly salida = signal<ReservaHost | null>(null);
   readonly saliendo = signal<string | null>(null);
+  readonly iconos = ICONOS;
+  protected iconoDeTipo = (t: unknown): string => iconoTipo(String(t ?? ''));
+  protected icono = (id: Pestana): string => ICONOS[id] ?? ICONOS['catalogos'];
+
   readonly pestanas: { id: Pestana; nombre: string }[] = [
     { id: 'indicadores', nombre: 'Dashboard' },
     { id: 'alojamientos', nombre: 'Alojamientos' },
