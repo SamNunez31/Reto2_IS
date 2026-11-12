@@ -6,12 +6,14 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
  * Son solo ayuda de interfaz: los validadores y el backend siguen siendo la fuente de verdad.
  */
 
-export type TipoEntrada = 'entero' | 'decimal' | 'nombre' | 'razon';
+export type TipoEntrada = 'entero' | 'decimal' | 'nombre' | 'razon' | 'texto';
 
 /** Letras (con tildes, ñ, ü), espacio, apóstrofe y guion: los caracteres de NOMBRE_PERSONA. */
 const NO_NOMBRE = /[^A-Za-zÀ-ÖØ-öø-ÿ '’-]/g;
 /** Razón social: lo mismo que un nombre más punto, coma y "&" (S.A., Cía. Ltda., Pérez & Hijos). */
 const NO_RAZON = /[^A-Za-zÀ-ÖØ-öø-ÿ '’.,&-]/g;
+/** Texto corriente de catálogo: letras, dígitos y la puntuación justa («Agua 500 ml», «Café c/leche», «Vino (copa)»). */
+const NO_TEXTO = /[^A-Za-zÀ-ÖØ-öø-ÿ0-9 '’.,&%()/-]/g;
 
 /** Solo dígitos, recortado a `max` si se indica. */
 export function filtrarEntero(v: string, max?: number): string {
@@ -34,6 +36,8 @@ export function filtrarDecimal(v: string, decimales = 2): string {
 
 /** Quita dígitos y símbolos; deja letras, espacio, apóstrofe y guion (sin espacios dobles). */
 export const filtrarNombre = (v: string): string => v.replace(NO_NOMBRE, '').replace(/\s{2,}/g, ' ').replace(/^\s+/, '');
+/** Como el nombre, pero admite dígitos: para nombres de productos y servicios. */
+export const filtrarTexto = (v: string): string => v.replace(NO_TEXTO, '').replace(/\s{2,}/g, ' ').replace(/^\s+/, '');
 export const filtrarRazon = (v: string): string => v.replace(NO_RAZON, '').replace(/\s{2,}/g, ' ').replace(/^\s+/, '');
 
 /** "12,50" -> 12.5 · "" -> null (para el modelo del formulario). */
@@ -49,6 +53,7 @@ export function filtrar(tipo: TipoEntrada, v: string, decimales = 2): string {
     case 'decimal': return filtrarDecimal(v, decimales);
     case 'nombre': return filtrarNombre(v);
     case 'razon': return filtrarRazon(v);
+    case 'texto': return filtrarTexto(v);
   }
 }
 

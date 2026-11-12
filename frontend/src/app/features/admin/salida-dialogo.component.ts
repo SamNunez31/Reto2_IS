@@ -2,13 +2,14 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, effect, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConsumoExtra, DatosSalida, ReservaHost } from '../../core/services/anfitrion.service';
+import { FiltroDirective } from '../../shared/entrada';
 import { rangoLargo } from '../../shared/textos';
 
 interface LineaConsumo {
   item: string;
   cantidad: number | null;
-  /** Texto tal como lo escribe la persona (admite coma o punto decimal) */
-  precio: string;
+  /** Precio unitario; los campos filtrados entregan number | null */
+  precio: number | null;
 }
 
 interface ErrorLinea {
@@ -18,12 +19,7 @@ interface ErrorLinea {
 }
 
 const MAX_LINEAS = 20;
-
-/** «3,5» o «3.50» -> 3.5; null si no es un importe válido (> 0, hasta 2 decimales). */
-const leerPrecio = (t: string): number | null => {
-  const x = t.trim().replace(',', '.');
-  return /^\d{1,7}(\.\d{1,2})?$/.test(x) && Number(x) > 0 ? Number(x) : null;
-};
+const MAX_PRECIO = 9999.99;
 
 /**
  * Diálogo «Registrar check-out»: como en recepción de un hotel, se repasa la cuenta (consumos extra: minibar,
@@ -34,7 +30,7 @@ const leerPrecio = (t: string): number | null => {
  */
 @Component({
   selector: 'app-salida-dialogo',
-  imports: [FormsModule, CurrencyPipe, DatePipe],
+  imports: [FormsModule, CurrencyPipe, DatePipe, FiltroDirective],
   template: `
     <!-- Clic en el fondo = cerrar (salvo que ya haya datos escritos); con teclado, Esc (evento cancel del <dialog>) -->
     <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
@@ -62,19 +58,19 @@ const leerPrecio = (t: string): number | null => {
               <div class="sd-linea">
                 <div class="sd-celda sd-item">
                   <label [for]="'sd-item-' + i">Producto</label>
-                  <input type="text" [id]="'sd-item-' + i" [name]="'item' + i" class="sd-in-item" maxlength="80" placeholder="Ej. Agua, snack" autocomplete="off"
+                  <input type="text" appFiltro="texto" [id]="'sd-item-' + i" [name]="'item' + i" class="sd-in-item" maxlength="80" placeholder="Ej. Agua 500 ml"
                          [(ngModel)]="l.item" [attr.aria-invalid]="errorDe(i).item ? 'true' : null" />
                   @if (errorDe(i).item; as e) { <p class="sd-error" role="alert">{{ e }}</p> }
                 </div>
                 <div class="sd-celda sd-cant">
                   <label [for]="'sd-cant-' + i">Cant.</label>
-                  <input type="number" [id]="'sd-cant-' + i" [name]="'cant' + i" class="sd-in-cant" min="1" max="100" step="1" inputmode="numeric"
+                  <input type="text" appFiltro="entero" [id]="'sd-cant-' + i" [name]="'cant' + i" class="sd-in-cant" maxlength="3" placeholder="1"
                          [(ngModel)]="l.cantidad" [attr.aria-invalid]="errorDe(i).cantidad ? 'true' : null" />
                   @if (errorDe(i).cantidad; as e) { <p class="sd-error" role="alert">{{ e }}</p> }
                 </div>
                 <div class="sd-celda sd-precio">
                   <label [for]="'sd-precio-' + i">Precio c/u ($)</label>
-                  <input type="text" [id]="'sd-precio-' + i" [name]="'precio' + i" class="sd-in-precio" inputmode="decimal" placeholder="0.00" autocomplete="off"
+                  <input type="text" appFiltro="decimal" [id]="'sd-precio-' + i" [name]="'precio' + i" class="sd-in-precio" maxlength="7" placeholder="0,00"
                          [(ngModel)]="l.precio" [attr.aria-invalid]="errorDe(i).precio ? 'true' : null" />
                   @if (errorDe(i).precio; as e) { <p class="sd-error" role="alert">{{ e }}</p> }
                 </div>
@@ -220,7 +216,7 @@ export class SalidaDialogoComponent {
   }
 
   protected agregar(): void {
-    this.lineas.update((l) => [...l, { item: '', cantidad: 1, precio: '' }]);
+    this.lineas.update((l) => [...l, { item: '', cantidad: 1, precio: null }]);
     // El foco va al nombre del consumo nuevo, para escribir sin tocar el mouse
     setTimeout(() => document.getElementById(`sd-item-${this.lineas().length - 1}`)?.focus());
   }
@@ -235,12 +231,13 @@ export class SalidaDialogoComponent {
   }
 
   /** Una línea con nombre y precio vacíos se ignora (se agregó sin querer). */
-  private vacia = (l: LineaConsumo): boolean => !l.item.trim() && !l.precio.trim();
+  private vacia = (l: LineaConsumo): boolean => !l.item.trim() && l.precio === null;
+
+  private precioValido = (p: number | null): p is number => p !== null && p > 0 && p <= MAX_PRECIO;
 
   protected subtotal(l: LineaConsumo): number {
-    const p = leerPrecio(l.precio);
     const c = Number(l.cantidad);
-    return p !== null && Number.isInteger(c) && c >= 1 ? p * c : 0;
+    return this.precioValido(l.precio) && Number.isInteger(c) && c >= 1 && c <= 100 ? Math.round(l.precio * c * 100) / 100 : 0;
   }
 
   protected totalExtras(): number {
@@ -265,14 +262,14 @@ export class SalidaDialogoComponent {
       if (!l.item.trim()) e.item = 'Escribe qué consumió.';
       const c = Number(l.cantidad);
       if (l.cantidad === null || !Number.isInteger(c) || c < 1 || c > 100) e.cantidad = 'De 1 a 100.';
-      if (leerPrecio(l.precio) === null) e.precio = 'Ej. 3.50';
+      if (!this.precioValido(l.precio)) e.precio = l.precio === null ? 'Falta el precio.' : 'Entre 0,01 y 9999,99.';
       return e;
     });
     this.errores.set(errores);
     if (errores.some((e) => Object.keys(e).length)) return;
     const consumos: ConsumoExtra[] = this.lineas()
       .filter((l) => !this.vacia(l))
-      .map((l) => ({ item: l.item.trim(), cantidad: Number(l.cantidad), precio: (leerPrecio(l.precio) as number).toFixed(2) }));
+      .map((l) => ({ item: l.item.trim(), cantidad: Number(l.cantidad), precio: (l.precio as number).toFixed(2) }));
     const obs = this.observaciones.trim();
     this.confirmar.emit({
       ...(obs ? { observaciones: obs } : {}),

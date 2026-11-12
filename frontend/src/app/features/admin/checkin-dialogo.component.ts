@@ -1,6 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, effect, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { FiltroDirective } from '../../shared/entrada';
 import { HabitacionLibre, ReservaHost } from '../../core/services/anfitrion.service';
 import { plural, rangoLargo } from '../../shared/textos';
 
@@ -17,7 +18,7 @@ export interface DatosCheckin {
  */
 @Component({
   selector: 'app-checkin-dialogo',
-  imports: [FormsModule, CurrencyPipe],
+  imports: [FormsModule, CurrencyPipe, FiltroDirective],
   template: `
     <!-- Clic en el fondo = cerrar; con teclado se cierra con Esc (evento cancel del <dialog>) -->
     <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
@@ -54,7 +55,7 @@ export interface DatosCheckin {
 
           <div class="ck-campo">
             <label for="ck-reales">Huéspedes que llegaron</label>
-            <input id="ck-reales" name="reales" type="number" inputmode="numeric" min="1" max="30" step="1" [(ngModel)]="reales"
+            <input id="ck-reales" name="reales" type="text" appFiltro="entero" maxlength="2" [(ngModel)]="reales"
                    [attr.aria-invalid]="errorReales() ? 'true' : null" [attr.aria-describedby]="errorReales() ? 'ck-error-reales' : null" />
             @if (errorReales(); as e) { <p id="ck-error-reales" class="ck-error" role="alert">{{ e }}</p> }
           </div>
@@ -119,7 +120,7 @@ export class CheckinDialogoComponent {
   readonly cerrar = output<void>();
 
   private readonly dialogo = viewChild.required<ElementRef<HTMLDialogElement>>('dialogo');
-  protected reales = 1;
+  protected reales: number | null = 1;
   protected observaciones = '';
   protected verificado = false;
   protected habitacion = '';

@@ -103,7 +103,7 @@ describe('SalidaDialogoComponent', () => {
     boton().click();
     await refrescar();
     expect(enviados.length).toBe(0);
-    expect(el.querySelector('.sd-precio .sd-error')?.textContent).toContain('Ej. 3.50');
+    expect(el.querySelector('.sd-precio .sd-error')?.textContent).toContain('Falta el precio');
     expect(el.querySelector('.sd-item .sd-error')).toBeNull();
   });
 
@@ -139,6 +139,22 @@ describe('SalidaDialogoComponent', () => {
     expect(cierres).toBe(1); // no cerró: se habrían perdido los datos
     (Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.includes('Todavía no')) as HTMLButtonElement).click();
     expect(cierres).toBe(2); // «Todavía no» sí cierra
+  });
+
+  it('en cantidad y precio no entra texto ni signos, y el precio admite coma', async () => {
+    await abrir();
+    await agregar();
+    await escribir('.sd-in-cant', '2e-1x');
+    expect((el.querySelector('.sd-in-cant') as HTMLInputElement).value).toBe('21');
+    await escribir('.sd-in-precio', '-3a,5$0');
+    expect((el.querySelector('.sd-in-precio') as HTMLInputElement).value).toBe('3,50');
+  });
+
+  it('el nombre del producto admite letras y dígitos, pero no caracteres raros', async () => {
+    await abrir();
+    await agregar();
+    await escribir('.sd-in-item', 'Agua <500> #ml');
+    expect((el.querySelector('.sd-in-item') as HTMLInputElement).value).toBe('Agua 500 ml');
   });
 
   it('quitar un consumo lo elimina de la lista', async () => {
