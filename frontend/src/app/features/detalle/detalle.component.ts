@@ -35,7 +35,7 @@ interface Opcion {
     <app-alerta-error [error]="error()" />
     @if (!aloj() && !error()) { <app-cargando /> }
     @if (aloj(); as a) {
-      <a routerLink="/" class="volver"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Volver</span></a>
+      <a [routerLink]="desdeAdmin ? '/admin' : '/'" [queryParams]="desdeAdmin ? { tab: 'alojamientos' } : null" class="volver"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Volver</span></a>
       <header class="cabecera-detalle">
         <h1>{{ a.name }} <app-estrellas [n]="a.stars" /></h1>
         <p class="meta cabecera-calif d-flex align-items-center flex-wrap">
@@ -218,6 +218,8 @@ interface Opcion {
 export class DetalleComponent implements OnInit {
   /** Código entero del alojamiento (parámetro de ruta :id). */
   readonly id = input.required<string>();
+  /** Se llegó desde «Ver anuncio» del panel admin: «Volver» regresa a ese listado (solo en ese caso). Se lee una vez: sobrevive a los cambios de fechas en la URL. */
+  readonly desdeAdmin = (typeof history !== 'undefined' ? (history.state as { desde?: string } | null)?.desde : undefined) === 'admin';
   private readonly catalogo = inject(CatalogoService);
   private readonly reservas = inject(ReservasService);
   private readonly auth = inject(AuthService);

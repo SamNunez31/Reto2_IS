@@ -135,7 +135,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                       </button>
                     }
                     @if (a['estado'] === 'PUBLICADO') {
-                      <a class="ico-btn" [routerLink]="['/alojamientos', a['codigo']]" title="Ver anuncio" aria-label="Ver anuncio público">
+                      <a class="ico-btn" [routerLink]="['/alojamientos', a['codigo']]" [state]="{ desde: 'admin' }" title="Ver anuncio" aria-label="Ver anuncio público">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['ver']" /></svg>
                       </a>
                       <button class="ico-btn ico-peligro" type="button" (click)="eliminar(a)" [disabled]="eliminando() === a['codigo']"
