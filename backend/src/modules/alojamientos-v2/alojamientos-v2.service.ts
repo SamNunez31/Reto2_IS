@@ -772,7 +772,7 @@ export class AlojamientosV2Service {
       if (Date.now() < habilitado) {
         throw reglaV2('CHECKIN_TIME_NOT_REACHED', 'El check-in digital se habilita a partir de las 14:00 (hora de Guayaquil) del día de llegada.', undefined, { habilitadoDesde: iso5(habilitado) });
       }
-      // Hotel: habitación real (queda OCUPADA). Sin habitación libre se conserva la etiqueta anterior para no romper el check-in de Booking.
+      // Unidad física real (hotel, casa, cabaña…): queda OCUPADA. Sin habitación libre se conserva la etiqueta anterior para no romper el check-in de Booking.
       const asignada = await asignarHabitacion(q, r.id, r.unidad_id);
       const habitacion = asignada.tipo === 'ASIGNADA'
         ? etiquetaHabitacion(r.tipo_nombre, asignada.numero)

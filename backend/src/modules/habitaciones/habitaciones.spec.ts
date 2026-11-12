@@ -16,15 +16,15 @@ function falsa(guion: [RegExp, unknown[]][]): { q: Consulta; sqls: string[] } {
 }
 
 describe('habitaciones: asignar en el check-in', () => {
-  it('un tipo que no es hotel no usa habitaciones', async () => {
-    const { q, sqls } = falsa([[/t\.nombre = 'Hotel'/, [{ es: false }]]]);
+  it('un tipo sin unidades físicas registradas no asigna nada', async () => {
+    const { q, sqls } = falsa([[/count\(\*\)::int AS n FROM habitacion/, [{ n: 0 }]]]);
     expect(await asignarHabitacion(q, RESERVA, UNIDAD)).toEqual({ tipo: 'NO_HOTEL' });
     expect(sqls.some((s) => /UPDATE habitacion/.test(s))).toBe(false);
   });
 
   it('sin elegir, ocupa la primera libre y la vincula a la orden', async () => {
     const { q, sqls } = falsa([
-      [/t\.nombre = 'Hotel'/, [{ es: true }]],
+      [/count\(\*\)::int AS n FROM habitacion/, [{ n: 5 }]],
       [/UPDATE habitacion SET estado = 'OCUPADA'/, [{ id: 'h1', numero: '109' }]],
     ]);
     expect(await asignarHabitacion(q, RESERVA, UNIDAD)).toEqual({ tipo: 'ASIGNADA', id: 'h1', numero: '109' });
@@ -33,24 +33,35 @@ describe('habitaciones: asignar en el check-in', () => {
   });
 
   it('sin habitaciones libres avisa SIN_DISPONIBLES y no toca la orden', async () => {
-    const { q, sqls } = falsa([[/t\.nombre = 'Hotel'/, [{ es: true }]]]);
+    const { q, sqls } = falsa([[/count\(\*\)::int AS n FROM habitacion/, [{ n: 5 }]]]);
     expect(await asignarHabitacion(q, RESERVA, UNIDAD)).toEqual({ tipo: 'SIN_DISPONIBLES' });
     expect(sqls.some((s) => /UPDATE orden_v2/.test(s))).toBe(false);
   });
 
   it('una habitación elegida que ya no está libre (o es de otro tipo) es NO_VALIDA', async () => {
-    const { q } = falsa([[/t\.nombre = 'Hotel'/, [{ es: true }]]]);
+    const { q } = falsa([[/count\(\*\)::int AS n FROM habitacion/, [{ n: 5 }]]]);
     expect(await asignarHabitacion(q, RESERVA, UNIDAD, '33333333-3333-4333-8333-333333333333')).toEqual({ tipo: 'NO_VALIDA' });
   });
 
   it('la habitación elegida se pide por id y por unidad (no se puede tomar una de otro tipo)', async () => {
     const { q, sqls } = falsa([
-      [/t\.nombre = 'Hotel'/, [{ es: true }]],
+      [/count\(\*\)::int AS n FROM habitacion/, [{ n: 5 }]],
       [/UPDATE habitacion SET estado = 'OCUPADA'/, [{ id: 'h7', numero: '104' }]],
     ]);
     const r = await asignarHabitacion(q, RESERVA, UNIDAD, '33333333-3333-4333-8333-333333333333');
     expect(r).toEqual({ tipo: 'ASIGNADA', id: 'h7', numero: '104' });
     expect(sqls.find((s) => /UPDATE habitacion/.test(s))).toMatch(/unidad_id = \$2::uuid AND estado = 'DISPONIBLE'/);
+  });
+});
+
+describe('habitaciones: casas, cabañas y departamentos', () => {
+  it('también ocupan una unidad física al hacer check-in', async () => {
+    const { q } = falsa([
+      [/count\(\*\)::int AS n FROM habitacion/, [{ n: 2 }]],
+      [/UPDATE habitacion SET estado = 'OCUPADA'/, [{ id: 'c1', numero: '2' }]],
+    ]);
+    expect(await asignarHabitacion(q, RESERVA, UNIDAD)).toEqual({ tipo: 'ASIGNADA', id: 'c1', numero: '2' });
+    expect(etiquetaHabitacion('Cabaña Familiar', '2')).toBe('Cabaña Familiar 2');
   });
 });
 

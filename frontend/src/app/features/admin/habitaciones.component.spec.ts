@@ -22,9 +22,9 @@ describe('HabitacionesComponent', () => {
     return { fixture, api, el: fixture.nativeElement as HTMLElement };
   };
 
-  it('solo ofrece hoteles y carga las habitaciones del primero', () => {
+  it('ofrece todos los alojamientos (hoteles, casas…) y carga las unidades del primero', () => {
     const { fixture, api, el } = crear([hab('h1', '101', 'DISPONIBLE'), hab('h2', '102', 'EN_PREPARACION'), hab('h3', '103', 'OCUPADA')]);
-    expect(Array.from(el.querySelectorAll('select option')).length).toBe(1);
+    expect(Array.from(el.querySelectorAll('select option')).length).toBe(2);
     expect(api.habitaciones).toHaveBeenCalledWith(7);
     expect(fixture.componentInstance.cuenta()).toEqual({ DISPONIBLE: 1, EN_PREPARACION: 1, OCUPADA: 1 });
   });

@@ -21,26 +21,26 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
   imports: [FormsModule, DatePipe, AlertaErrorComponent, CargandoComponent],
   template: `
     <p class="ayuda">
-      Cada hotel tiene una habitación por unidad publicada. Al hacer check-out la habitación pasa a «En preparación»;
+      Cada alojamiento tiene una unidad física por cada «cantidad» de su tipo (habitación de hotel, casa, cabaña o departamento). Al hacer check-out la unidad pasa a «En preparación»;
       mientras esté así no se puede reservar (baja el cupo de su tipo). Cuando esté lista, márcala como «Disponible». Las ocupadas se liberan con el check-out del huésped.
     </p>
     @if (ok.texto()) { <p class="alerta alerta-ok" role="status">{{ ok.texto() }}</p> }
     <app-alerta-error [error]="error()" />
-    <label class="filtro">Hotel
+    <label class="filtro">Alojamiento
       <select name="hotel" [ngModel]="codigo()" (ngModelChange)="elegir($event)">
-        @for (h of hoteles(); track h.codigo) { <option [ngValue]="h.codigo">{{ h.nombre }}</option> }
+        @for (h of hoteles(); track h.codigo) { <option [ngValue]="h.codigo">{{ h.nombre }} · {{ h.tipo }}</option> }
       </select>
     </label>
     @if (cargando()) { <app-cargando /> }
-    @else if (!hoteles().length) { <p>No hay hoteles registrados.</p> }
+    @else if (!hoteles().length) { <p>No hay alojamientos registrados.</p> }
     @else {
       <div class="resumen-hab" aria-live="polite">
         @for (e of estados; track e) { <span class="badge">{{ etiqueta[e] }}: {{ cuenta()[e] }}</span> }
       </div>
       <div class="tabla-scroll tarjeta">
         <table class="tabla">
-          <caption class="sr-only">Habitaciones del hotel</caption>
-          <thead><tr><th scope="col">Habitación</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Actualizada</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+          <caption class="sr-only">Unidades del alojamiento</caption>
+          <thead><tr><th scope="col">N.º</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Actualizada</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
           <tbody>
             @for (h of habitaciones(); track h.id) {
               <tr>
@@ -59,7 +59,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
                   }
                 </td>
               </tr>
-            } @empty { <tr><td colspan="5">Este alojamiento no tiene habitaciones (solo los hoteles las usan).</td></tr> }
+            } @empty { <tr><td colspan="5">Este alojamiento aún no tiene unidades registradas.</td></tr> }
           </tbody>
         </table>
       </div>
@@ -93,9 +93,8 @@ export class HabitacionesComponent implements OnInit {
     this.cargando.set(true);
     this.api.alojamientos().subscribe({
       next: (l) => {
-        const hoteles = l.filter((a) => a.tipo.toLowerCase() === 'hotel');
-        this.hoteles.set(hoteles);
-        if (hoteles.length) this.elegir(hoteles[0].codigo);
+        this.hoteles.set(l);
+        if (l.length) this.elegir(l[0].codigo);
         else this.cargando.set(false);
       },
       error: (e) => { this.cargando.set(false); this.error.set(leerError(e)); },
@@ -121,7 +120,7 @@ export class HabitacionesComponent implements OnInit {
     this.api.estadoHabitacion(codigo, h.id, estado).subscribe({
       next: () => {
         this.cambiando.set(null);
-        this.ok.mostrar(`Habitación ${h.numero}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`);
+        this.ok.mostrar(`Unidad ${h.numero}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`);
         this.elegir(codigo);
       },
       error: (e) => { this.cambiando.set(null); this.error.set(leerError(e)); this.elegir(codigo); },

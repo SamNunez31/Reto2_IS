@@ -441,7 +441,7 @@ export class HostService {
     let habitacion = fila.habitacion;
     if (!yaRegistrado) {
       await this.db.transaccion(async (q) => {
-        // Hotel: se ocupa una habitación real (la elegida o la primera libre). Otros tipos se alquilan completos: sin número.
+        // Se ocupa una unidad física real: en hoteles la que elige el admin; en casas, cabañas y departamentos, la primera libre.
         const asignada = await asignarHabitacion(q, reservaId, fila.unidad_id, datos.habitacion_id);
         if (asignada.tipo === 'SIN_DISPONIBLES') throw conflicto('No hay habitaciones disponibles de este tipo. Marca una como lista en la pestaña Habitaciones.');
         if (asignada.tipo === 'NO_VALIDA') throw conflicto('La habitación elegida ya no está disponible: elige otra');
@@ -461,7 +461,7 @@ export class HostService {
     return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_IN', habitacion_asignada: habitacion ?? '', ya_registrado: yaRegistrado, booking_notificado: notificado };
   }
 
-  /** Habitaciones libres del tipo reservado, para elegir en el check-in. Fuera de hoteles: es_hotel false y lista vacía. */
+  /** Habitaciones libres del tipo reservado, para elegir en el check-in. Solo los hoteles eligen: fuera de ellos es_hotel false y lista vacía (se asigna sola la primera libre). */
   async habitacionesParaCheckin(reservaId: string, user: UsuarioToken): Promise<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }> {
     await this.reserva(reservaId, user);
     const fila = await this.db.uno<{ unidad_id: string }>(`SELECT unidad_id::text AS unidad_id FROM orden_v2 WHERE reserva_id = $1`, [reservaId]);

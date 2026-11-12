@@ -3,11 +3,11 @@
 --  Ejecutar DESPUÉS de 06_v2_clientes_checkin.sql. Es ADITIVA y se puede re-ejecutar.
 --
 --  Qué agrega:
---    1. habitacion: cada habitación física de un HOTEL, con número y estado
+--    1. habitacion: cada unidad física (habitación de hotel, casa, cabaña o departamento), con número y estado
 --       (DISPONIBLE → OCUPADA en el check-in → EN_PREPARACION en el check-out → DISPONIBLE cuando
---       el dueño la marca lista). Casas, departamentos y cabañas se alquilan completos y no la usan.
---    2. fn_sincronizar_habitaciones + trigger: mantienen una habitación por cada unidad de la
---       "cantidad" de cada tipo de habitación de un hotel (101, 102, 103...). Nunca borra ninguna.
+--       el dueño la marca lista). Mientras está EN_PREPARACION no se puede reservar.
+--    2. fn_sincronizar_habitaciones + trigger: mantienen una unidad física por cada "cantidad" de cada tipo
+--       (hoteles: 101, 102, 103...; casas, cabañas y departamentos: 1, 2, 3...). Nunca borra ninguna.
 --    3. orden_v2: habitación asignada (habitacion_id) y datos del check-out en recepción y de su
 --       notificación a Booking (con reintentos).
 -- =====================================================================
@@ -39,7 +39,7 @@ ALTER TABLE orden_v2
   ADD COLUMN IF NOT EXISTS checkout_notif_ultimo   timestamptz,
   ADD COLUMN IF NOT EXISTS checkout_notif_error    varchar(300);
 
--- Crea las habitaciones que faltan para que haya una por cada unidad de "cantidad" (solo hoteles)
+-- Crea las unidades físicas que faltan para que haya una por cada unidad de "cantidad" (todos los tipos)
 CREATE OR REPLACE FUNCTION fn_sincronizar_habitaciones(p_unidad uuid) RETURNS integer
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -47,18 +47,19 @@ DECLARE
   v_cant integer;
   v_existentes integer;
   v_sig integer;
+  v_base integer;
   v_creadas integer := 0;
 BEGIN
-  SELECT u.alojamiento_id, u.cantidad INTO v_aloj, v_cant
+  SELECT u.alojamiento_id, u.cantidad, CASE WHEN t.nombre = 'Hotel' THEN 100 ELSE 0 END INTO v_aloj, v_cant, v_base
     FROM unidad_alojamiento u
     JOIN alojamiento a ON a.id = u.alojamiento_id
     JOIN tipo_alojamiento t ON t.id = a.tipo_id
-   WHERE u.id = p_unidad AND t.nombre = 'Hotel';
+   WHERE u.id = p_unidad;
   IF v_aloj IS NULL THEN RETURN 0; END IF;
 
   PERFORM pg_advisory_xact_lock(hashtext(v_aloj::text));   -- dos altas a la vez no repiten número
   SELECT count(*) INTO v_existentes FROM habitacion WHERE unidad_id = p_unidad;
-  SELECT COALESCE(max(numero::integer), 100) + 1 INTO v_sig
+  SELECT COALESCE(max(numero::integer), v_base) + 1 INTO v_sig
     FROM habitacion WHERE alojamiento_id = v_aloj AND numero ~ '^[0-9]+$';
 
   WHILE v_existentes + v_creadas < v_cant LOOP
@@ -80,7 +81,7 @@ DROP TRIGGER IF EXISTS trg_unidad_habitaciones ON unidad_alojamiento;
 CREATE TRIGGER trg_unidad_habitaciones AFTER INSERT OR UPDATE OF cantidad ON unidad_alojamiento
   FOR EACH ROW EXECUTE FUNCTION tg_sincronizar_habitaciones();
 
--- Hoteles que ya existen: se les crean sus habitaciones ahora
+-- Alojamientos que ya existen: se les crean sus unidades físicas ahora
 SELECT fn_sincronizar_habitaciones(id) FROM unidad_alojamiento;
 
 -- Pendientes de avisar a Booking el check-out (los recorre el job notificar-checkin)

@@ -1,6 +1,6 @@
 import { Consulta } from '../../database/db.service';
 
-/** Estados de una habitación de hotel: libre → ocupada (check-in) → en preparación (check-out) → libre (la marca el dueño). */
+/** Estados de una unidad física (habitación de hotel, casa, cabaña o departamento): libre → ocupada (check-in) → en preparación (check-out) → libre (la marca el dueño). */
 export type EstadoHabitacion = 'DISPONIBLE' | 'OCUPADA' | 'EN_PREPARACION';
 
 /** Los que el dueño puede fijar a mano; OCUPADA solo la pone el check-in. */
@@ -17,7 +17,7 @@ export type ResultadoAsignacion =
   | { tipo: 'SIN_DISPONIBLES' }
   | { tipo: 'NO_VALIDA' };
 
-/** Solo los hoteles tienen habitaciones con número: casas, departamentos y cabañas se alquilan completos. */
+/** ¿El alojamiento es un hotel? Solo en hoteles el admin elige la habitación en el check-in; en los demás tipos se asigna sola. */
 export async function esUnidadDeHotel(q: Consulta, unidadId: string): Promise<boolean> {
   const f = await q<{ es: boolean }>(
     `SELECT (t.nombre = 'Hotel') AS es
@@ -26,6 +26,12 @@ export async function esUnidadDeHotel(q: Consulta, unidadId: string): Promise<bo
     [unidadId],
   );
   return f[0]?.es === true;
+}
+
+/** ¿Este tipo tiene unidades físicas registradas (habitacion)? Si no, el check-in sigue sin asignar ninguna. */
+export async function unidadConHabitaciones(q: Consulta, unidadId: string): Promise<boolean> {
+  const f = await q<{ n: number }>(`SELECT count(*)::int AS n FROM habitacion WHERE unidad_id = $1::uuid`, [unidadId]);
+  return (f[0]?.n ?? 0) > 0;
 }
 
 /** Habitaciones libres de un tipo de habitación, en orden de número. */
@@ -41,7 +47,7 @@ export function habitacionesDisponibles(q: Consulta, unidadId: string): Promise<
  * Debe llamarse dentro de la transacción del check-in. No lanza: informa el resultado.
  */
 export async function asignarHabitacion(q: Consulta, reservaId: string, unidadId: string, habitacionId?: string): Promise<ResultadoAsignacion> {
-  if (!(await esUnidadDeHotel(q, unidadId))) return { tipo: 'NO_HOTEL' };
+  if (!(await unidadConHabitaciones(q, unidadId))) return { tipo: 'NO_HOTEL' };
   const tomada = habitacionId
     ? await q<HabitacionLibre>(
         `UPDATE habitacion SET estado = 'OCUPADA', actualizada_en = now()
@@ -70,5 +76,5 @@ export async function pasarAPreparacion(q: Consulta, reservaId: string): Promise
   return f[0]?.numero ?? null;
 }
 
-/** Texto que se guarda en orden_v2.habitacion_asignada: «Suite Familiar 109». */
+/** Texto que se guarda en orden_v2.habitacion_asignada: «Suite Familiar 109», «Cabaña Familiar 2». */
 export const etiquetaHabitacion = (unidad: string, numero: string): string => `${unidad} ${numero}`.slice(0, 100);

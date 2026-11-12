@@ -53,12 +53,12 @@ describe('SalidaDialogoComponent', () => {
 
   it('avisa de salida tardía cuando ya pasó la hora de check-out', async () => {
     await abrir();
-    expect(el.textContent).toContain('posterior a la hora de check-out');
+    expect(el.textContent).toContain('Ya pasó la hora de salida');
   });
 
   it('no avisa si la salida es en el futuro', async () => {
     await abrir({ ...RESERVA, fecha_salida: '2099-01-01' });
-    expect(el.textContent).not.toContain('posterior a la hora de check-out');
+    expect(el.textContent).not.toContain('Ya pasó la hora de salida');
   });
 
   it('no deja confirmar sin recibir las llaves', async () => {
@@ -75,29 +75,79 @@ describe('SalidaDialogoComponent', () => {
     expect(enviados).toEqual([{}]);
   });
 
-  it('con consumos envía líneas, método de cobro y muestra el total', async () => {
-    await abrir();
+  const agregar = async (): Promise<void> => {
     (Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.includes('Agregar consumo')) as HTMLButtonElement).click();
     await refrescar();
-    await escribir('.sd-linea input[type="text"]:not([inputmode])', 'Agua');
-    await escribir('.sd-linea input[type="number"]', '2');
-    await escribir('.sd-linea input[inputmode="decimal"]', '1.5');
-    expect(el.textContent).toContain('$3.00');
+  };
+
+  it('con consumos envía líneas, método de cobro y muestra subtotal y total', async () => {
+    await abrir();
+    await agregar();
+    expect((el.querySelector('.sd-in-cant') as HTMLInputElement).value).toBe('1'); // cantidad por defecto
+    await escribir('.sd-in-item', 'Agua');
+    await escribir('.sd-in-cant', '2');
+    await escribir('.sd-in-precio', '1,5'); // acepta coma
+    expect(el.querySelector('.sd-subtotal')?.textContent).toContain('$3.00');
+    expect(el.querySelector('.sd-total')?.textContent).toContain('$3.00');
     await llaves();
     boton().click();
     expect(enviados[0].consumos).toEqual([{ item: 'Agua', cantidad: 2, precio: '1.50' }]);
     expect(enviados[0].metodo_pago_consumos).toBe('EFECTIVO');
   });
 
-  it('un consumo a medias bloquea el envío con un mensaje', async () => {
+  it('un consumo a medias muestra el error junto al campo y no envía', async () => {
     await abrir();
-    (Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.includes('Agregar consumo')) as HTMLButtonElement).click();
-    await refrescar();
-    await escribir('.sd-linea input[type="text"]:not([inputmode])', 'Snack');
+    await agregar();
+    await escribir('.sd-in-item', 'Snack');
     await llaves();
     boton().click();
     await refrescar();
     expect(enviados.length).toBe(0);
-    expect(el.textContent).toContain('Cada consumo necesita');
+    expect(el.querySelector('.sd-precio .sd-error')?.textContent).toContain('Ej. 3.50');
+    expect(el.querySelector('.sd-item .sd-error')).toBeNull();
+  });
+
+  it('una línea agregada sin querer (vacía) se ignora', async () => {
+    await abrir();
+    await agregar();
+    await llaves();
+    boton().click();
+    expect(enviados).toEqual([{}]);
+  });
+
+  it('un precio de 0 o negativo no es válido', async () => {
+    await abrir();
+    await agregar();
+    await escribir('.sd-in-item', 'Agua');
+    await escribir('.sd-in-precio', '0');
+    await llaves();
+    boton().click();
+    await refrescar();
+    expect(enviados.length).toBe(0);
+  });
+
+  it('el fondo no cierra el diálogo si ya hay datos escritos, pero sí si está vacío', async () => {
+    await abrir();
+    let cierres = 0;
+    fixture.componentInstance.cerrar.subscribe(() => cierres++);
+    const dialogo = el.querySelector('dialog') as HTMLDialogElement;
+    dialogo.dispatchEvent(new MouseEvent('click'));
+    expect(cierres).toBe(1);
+    await agregar();
+    await escribir('.sd-in-item', 'Agua');
+    dialogo.dispatchEvent(new MouseEvent('click'));
+    expect(cierres).toBe(1); // no cerró: se habrían perdido los datos
+    (Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.includes('Todavía no')) as HTMLButtonElement).click();
+    expect(cierres).toBe(2); // «Todavía no» sí cierra
+  });
+
+  it('quitar un consumo lo elimina de la lista', async () => {
+    await abrir();
+    await agregar();
+    await agregar();
+    expect(el.querySelectorAll('.sd-linea').length).toBe(2);
+    (el.querySelector('.sd-quitar') as HTMLButtonElement).click();
+    await refrescar();
+    expect(el.querySelectorAll('.sd-linea').length).toBe(1);
   });
 });

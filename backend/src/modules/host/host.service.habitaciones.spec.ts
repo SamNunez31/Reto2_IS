@@ -8,7 +8,10 @@ const UNIDAD = '22222222-2222-4222-8222-222222222222';
 
 interface Opciones {
   estado?: string;
+  /** El tipo es Hotel (solo en hoteles se elige la habitación) */
   hotel?: boolean;
+  /** El tipo tiene unidades físicas registradas (hoteles, casas, cabañas…) */
+  conHabitaciones?: boolean;
   libres?: { id: string; numero: string }[];
   checkinEn?: string | null;
   checkoutEn?: string | null;
@@ -25,6 +28,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
   const guion = async (sql: string): Promise<unknown[]> => {
     sqls.push(sql);
     if (/t\.nombre = 'Hotel'/.test(sql)) return [{ es: o.hotel ?? true }];
+    if (/count\(\*\)::int AS n FROM habitacion/.test(sql)) return [{ n: (o.conHabitaciones ?? true) ? 3 : 0 }];
     if (/UPDATE habitacion SET estado = 'OCUPADA'/.test(sql)) return libres.slice(0, 1);
     if (/UPDATE habitacion SET estado = 'EN_PREPARACION'/.test(sql)) return [{ numero: '109' }];
     if (/FROM habitacion WHERE unidad_id = \$1::uuid AND estado = 'DISPONIBLE'/.test(sql)) return libres;
@@ -68,8 +72,15 @@ describe('HostService.registrarLlegada: habitación real', () => {
     expect(sqls.some((s) => /checkin_recepcion = true/.test(s))).toBe(false);
   });
 
-  it('fuera de hoteles no hay número de habitación', async () => {
+  it('una casa o cabaña también ocupa su unidad física, sin selector', async () => {
     const { svc, sqls } = crear({ hotel: false });
+    const r = await svc.registrarLlegada(ID, {}, ADMIN);
+    expect(r.habitacion_asignada).toBe('Suite Familiar 109');
+    expect(sqls.some((s) => /UPDATE habitacion SET estado = 'OCUPADA'/.test(s))).toBe(true);
+  });
+
+  it('un tipo sin unidades registradas conserva el nombre del tipo y no toca habitaciones', async () => {
+    const { svc, sqls } = crear({ hotel: false, conHabitaciones: false });
     const r = await svc.registrarLlegada(ID, {}, ADMIN);
     expect(r.habitacion_asignada).toBe('Suite Familiar');
     expect(sqls.some((s) => /UPDATE habitacion/.test(s))).toBe(false);
@@ -96,7 +107,7 @@ describe('HostService.habitacionesParaCheckin', () => {
     expect(r.habitaciones.map((h) => h.numero)).toEqual(['109', '110']);
   });
 
-  it('fuera de hoteles devuelve es_hotel false y lista vacía', async () => {
+  it('fuera de hoteles no hay selector: es_hotel false y lista vacía', async () => {
     const { svc } = crear({ hotel: false });
     expect(await svc.habitacionesParaCheckin(ID, ADMIN)).toEqual({ es_hotel: false, habitaciones: [] });
   });

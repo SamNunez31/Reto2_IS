@@ -71,7 +71,7 @@ export interface DatosCheckin {
             <span>Verifiqué el documento de identidad del titular{{ r.titular_identificacion ? ' (' + r.titular_identificacion + ')' : '' }}</span>
           </label>
           <p id="ck-ayuda-verif" class="ck-ayuda">
-            {{ verificado ? (esHotel() ? 'Al confirmar la habitación quedará ocupada y se avisará a Booking.' : 'Al confirmar se registrará la llegada y se avisará a Booking.') : 'Marca esta casilla para poder confirmar.' }}
+            {{ verificado ? 'Al confirmar la unidad quedará ocupada y se avisará a Booking.' : 'Marca esta casilla para poder confirmar.' }}
           </p>
 
           <div class="ck-acciones">
