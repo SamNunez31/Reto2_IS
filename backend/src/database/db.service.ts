@@ -4,10 +4,10 @@ import { DataSource, QueryRunner } from 'typeorm';
 /** Ejecuta SQL parametrizado ($1, $2...) dentro de una conexión o transacción. */
 export type Consulta = <T>(sql: string, params?: unknown[]) => Promise<T[]>;
 
-// 25 base + cotizacion_v2 y orden_v2 (04) + contrato_promociones (05_v2_checkin.sql) = 28; + cliente_v2 (06_v2_clientes_checkin.sql) = 29.
-// Se aceptan ambas para poder desplegar la imagen antes o después de ejecutar el 06 sin que el servicio se niegue a arrancar.
-export const TABLAS_ESPERADAS = 28;
-export const TABLAS_ACEPTADAS: readonly number[] = [28, 29];
+// 25 base + cotizacion_v2 y orden_v2 (04) + contrato_promociones (05_v2_checkin.sql) = 28; + cliente_v2 (06) = 29; + habitacion (07) = 30.
+// Se aceptan todas para poder desplegar la imagen antes o después de ejecutar cada migración sin que el servicio se niegue a arrancar.
+export const TABLAS_ESPERADAS = 30;
+export const TABLAS_ACEPTADAS: readonly number[] = [28, 29, 30];
 
 /**
  * Acceso a datos: SQL parametrizado sobre el DataSource de TypeORM.
@@ -76,7 +76,7 @@ export class DbService implements OnApplicationBootstrap {
       `SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'booking' AND table_type = 'BASE TABLE'`,
     );
     if (!fila || !TABLAS_ACEPTADAS.includes(fila.n)) {
-      const msg = `La BD tiene ${fila?.n ?? 0} tablas en booking (se esperaban ${TABLAS_ESPERADAS}). Si aún existen las tablas aeropuerto y alojamiento_aeropuerto, ejecuta database/migracion_sin_aeropuertos.sql; si aún existe la tabla reporte, ejecuta database/migracion_admin_dueno.sql y database/migracion_sin_reportes.sql; si aún existe alojamiento_codigo, ejecuta antes database/migracion_codigo_en_alojamiento.sql; si faltan las tablas de integración, ejecuta 03_integracion.sql; si faltan cotizacion_v2 y orden_v2, ejecuta 04_v2_integracion.sql; si falta contrato_promociones, ejecuta 05_v2_checkin.sql (y luego 06_v2_clientes_checkin.sql).`;
+      const msg = `La BD tiene ${fila?.n ?? 0} tablas en booking (se esperaban ${TABLAS_ESPERADAS}). Si aún existen las tablas aeropuerto y alojamiento_aeropuerto, ejecuta database/migracion_sin_aeropuertos.sql; si aún existe la tabla reporte, ejecuta database/migracion_admin_dueno.sql y database/migracion_sin_reportes.sql; si aún existe alojamiento_codigo, ejecuta antes database/migracion_codigo_en_alojamiento.sql; si faltan las tablas de integración, ejecuta 03_integracion.sql; si faltan cotizacion_v2 y orden_v2, ejecuta 04_v2_integracion.sql; si falta contrato_promociones, ejecuta 05_v2_checkin.sql (y luego 06_v2_clientes_checkin.sql y 07_habitaciones_checkout.sql).`;
       this.logger.error(msg);
       throw new Error(msg);
     }
