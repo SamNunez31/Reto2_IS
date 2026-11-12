@@ -84,7 +84,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
 
       @case ('alojamientos') {
         <div class="barra-admin">
-          <form class="buscador" role="search" (ngSubmit)="ir('alojamientos')">
+          <form class="buscador-adm" role="search" (ngSubmit)="ir('alojamientos')">
             <span class="buscador-texto">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['buscar']" /></svg>
               <input id="q-aloj" name="qa" type="search" [(ngModel)]="busquedaAloj" maxlength="80" placeholder="Buscar por nombre, ciudad o código" />
@@ -303,7 +303,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
         </form>
         }
         <div class="barra-admin">
-          <form class="buscador" role="search" (ngSubmit)="ir('usuarios')">
+          <form class="buscador-adm" role="search" (ngSubmit)="ir('usuarios')">
             <span class="buscador-texto">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['buscar']" /></svg>
               <input id="q-usr" name="q" type="search" [(ngModel)]="busqueda" maxlength="80" placeholder="Buscar por correo o nombre" />
@@ -529,15 +529,15 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
   styles: `.mt { margin-top: 1rem; }
     /* Buscador: un solo control continuo (texto · estado · lupa), como en los portales de reservas */
     .barra-admin { display: flex; align-items: center; justify-content: space-between; gap: 1rem 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    .buscador { display: flex; align-items: center; gap: 0; flex: 1 1 26rem; max-width: 40rem; min-width: 16rem; margin: 0; height: 3rem;
+    .buscador-adm { display: flex; align-items: center; gap: 0; flex: 1 1 26rem; max-width: 40rem; min-width: 16rem; margin: 0; height: 3rem;
                 background: var(--c-superficie, #fff); border: 1px solid var(--gris-300, #ddd); border-radius: 999px; padding: 0 .3rem 0 1.1rem;
                 transition: box-shadow .15s ease, border-color .15s ease; }
-    .buscador:focus-within { border-color: var(--c-acento); box-shadow: 0 0 0 3px rgb(0 0 0 / .06); }
+    .buscador-adm:focus-within { border-color: var(--c-acento); box-shadow: 0 0 0 3px rgb(0 0 0 / .06); }
     .buscador-texto { display: flex; align-items: center; gap: .55rem; flex: 1 1 auto; min-width: 0; color: var(--c-suave, #8a8a82); }
     .buscador-texto input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; height: 2.6rem; padding: 0; font: inherit; color: var(--c-texto); }
     .buscador-texto input:focus { outline: none; box-shadow: none; }
     .buscador-sep { width: 1px; height: 1.6rem; background: var(--gris-300, #e4e2dd); margin: 0 .9rem; flex: none; }
-    .buscador-estado { display: flex; align-items: center; gap: .5rem; margin: 0; flex: none; }
+    .buscador-estado { display: flex; flex-direction: row; align-items: center; gap: .5rem; margin: 0; flex: none; }
     .buscador-etiqueta { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gris-700); line-height: 1; }
     .buscador-estado select { border: 0; background-color: transparent; height: 2rem; padding: 0 1.4rem 0 0; font: inherit; font-weight: 600; width: auto; min-width: 7rem; }
     .buscador-estado select:focus { outline: none; box-shadow: none; }
@@ -547,7 +547,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .buscador-ir .ico { width: 1.15rem; height: 1.15rem; stroke-width: 2.1; margin: 0; }
     .nuevo-aloj { flex: none; height: 3rem; padding: 0 1.3rem; border-radius: 999px; }
     @media (max-width: 680px) {
-      .buscador { flex-wrap: wrap; border-radius: var(--radio-l, 1rem); padding: .6rem .8rem; }
+      .buscador-adm { flex-wrap: wrap; border-radius: var(--radio-l, 1rem); padding: .6rem .8rem; }
       .buscador-texto { flex-basis: 100%; }
       .buscador-sep { display: none; }
       .buscador-estado { flex: 1 1 auto; }
