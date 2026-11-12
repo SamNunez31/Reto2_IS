@@ -61,3 +61,29 @@ describe('HabitacionesComponent · ciclo de limpieza', () => {
     expect(filas[2].textContent).toContain('Ocupada desde');
   });
 });
+
+describe('HabitacionesComponent · cuándo se numera', () => {
+  const montar = (habitaciones: HabitacionHost[]) => {
+    const api = {
+      alojamientos: () => of([hotel(7)]),
+      habitaciones: () => of(habitaciones),
+      estadoHabitacion: () => of({ id: 'h1', estado: 'DISPONIBLE' }),
+    };
+    TestBed.configureTestingModule({ imports: [HabitacionesComponent], providers: [{ provide: AnfitrionService, useValue: api }] });
+    const fixture = TestBed.createComponent(HabitacionesComponent);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  it('con varias unidades muestra el número', () => {
+    const el = montar([hab('h1', '101', 'DISPONIBLE'), hab('h2', '102', 'DISPONIBLE')]);
+    expect(el.querySelector('thead')?.textContent).toContain('N.º');
+    expect(el.querySelector('tbody tr strong')?.textContent).toBe('101');
+  });
+
+  it('con una sola unidad muestra su nombre en vez de un 1 suelto', () => {
+    const el = montar([{ ...hab('h1', '1', 'DISPONIBLE'), alojamiento: 'Casa Colón', unidad: 'Cabaña Familiar' }]);
+    expect(el.querySelector('thead')?.textContent).toContain('Unidad');
+    expect(el.querySelector('tbody tr strong')?.textContent).toBe('Casa Colón');
+  });
+});

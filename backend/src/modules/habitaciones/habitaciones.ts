@@ -116,3 +116,66 @@ export async function pasarAPreparacion(q: Consulta, reservaId: string): Promise
 
 /** Texto que se guarda en orden_v2.habitacion_asignada: «Suite Familiar 109», «Cabaña Familiar 2». */
 export const etiquetaHabitacion = (unidad: string, numero: string): string => `${unidad} ${numero}`.slice(0, 100);
+
+/**
+ * Cuántas unidades físicas tiene el alojamiento y cómo se llama.
+ * Solo se numera cuando hay más de una: un hotel con tres tipos de una habitación cada uno sí (101, 102, 103),
+ * y una casa de una sola unidad no, porque su propio nombre ya la identifica.
+ */
+export async function alojamientoDeUnidad(q: Consulta, unidadId: string): Promise<{ total: number; nombre: string; numerar: boolean }> {
+  const f = await q<{ total: number; nombre: string }>(
+    `SELECT (SELECT count(*) FROM habitacion h WHERE h.alojamiento_id = a.id)::int AS total, a.nombre
+       FROM unidad_alojamiento u JOIN alojamiento a ON a.id = u.alojamiento_id WHERE u.id = $1::uuid`,
+    [unidadId],
+  );
+  const total = f[0]?.total ?? 0;
+  return { total, nombre: f[0]?.nombre ?? '', numerar: total > 1 };
+}
+
+/** Etiqueta final: «Habitación Individual 101» cuando hay varias; el nombre del alojamiento («Casa Colón») si es única. */
+export async function etiquetaDeUnidad(q: Consulta, unidadId: string, unidad: string, numero: string | null): Promise<string> {
+  const a = await alojamientoDeUnidad(q, unidadId);
+  if (numero === null || !a.numerar) return (a.nombre || unidad).slice(0, 100);
+  return etiquetaHabitacion(unidad, numero);
+}
+
+/** Habitaciones del mismo tipo libres esas fechas y listas para entrar (para el cambio excepcional en recepción). */
+export async function habitacionesLibresParaFechas(
+  q: Consulta,
+  unidadId: string,
+  entrada: string,
+  salida: string,
+  excluirId?: string,
+): Promise<HabitacionLibre[]> {
+  return q<HabitacionLibre>(
+    `SELECT h.id::text AS id, h.numero FROM habitacion h
+      WHERE h.unidad_id = $1::uuid AND h.estado = 'DISPONIBLE' AND ($4::uuid IS NULL OR h.id <> $4::uuid)
+        AND NOT EXISTS (SELECT 1 FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
+                         WHERE o.habitacion_id = h.id AND r.estado <> 'CANCELADA'
+                           AND r.fecha_entrada < $3::date AND r.fecha_salida > $2::date
+                           AND (o.checkout_en IS NULL OR (o.checkout_en AT TIME ZONE 'America/Guayaquil')::date > $2::date))
+      ORDER BY h.numero::integer`,
+    [unidadId, entrada, salida, excluirId ?? null],
+  );
+}
+
+/**
+ * Cambio excepcional en recepción: pasa la reserva a otra habitación del mismo tipo y la deja OCUPADA.
+ * Devuelve el número si el cambio fue posible; null si esa habitación ya no sirve.
+ */
+export async function cambiarHabitacion(q: Consulta, reservaId: string, unidadId: string, habitacionId: string): Promise<string | null> {
+  const f = await q<{ numero: string }>(
+    `UPDATE habitacion SET estado = 'OCUPADA', actualizada_en = now()
+      WHERE id = $1::uuid AND unidad_id = $2::uuid AND estado = 'DISPONIBLE' RETURNING numero`,
+    [habitacionId, unidadId],
+  );
+  if (!f[0]) return null;
+  // La que tenía reservada vuelve a quedar libre
+  await q(
+    `UPDATE habitacion SET estado = 'DISPONIBLE', actualizada_en = now()
+      WHERE id = (SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid) AND id <> $2::uuid AND estado <> 'EN_PREPARACION'`,
+    [reservaId, habitacionId],
+  );
+  await q(`UPDATE orden_v2 SET habitacion_id = $2::uuid WHERE reserva_id = $1::uuid`, [reservaId, habitacionId]);
+  return f[0].numero;
+}

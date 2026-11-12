@@ -1,5 +1,5 @@
 import { Consulta } from '../../database/db.service';
-import { asignarHabitacion, ESTADOS_EDITABLES, etiquetaHabitacion, pasarAPreparacion } from './habitaciones';
+import { asignarHabitacion, ESTADOS_EDITABLES, etiquetaDeUnidad, etiquetaHabitacion, pasarAPreparacion } from './habitaciones';
 
 const UNIDAD = '22222222-2222-4222-8222-222222222222';
 const RESERVA = '11111111-1111-4111-8111-111111111111';
@@ -84,5 +84,22 @@ describe('habitaciones: check-out y estados', () => {
   it('la etiqueta mezcla tipo y número y respeta el máximo de 100 caracteres', () => {
     expect(etiquetaHabitacion('Suite Familiar', '109')).toBe('Suite Familiar 109');
     expect(etiquetaHabitacion('x'.repeat(120), '101')).toHaveLength(100);
+  });
+});
+
+describe('etiquetaDeUnidad: cuándo se numera', () => {
+  const conTotal = (total: number, nombre = 'Casa Colón') =>
+    falsa([[/AS total, a\.nombre/, [{ total, nombre }]]]).q;
+
+  it('un alojamiento con varias habitaciones las numera', async () => {
+    expect(await etiquetaDeUnidad(conTotal(3, 'Prueba Jueves'), UNIDAD, 'Habitación Individual', '101')).toBe('Habitación Individual 101');
+  });
+
+  it('un alojamiento de una sola unidad se queda con el nombre del alojamiento', async () => {
+    expect(await etiquetaDeUnidad(conTotal(1), UNIDAD, 'Cabaña Familiar', '1')).toBe('Casa Colón');
+  });
+
+  it('sin número asignado tampoco se inventa uno', async () => {
+    expect(await etiquetaDeUnidad(conTotal(5, 'Hotel X'), UNIDAD, 'Suite', null)).toBe('Hotel X');
   });
 });

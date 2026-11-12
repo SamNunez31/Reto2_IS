@@ -8,8 +8,10 @@ import { plural, rangoLargo } from '../../shared/textos';
 export interface DatosCheckin {
   huespedes_reales: number;
   observaciones?: string;
-  /** Habitación elegida (solo hoteles); sin ella el servidor asigna la primera libre */
+  /** Cambio excepcional: otra habitación libre del mismo tipo */
   habitacion_id?: string;
+  /** Por qué no se entrega la habitación asignada */
+  motivo_cambio?: string;
 }
 
 /**
@@ -36,10 +38,38 @@ export interface DatosCheckin {
             }
             <div><dt>Alojamiento</dt><dd>{{ r.alojamiento }}</dd></div>
             <div><dt>Estadía</dt><dd>{{ rango(r) }}</dd></div>
-            @if (r.habitacion_asignada) { <div><dt>Habitación</dt><dd>{{ r.habitacion_asignada }}</dd></div> }
+            @if (numerada() && r.habitacion_asignada) {
+              <div>
+                <dt>Habitación</dt>
+                <dd>
+                  {{ cambio ? etiquetaCambio(r) : r.habitacion_asignada }}
+                  @if (!cambio && libres().length) {
+                    <button type="button" class="ck-enlace" (click)="abrirCambio()">cambiar</button>
+                  }
+                </dd>
+              </div>
+            }
             <div><dt>Huéspedes reservados</dt><dd>{{ personas(r.num_huespedes) }}</dd></div>
             <div><dt>Total de la reserva</dt><dd>{{ r.total | currency: 'USD' }}</dd></div>
           </dl>
+
+          @if (cambio) {
+            <fieldset class="ck-cambio">
+              <legend>Cambio de habitación</legend>
+              <div class="ck-campo">
+                <label for="ck-hab">Nueva habitación</label>
+                <select id="ck-hab" name="hab" [(ngModel)]="habitacion">
+                  @for (h of libres(); track h.id) { <option [value]="h.id">Habitación {{ h.numero }}</option> }
+                </select>
+              </div>
+              <div class="ck-campo">
+                <label for="ck-motivo">Motivo</label>
+                <input id="ck-motivo" name="motivo" type="text" maxlength="200" appFiltro="texto" placeholder="Ej. aire acondicionado averiado" [(ngModel)]="motivo" />
+                @if (errorMotivo()) { <p class="ck-error" role="alert">{{ errorMotivo() }}</p> }
+              </div>
+              <button type="button" class="ck-enlace" (click)="cancelarCambio()">Dejar la habitación asignada</button>
+            </fieldset>
+          }
 
           <div class="ck-campo">
             <label for="ck-reales">Huéspedes que llegaron</label>
@@ -111,6 +141,11 @@ export interface DatosCheckin {
     .ck-campo select { width: 100%; }
     .ck-campo textarea { width: 100%; resize: vertical; font: inherit; }
     .ck-ayuda { margin: 0; font-size: .85rem; color: var(--gris-700); }
+    .ck-enlace { border: 0; background: none; padding: 0 0 0 .4rem; font: inherit; font-size: .85rem; color: var(--c-primario, #b4521f); text-decoration: underline; cursor: pointer; }
+    .ck-cambio { border: 1px solid var(--gris-300, #ddd); border-radius: var(--radio-s); padding: .5rem .9rem .9rem; margin: 0 0 .9rem; display: grid; gap: .5rem; }
+    .ck-cambio legend { font-weight: 700; padding: 0 .3rem; }
+    .ck-cambio select, .ck-cambio input { width: 100%; }
+    .ck-cambio .ck-enlace { justify-self: start; padding: 0; }
     .ck-extra { margin: .5rem 0 0; padding: .7rem .9rem; background: #fff4d6; color: #7a5200; border-radius: var(--radio-s); font-size: .875rem; display: grid; gap: .4rem; }
     .ck-extra p { margin: 0; }
     .ck-extra-titulo { font-weight: 700; }
@@ -128,6 +163,10 @@ export class CheckinDialogoComponent {
   readonly reserva = input<ReservaHost | null>(null);
   readonly enviando = input(false);
   /** null = aún cargando o no es hotel; en hoteles, las habitaciones libres del tipo reservado */
+  /** El alojamiento tiene más de una unidad: solo entonces se muestra y se puede cambiar la habitación */
+  readonly numerada = input(false);
+  /** Otras habitaciones libres del mismo tipo */
+  readonly libres = input<{ id: string; numero: string }[]>([]);
   /** Tipos que siguen libres esas fechas, para los huéspedes que llegaron de más */
   readonly sugerencias = input<SugerenciaHabitacion[]>([]);
   readonly esHotel = input(false);
@@ -140,6 +179,10 @@ export class CheckinDialogoComponent {
   protected reales: number | null = 1;
   protected observaciones = '';
   protected verificado = false;
+  protected cambio = false;
+  protected habitacion = '';
+  protected motivo = '';
+  protected readonly errorMotivo = signal<string | null>(null);
   protected readonly errorReales = signal<string | null>(null);
   private foco: HTMLElement | null = null;
 
@@ -152,6 +195,10 @@ export class CheckinDialogoComponent {
         this.reales = r.num_huespedes;
         this.observaciones = '';
         this.verificado = false;
+        this.cambio = false;
+        this.habitacion = '';
+        this.motivo = '';
+        this.errorMotivo.set(null);
         this.errorReales.set(null);
         d.showModal();
       } else if (!r && d.open) {
@@ -180,6 +227,24 @@ export class CheckinDialogoComponent {
 
   protected extra = (r: ReservaHost): number => Math.max(0, Number(this.reales ?? 0) - r.num_huespedes);
 
+  protected abrirCambio(): void {
+    this.cambio = true;
+    this.habitacion = this.libres()[0]?.id ?? '';
+  }
+
+  protected cancelarCambio(): void {
+    this.cambio = false;
+    this.habitacion = '';
+    this.motivo = '';
+    this.errorMotivo.set(null);
+  }
+
+  /** Lo que se entregará si se confirma el cambio. */
+  protected etiquetaCambio(r: ReservaHost): string {
+    const h = this.libres().find((x) => x.id === this.habitacion);
+    return h ? `Habitación ${h.numero} (en vez de ${r.habitacion_asignada})` : (r.habitacion_asignada ?? '');
+  }
+
   protected enviar(): void {
     if (!this.verificado || this.enviando()) return;
     const n = Number(this.reales);
@@ -189,8 +254,19 @@ export class CheckinDialogoComponent {
       return;
     }
     this.errorReales.set(null);
+    const motivo = this.motivo.trim();
+    if (this.cambio && !motivo) {
+      this.errorMotivo.set('Escribe por qué no se entrega la habitación asignada.');
+      document.getElementById('ck-motivo')?.focus();
+      return;
+    }
+    this.errorMotivo.set(null);
     const obs = this.observaciones.trim();
-    this.confirmar.emit({ huespedes_reales: n, ...(obs ? { observaciones: obs } : {}) });
+    this.confirmar.emit({
+      huespedes_reales: n,
+      ...(obs ? { observaciones: obs } : {}),
+      ...(this.cambio && this.habitacion ? { habitacion_id: this.habitacion, motivo_cambio: motivo } : {}),
+    });
   }
 
   /** Clic en el fondo oscuro (fuera del cuadro) = cerrar. */

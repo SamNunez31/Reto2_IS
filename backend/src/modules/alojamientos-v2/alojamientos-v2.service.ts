@@ -6,7 +6,7 @@ import { hoyEcuador, noches as contarNoches } from '../../common/http/respuestas
 import { InvalidParam, ProblemException, invalido } from '../../common/problem/problem';
 import { logJson } from '../../common/logging/log-json';
 import { DbService } from '../../database/db.service';
-import { asignarHabitacion, asignarHabitacionParaFechas, esUnidadDeHotel, etiquetaHabitacion, ocuparHabitacionAsignada, pasarAPreparacion } from '../habitaciones/habitaciones';
+import { asignarHabitacion, asignarHabitacionParaFechas, esUnidadDeHotel, etiquetaDeUnidad, ocuparHabitacionAsignada, pasarAPreparacion } from '../habitaciones/habitaciones';
 import { vincularTitular } from './clientes-v2';
 import {
   ComunV2,
@@ -396,7 +396,8 @@ export class AlojamientosV2Service {
       // y en recepción no se elige nada (solo se marca OCUPADA cuando llega).
       const hab = await asignarHabitacionParaFechas(q, id, unidad.id, c.fechaInicio as string, c.fechaFin as string);
       if (hab) {
-        await q(`UPDATE orden_v2 SET habitacion_asignada = $2 WHERE reserva_id = $1::uuid`, [id, etiquetaHabitacion(unidad.nombre, hab.numero)]);
+        await q(`UPDATE orden_v2 SET habitacion_asignada = $2 WHERE reserva_id = $1::uuid`,
+          [id, await etiquetaDeUnidad(q, unidad.id, unidad.nombre, hab.numero)]);
       }
       return id;
     });
@@ -787,7 +788,7 @@ export class AlojamientosV2Service {
         numero = asignada.tipo === 'ASIGNADA' ? asignada.numero : null;
       }
       const habitacion = numero !== null
-        ? etiquetaHabitacion(r.tipo_nombre, numero)
+        ? await etiquetaDeUnidad(q, r.unidad_id, r.tipo_nombre, numero)
         : (await esUnidadDeHotel(q, r.unidad_id)) ? `${r.tipo_nombre} ${randomInt(101, 600)}`.slice(0, 100) : r.tipo_nombre.slice(0, 100);
       const clave = String(randomInt(100000, 1000000));
       const ahora = Date.now();

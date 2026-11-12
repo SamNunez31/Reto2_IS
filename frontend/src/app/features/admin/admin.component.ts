@@ -445,7 +445,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     }
     </div>
     <app-salida-dialogo [reserva]="salida()" [enviando]="saliendo() !== null" (confirmar)="confirmarSalida($event)" (cerrar)="cerrarSalida()" />
-    <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [sugerencias]="sugerencias()" [alojamientoCodigo]="alojamientoCheckin()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
+    <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [numerada]="numerada()" [libres]="libres()" [sugerencias]="sugerencias()" [alojamientoCodigo]="alojamientoCheckin()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
   `,
   styles: `.mt { margin-top: 1rem; }
     /* Buscador: un solo control continuo (texto · estado · lupa), como en los portales de reservas */
@@ -523,6 +523,8 @@ export class AdminComponent implements OnInit {
   /** Tipos libres esas fechas, por si llegaron más huéspedes de los reservados */
   readonly sugerencias = signal<SugerenciaHabitacion[]>([]);
   readonly esHotel = signal(false);
+  readonly numerada = signal(false);
+  readonly libres = signal<{ id: string; numero: string }[]>([]);
   readonly alojamientoCheckin = signal<number | null>(null);
   /** Reserva cuyo diálogo de check-out está abierto (null = cerrado) */
   readonly salida = signal<ReservaHost | null>(null);
@@ -742,6 +744,8 @@ export class AdminComponent implements OnInit {
     this.catalogo.datosCheckin(s.id).subscribe({
       next: (r) => {
         this.esHotel.set(r.es_hotel);
+        this.numerada.set(r.numerada);
+        this.libres.set(r.habitaciones_libres);
         this.sugerencias.set(r.sugerencias);
         this.alojamientoCheckin.set(r.alojamiento_codigo);
         this.checkin.set(r.habitacion_asignada ? { ...s, habitacion_asignada: r.habitacion_asignada } : s);

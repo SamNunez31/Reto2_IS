@@ -159,6 +159,10 @@ export interface SugerenciaHabitacion {
 
 export interface DatosCheckinHost {
   es_hotel: boolean;
+  /** El alojamiento tiene más de una unidad física: solo entonces se muestra el número */
+  numerada: boolean;
+  /** Otras habitaciones libres del mismo tipo, para el cambio excepcional en recepción */
+  habitaciones_libres: { id: string; numero: string }[];
   /** Habitación fijada al crear la reserva («Habitación Individual 101») */
   habitacion_asignada: string | null;
   alojamiento_codigo: number;
@@ -231,7 +235,7 @@ export class AnfitrionService {
   }
   /** Marca como recibido el pago en efectivo de la reserva (idempotente). */
   /** Check-in en recepción: el huésped llegó. El backend avisa a Booking. */
-  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number } = {}): Observable<RespuestaLlegada> {
+  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number; habitacion_id?: string; motivo_cambio?: string } = {}): Observable<RespuestaLlegada> {
     return datos(this.http.post<RespuestaApi<RespuestaLlegada>>(`${this.base}/orders/${id}/arrival`, cuerpo));
   }
 

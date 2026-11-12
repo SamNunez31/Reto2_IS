@@ -128,15 +128,46 @@ describe('CheckinDialogoComponent · habitación de la reserva', () => {
     el = fixture.nativeElement as HTMLElement;
   });
 
-  it('muestra la habitación que ya traía la reserva y no pide elegir ninguna', async () => {
+  it('en un alojamiento numerado muestra la habitación de la reserva, sin pedir que se elija', async () => {
+    fixture.componentRef.setInput('numerada', true);
     await abrir({ ...RESERVA, habitacion_asignada: 'Habitación Individual 101' });
     expect(el.textContent).toContain('Habitación Individual 101');
     expect(el.querySelector('#ck-hab')).toBeNull();
   });
 
-  it('sin habitación asignada no muestra esa fila', async () => {
-    await abrir(RESERVA);
+  it('en un alojamiento de una sola unidad no muestra esa fila', async () => {
+    await abrir({ ...RESERVA, habitacion_asignada: 'Casa Colón' });
     expect(el.querySelector('dl')?.textContent).not.toContain('Habitación');
+  });
+
+  it('permite el cambio excepcional indicando el motivo', async () => {
+    fixture.componentRef.setInput('numerada', true);
+    fixture.componentRef.setInput('libres', [{ id: 'h2', numero: '110' }]);
+    await abrir({ ...RESERVA, habitacion_asignada: 'Habitación Individual 101' });
+    (Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'cambiar') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Habitación 110 (en vez de Habitación Individual 101)');
+    const enviados: DatosCheckin[] = [];
+    fixture.componentInstance.confirmar.subscribe((d) => enviados.push(d));
+    (el.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    // Sin motivo no envía
+    (el.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(enviados.length).toBe(0);
+    expect(el.textContent).toContain('Escribe por qué');
+    const motivo = el.querySelector('#ck-motivo') as HTMLInputElement;
+    motivo.value = 'Aire averiado';
+    motivo.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    (el.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    expect(enviados[0]).toEqual({ huespedes_reales: 2, habitacion_id: 'h2', motivo_cambio: 'Aire averiado' });
   });
 
   it('confirma sin enviar ninguna habitación', async () => {

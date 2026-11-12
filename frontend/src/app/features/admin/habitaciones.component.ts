@@ -22,7 +22,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
   imports: [FormsModule, DatePipe, AlertaErrorComponent, CargandoComponent],
   template: `
     <p class="ayuda">
-      Cada alojamiento tiene una unidad física por cada «cantidad» de su tipo (habitación de hotel, casa, cabaña o departamento). Al hacer check-out la unidad pasa a «En preparación»;
+      Cada alojamiento tiene una unidad física por cada «cantidad» de su tipo. Se numeran cuando hay más de una; si el alojamiento es una sola unidad, basta su nombre. Al hacer check-out la unidad pasa a «En preparación»;
       mientras esté así no se puede reservar (baja el cupo de su tipo). Cuando esté lista, márcala como «Disponible». Las ocupadas se liberan con el check-out del huésped.
     </p>
     @if (ok.texto()) { <p class="alerta alerta-ok" role="status">{{ ok.texto() }}</p> }
@@ -41,11 +41,13 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
       <div class="tabla-scroll tarjeta">
         <table class="tabla">
           <caption class="sr-only">Unidades del alojamiento</caption>
-          <thead><tr><th scope="col">N.º</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Última limpieza</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+          <thead><tr><th scope="col">{{ numerar() ? 'N.º' : 'Unidad' }}</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Última limpieza</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
           <tbody>
             @for (h of habitaciones(); track h.id) {
               <tr>
-                <td><strong>{{ h.numero }}</strong></td>
+                <td>
+                  @if (numerar()) { <strong>{{ h.numero }}</strong> } @else { <strong>{{ h.alojamiento }}</strong> }
+                </td>
                 <td>{{ h.unidad }}</td>
                 <td>
                   <span class="badge" [class.hab-ocupada]="h.estado === 'OCUPADA'" [class.hab-prep]="h.estado === 'EN_PREPARACION'">{{ etiqueta[h.estado] }}</span>
@@ -101,6 +103,8 @@ export class HabitacionesComponent implements OnInit {
   readonly cargando = signal(false);
   readonly cambiando = signal<string | null>(null);
   readonly error = signal<ErrorVista | null>(null);
+  /** Se numera solo si el alojamiento tiene más de una unidad física: con una sola, su nombre ya la identifica. */
+  readonly numerar = computed(() => this.habitaciones().length > 1);
   readonly cuenta = computed(() => {
     const c: Record<EstadoHabitacion, number> = { DISPONIBLE: 0, OCUPADA: 0, EN_PREPARACION: 0 };
     for (const h of this.habitaciones()) c[h.estado]++;
@@ -138,7 +142,7 @@ export class HabitacionesComponent implements OnInit {
     this.api.estadoHabitacion(codigo, h.id, estado).subscribe({
       next: () => {
         this.cambiando.set(null);
-        this.ok.mostrar(`Unidad ${h.numero}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`);
+        this.ok.mostrar(`${this.numerar() ? 'Unidad ' + h.numero : h.alojamiento}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`);
         this.elegir(codigo);
       },
       error: (e) => { this.cambiando.set(null); this.error.set(leerError(e)); this.elegir(codigo); },
