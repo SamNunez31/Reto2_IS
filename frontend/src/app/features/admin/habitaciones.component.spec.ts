@@ -44,3 +44,20 @@ describe('HabitacionesComponent', () => {
     expect(api.estadoHabitacion).toHaveBeenCalledWith(7, 'h1', 'EN_PREPARACION');
   });
 });
+
+describe('HabitacionesComponent · ciclo de limpieza', () => {
+  it('muestra la fecha de la última limpieza en las disponibles y el pendiente en las que están en preparación', () => {
+    const api = {
+      alojamientos: () => of([hotel(7)]),
+      habitaciones: () => of([hab('h1', '101', 'DISPONIBLE'), hab('h2', '102', 'EN_PREPARACION'), hab('h3', '103', 'OCUPADA')]),
+      estadoHabitacion: () => of({ id: 'h1', estado: 'DISPONIBLE' }),
+    };
+    TestBed.configureTestingModule({ imports: [HabitacionesComponent], providers: [{ provide: AnfitrionService, useValue: api }] });
+    const fixture = TestBed.createComponent(HabitacionesComponent);
+    fixture.detectChanges();
+    const filas = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+    expect(filas[0].textContent).toContain('Limpia:');
+    expect(filas[1].textContent).toContain('Pendiente desde');
+    expect(filas[2].textContent).toContain('Ocupada desde');
+  });
+});

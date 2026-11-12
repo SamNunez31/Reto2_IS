@@ -30,9 +30,14 @@ const SQL_RESERVA_HOST = `
          COALESCE(o.total, t.total) AS total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
          o.titular->>'nombreCompleto' AS titular_nombre, o.titular->>'tipoDocumento' AS titular_tipo_documento,
          o.titular->>'identificacion' AS titular_identificacion, o.habitacion_asignada, o.checkout_en,
-         a.hora_checkout::text AS hora_checkout
+         a.hora_checkout::text AS hora_checkout,
+         COALESCE(o.motivo_cancelacion, cn.motivo) AS motivo_cancelacion,
+         COALESCE(o.solicitado_por, CASE WHEN cn.reserva_id IS NULL THEN NULL
+                                         WHEN cn.cancelada_por = r.huesped_id THEN 'CLIENTE' ELSE 'HOTEL' END) AS cancelada_por,
+         COALESCE(o.cancelada_en, cn.cancelada_en) AS cancelada_en
     FROM reserva r
     LEFT JOIN orden_v2 o ON o.reserva_id = r.id
+    LEFT JOIN cancelacion cn ON cn.reserva_id = r.id
     JOIN alojamiento a ON a.id = r.alojamiento_id
     JOIN usuario u ON u.id = r.huesped_id
     JOIN v_reserva_total t ON t.reserva_id = r.id`;
@@ -96,12 +101,21 @@ export interface ReservaHost {
   checkout_en: string | null;
   /** Hora de salida del alojamiento (HH:MM:SS) */
   hora_checkout: string;
+  /** Motivo de la cancelación, tal como lo envió quien canceló (null si no está cancelada) */
+  motivo_cancelacion: string | null;
+  /** Quién canceló: CLIENTE, HOTEL, ADMIN o SAGA_ORCHESTRATOR */
+  cancelada_por: string | null;
+  cancelada_en: string | null;
 }
 
 export interface RespuestaLlegada {
   reserva: ReservaHost;
   estado: 'CHECKED_IN';
   habitacion_asignada: string;
+  /** Huéspedes que llegaron de más respecto a los reservados (0 si coinciden) */
+  huespedes_extra: number;
+  /** Capacidad máxima de la unidad reservada: no se admite a más personas que esta cifra */
+  aforo_maximo: number;
   ya_registrado: boolean;
   /** true si Booking confirmó el aviso; false = queda en cola de reintentos automáticos */
   booking_notificado: boolean;
@@ -151,6 +165,17 @@ export function leerConsumos(d: DatosSalida): { lineas: { item: string; cantidad
   if (!(METODOS_CONSUMO as readonly string[]).includes(metodo)) campos.push({ name: 'metodo_pago_consumos', reason: 'EFECTIVO o CARGO_A_RESERVA' });
   if (campos.length) throw invalido('Datos de salida no válidos', campos);
   return { lineas, centavos, metodo };
+}
+
+export interface FilaIngresos {
+  mes: string;
+  estancias: number;
+  /** Lo que queda para el alojamiento: hospedaje + servicio + limpieza (sin impuestos) */
+  ingreso_sin_iva: number;
+  /** IVA y tasa municipal, que se entregan al Estado */
+  impuestos: number;
+  /** Lo cobrado al huésped */
+  ingreso_bruto: number;
 }
 
 export interface RespuestaSalida {
@@ -421,8 +446,9 @@ export class HostService {
    */
   async registrarLlegada(reservaId: string, datos: DatosLlegada, user: UsuarioToken): Promise<RespuestaLlegada> {
     const actual = await this.reserva(reservaId, user);
-    const fila = await this.db.uno<{ checkin_en: string | null; recepcion: boolean; habitacion: string | null; unidad: string; unidad_id: string }>(
-      `SELECT o.checkin_en, o.checkin_recepcion AS recepcion, o.habitacion_asignada AS habitacion, u.nombre AS unidad, u.id::text AS unidad_id
+    const fila = await this.db.uno<{ checkin_en: string | null; recepcion: boolean; habitacion: string | null; unidad: string; unidad_id: string; aforo: number }>(
+      `SELECT o.checkin_en, o.checkin_recepcion AS recepcion, o.habitacion_asignada AS habitacion, u.nombre AS unidad, u.id::text AS unidad_id,
+              (u.capacidad_huespedes * GREATEST(o.cantidad, 1))::int AS aforo
          FROM orden_v2 o JOIN unidad_alojamiento u ON u.id = o.unidad_id WHERE o.reserva_id = $1`,
       [reservaId],
     );
@@ -436,6 +462,16 @@ export class HostService {
     if (datos.habitacion !== undefined && (typeof datos.habitacion !== 'string' || datos.habitacion.length > 100)) errores.push({ name: 'habitacion', reason: 'máximo 100 caracteres' });
     if (datos.habitacion_id !== undefined && (typeof datos.habitacion_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(datos.habitacion_id))) errores.push({ name: 'habitacion_id', reason: 'UUID' });
     if (errores.length) throw invalido('Datos de llegada no válidos', errores);
+
+    // Llegaron más personas de las reservadas: se admite hasta la capacidad de la unidad y se deja constancia;
+    // por encima del aforo no se puede alojar a nadie más (regla de seguridad del alojamiento).
+    const llegaron = datos.huespedes_reales ?? actual.num_huespedes;
+    if (llegaron > fila.aforo) {
+      throw conflicto(
+        `Llegaron ${llegaron} huéspedes y ${fila.unidad} admite ${fila.aforo}. No se puede alojar a más personas que la capacidad: añade otra habitación o cambia de tipo.`,
+      );
+    }
+    const extra = Math.max(0, llegaron - actual.num_huespedes);
 
     const yaRegistrado = fila.recepcion;
     let habitacion = fila.habitacion;
@@ -458,7 +494,10 @@ export class HostService {
       });
     }
     const notificado = await this.checkin.notificar(reservaId); // idempotente: si ya se avisó, devuelve true sin reenviar
-    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_IN', habitacion_asignada: habitacion ?? '', ya_registrado: yaRegistrado, booking_notificado: notificado };
+    return {
+      reserva: await this.reserva(reservaId, user), estado: 'CHECKED_IN', habitacion_asignada: habitacion ?? '',
+      huespedes_extra: extra, aforo_maximo: fila.aforo, ya_registrado: yaRegistrado, booking_notificado: notificado,
+    };
   }
 
   /** Habitaciones libres del tipo reservado, para elegir en el check-in. Solo los hoteles eligen: fuera de ellos es_hotel false y lista vacía (se asigna sola la primera libre). */
@@ -537,13 +576,40 @@ export class HostService {
     return { id, estado: estado as EstadoHabitacion };
   }
 
-  /** Ingresos por mes (v_ingresos_anfitrion; para el ADMIN, suma de todo el catálogo). */
-  ingresos(user: UsuarioToken): Promise<{ mes: string; estancias: number; ingreso_sin_iva: number }[]> {
-    return this.db.query(
-      `SELECT mes, sum(estancias)::int AS estancias, sum(ingreso_sin_iva) AS ingreso_sin_iva
-         FROM v_ingresos_anfitrion WHERE ($1::uuid IS NULL OR anfitrion_id = $1) GROUP BY mes ORDER BY mes DESC`,
+  /**
+   * Ingresos por mes con desglose: lo que queda para el alojamiento (neto), lo que se entrega al Estado
+   * (IVA + tasa municipal) y lo cobrado al huésped (bruto). Para el ADMIN suma todo el catálogo.
+   */
+  ingresos(user: UsuarioToken): Promise<FilaIngresos[]> {
+    return this.db.query<FilaIngresos>(
+      `SELECT date_trunc('month', x.fecha)::date::text AS mes,
+              count(*) FILTER (WHERE x.estado = 'COMPLETADA')::int AS estancias,
+              round(sum(x.neto), 2)::float8       AS ingreso_sin_iva,
+              round(sum(x.impuestos), 2)::float8  AS impuestos,
+              round(sum(x.neto + x.impuestos), 2)::float8 AS ingreso_bruto
+         FROM (SELECT a.anfitrion_id, r.estado::text AS estado,
+                      CASE WHEN r.estado = 'COMPLETADA' THEN r.fecha_salida ELSE cn.cancelada_en::date END AS fecha,
+                      CASE WHEN r.estado = 'COMPLETADA' THEN t.subtotal_alojamiento + t.servicio + t.limpieza
+                           ELSE cl.penalidad END AS neto,
+                      CASE WHEN r.estado = 'COMPLETADA' THEN t.iva + COALESCE(o.tasa_municipal, 0) ELSE 0 END AS impuestos
+                 FROM reserva r
+                 JOIN alojamiento a ON a.id = r.alojamiento_id
+                 JOIN v_reserva_total t ON t.reserva_id = r.id
+                 LEFT JOIN orden_v2 o ON o.reserva_id = r.id
+                 LEFT JOIN cancelacion cn ON cn.reserva_id = r.id
+                 LEFT JOIN v_cancelacion_liquidacion cl ON cl.reserva_id = r.id
+                WHERE r.estado = 'COMPLETADA' OR (r.estado = 'CANCELADA' AND cl.penalidad > 0)) x
+        WHERE ($1::uuid IS NULL OR x.anfitrion_id = $1)
+        GROUP BY 1 ORDER BY 1 DESC`,
       [this.dueno(user)],
     );
+  }
+
+  /** Reintenta ahora los avisos a Booking que quedaron pendientes (el mismo trabajo que corre solo cada 30 s). */
+  async sincronizarBooking(user: UsuarioToken): Promise<{ checkin: number; checkout: number }> {
+    if (user.rol !== 'ADMIN') throw conflicto('Solo el administrador puede sincronizar con Booking');
+    const [checkin, checkout] = await Promise.all([this.checkin.reintentarPendientes(20), this.checkout.reintentarPendientes(20)]);
+    return { checkin, checkout };
   }
 
   resenas(user: UsuarioToken): Promise<Record<string, unknown>[]> {

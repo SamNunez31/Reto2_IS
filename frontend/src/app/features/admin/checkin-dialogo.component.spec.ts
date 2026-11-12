@@ -6,7 +6,7 @@ const RESERVA: ReservaHost = {
   id: 'r1', codigo: 'BK-079C37F1', estado: 'CONFIRMADA', alojamiento: 'Prueba Martes', alojamiento_codigo: 7,
   huesped: 'ESB Booking Cuenta de servicio', fecha_entrada: '2026-11-12', fecha_salida: '2026-11-14', num_huespedes: 2, total: 119,
   created_at: '2026-11-10T20:26:00Z', metodo_pago: 'TARJETA', estado_pago: 'APROBADO', canal_booking: true, checkin_en: null, checkout_en: null, habitacion_asignada: null, hora_checkout: '12:00:00',
-  titular_nombre: 'Liz Cadena', titular_tipo_documento: 'CEDULA', titular_identificacion: '1722718150',
+  titular_nombre: 'Liz Cadena', titular_tipo_documento: 'CEDULA', titular_identificacion: '1722718150', motivo_cancelacion: null, cancelada_por: null, cancelada_en: null,
 };
 
 describe('CheckinDialogoComponent', () => {
@@ -159,5 +159,36 @@ describe('CheckinDialogoComponent · hoteles', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect((el.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('CheckinDialogoComponent · llegaron más huéspedes', () => {
+  let fixture: ComponentFixture<CheckinDialogoComponent>;
+  let el: HTMLElement;
+
+  const refrescar = async (): Promise<void> => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  };
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({ imports: [CheckinDialogoComponent] });
+    fixture = TestBed.createComponent(CheckinDialogoComponent);
+    el = fixture.nativeElement as HTMLElement;
+    fixture.componentRef.setInput('reserva', RESERVA); // reservada para 2
+    await refrescar();
+  });
+
+  it('con los huéspedes reservados no muestra aviso', () => {
+    expect(el.textContent).not.toContain('más de los');
+  });
+
+  it('al subir el número avisa de los huéspedes adicionales', async () => {
+    const campo = el.querySelector('#ck-reales') as HTMLInputElement;
+    campo.value = '3';
+    campo.dispatchEvent(new Event('input'));
+    await refrescar();
+    expect(el.textContent).toContain('Llegaron 1 huésped(es) más de los 2 reservados');
   });
 });

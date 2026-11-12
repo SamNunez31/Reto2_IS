@@ -40,7 +40,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
       <div class="tabla-scroll tarjeta">
         <table class="tabla">
           <caption class="sr-only">Unidades del alojamiento</caption>
-          <thead><tr><th scope="col">N.º</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Actualizada</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+          <thead><tr><th scope="col">N.º</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Última limpieza</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
           <tbody>
             @for (h of habitaciones(); track h.id) {
               <tr>
@@ -50,7 +50,15 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
                   <span class="badge" [class.hab-ocupada]="h.estado === 'OCUPADA'" [class.hab-prep]="h.estado === 'EN_PREPARACION'">{{ etiqueta[h.estado] }}</span>
                   @if (h.reserva_codigo) { <small> · {{ h.reserva_codigo }}</small> }
                 </td>
-                <td>{{ h.actualizada_en | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  @if (h.estado === 'DISPONIBLE') {
+                    <span class="limpia">Limpia: {{ h.actualizada_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+                  } @else if (h.estado === 'EN_PREPARACION') {
+                    <span class="pendiente">Pendiente desde {{ h.actualizada_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+                  } @else {
+                    <span class="gris">Ocupada desde {{ h.actualizada_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+                  }
+                </td>
                 <td>
                   @if (h.estado === 'EN_PREPARACION') {
                     <button type="button" class="btn btn-chico btn-primario" [disabled]="cambiando() === h.id" (click)="cambiar(h, 'DISPONIBLE')">Marcar disponible</button>
@@ -70,6 +78,9 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
     .resumen-hab { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
     .hab-ocupada { background: #fde8e6; color: #8a1c13; }
     .hab-prep { background: #fff4d6; color: #7a5200; }
+    .limpia { color: #1d6b3f; font-weight: 600; }
+    .pendiente { color: #7a5200; font-weight: 600; }
+    .gris { color: var(--gris-700); }
   `,
 })
 export class HabitacionesComponent implements OnInit {

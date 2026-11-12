@@ -9,7 +9,7 @@ import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, RangoFechasDto,
   ResponderResenaDto, UnidadDto,
 } from './dto/host.dto';
-import { HabitacionHost, HostService, ReservaHost, RespuestaLlegada, RespuestaSalida, ResumenAlojamiento, UnidadHost } from './host.service';
+import { FilaIngresos, HabitacionHost, HostService, ReservaHost, RespuestaLlegada, RespuestaSalida, ResumenAlojamiento, UnidadHost } from './host.service';
 
 const uuid = (n: string) =>
   new ParseUUIDPipe({ exceptionFactory: () => invalido(`${n} debe ser un UUID`, [{ name: n, reason: 'formato UUID requerido' }]) });
@@ -236,9 +236,21 @@ export class HostController {
     return ok(r, 'Estado de la habitación actualizado');
   }
 
+  @Post('orders/sync')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Reintenta ahora los avisos pendientes a Booking (check-in y check-out)',
+    description: 'El mismo trabajo corre solo cada 30 s; este botón lo adelanta desde el mostrador.',
+  })
+  async sincronizar(@UsuarioActual() u: UsuarioToken, @Req() req: Request): Promise<RespuestaApi<{ checkin: number; checkout: number }>> {
+    const r = await this.host.sincronizarBooking(u);
+    auditar('operacion_critica', req, { accion: 'sincronizar_booking', ...r });
+    return ok(r, r.checkin + r.checkout === 0 ? 'No había avisos pendientes' : `Se reenviaron ${r.checkin + r.checkout} aviso(s) a Booking`);
+  }
+
   @Get('income')
-  @ApiOperation({ summary: 'Ingresos por mes (v_ingresos_anfitrion)' })
-  async ingresos(@UsuarioActual() u: UsuarioToken): Promise<RespuestaApi<{ mes: string; estancias: number; ingreso_sin_iva: number }[]>> {
+  @ApiOperation({ summary: 'Ingresos por mes con desglose (neto, impuestos y bruto)' })
+  async ingresos(@UsuarioActual() u: UsuarioToken): Promise<RespuestaApi<FilaIngresos[]>> {
     return ok(await this.host.ingresos(u));
   }
 

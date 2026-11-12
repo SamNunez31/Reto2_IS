@@ -58,6 +58,12 @@ export interface DatosCheckin {
             <input id="ck-reales" name="reales" type="text" appFiltro="entero" maxlength="2" [(ngModel)]="reales"
                    [attr.aria-invalid]="errorReales() ? 'true' : null" [attr.aria-describedby]="errorReales() ? 'ck-error-reales' : null" />
             @if (errorReales(); as e) { <p id="ck-error-reales" class="ck-error" role="alert">{{ e }}</p> }
+            @if (extra(r) > 0) {
+              <p class="ck-extra" role="status">
+                Llegaron {{ extra(r) }} huésped(es) más de los {{ r.num_huespedes }} reservados. Si el alojamiento cobra por persona adicional,
+                regístralo como consumo extra en el check-out.
+              </p>
+            }
           </div>
 
           <div class="ck-campo">
@@ -102,6 +108,7 @@ export interface DatosCheckin {
     .ck-campo select { width: 100%; }
     .ck-campo textarea { width: 100%; resize: vertical; font: inherit; }
     .ck-ayuda { margin: 0; font-size: .85rem; color: var(--gris-700); }
+    .ck-extra { margin: .35rem 0 0; padding: .5rem .7rem; background: #fff4d6; color: #7a5200; border-radius: var(--radio-s); font-size: .85rem; }
     .ck-error { margin: 0; font-size: .875rem; color: var(--c-error-texto, #b3261e); font-weight: 600; }
     .ck-verificado { display: flex; flex-direction: row; align-items: flex-start; gap: .6rem; font-size: 1rem; color: var(--c-texto); font-weight: 600; cursor: pointer; margin: .4rem 0 0; }
     .ck-verificado input { width: 1.25rem; height: 1.25rem; margin-top: .1rem; flex: none; }
@@ -152,6 +159,8 @@ export class CheckinDialogoComponent {
   protected tipoDoc = (r: ReservaHost): string =>
     ({ CEDULA: 'Cédula', PASAPORTE: 'Pasaporte', RUC: 'RUC' })[r.titular_tipo_documento ?? ''] ?? 'Documento';
   protected personas = (n: number): string => plural(n, 'huésped', 'huéspedes');
+  /** Huéspedes por encima de los reservados (0 si coinciden o si el campo está vacío). */
+  protected extra = (r: ReservaHost): number => Math.max(0, Number(this.reales ?? 0) - r.num_huespedes);
 
   protected enviar(): void {
     if (!this.verificado || this.enviando()) return;

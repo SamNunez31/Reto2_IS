@@ -93,6 +93,11 @@ export interface ReservaHost {
   habitacion_asignada: string | null;
   /** Hora de salida del alojamiento (HH:MM:SS) */
   hora_checkout: string;
+  /** Motivo de la cancelación tal como lo envió quien canceló */
+  motivo_cancelacion: string | null;
+  /** Quién canceló: CLIENTE, HOTEL, ADMIN o SAGA_ORCHESTRATOR */
+  cancelada_por: string | null;
+  cancelada_en: string | null;
   /** Titular real de la reserva de Booking (null en reservas del canal propio) */
   titular_nombre: string | null;
   titular_tipo_documento: string | null;
@@ -103,6 +108,9 @@ export interface RespuestaLlegada {
   reserva: ReservaHost;
   estado: 'CHECKED_IN';
   habitacion_asignada: string;
+  /** Huéspedes que llegaron de más respecto a los reservados */
+  huespedes_extra: number;
+  aforo_maximo: number;
   ya_registrado: boolean;
   booking_notificado: boolean;
 }
@@ -144,6 +152,17 @@ export interface HabitacionHost {
 export interface HabitacionLibre {
   id: string;
   numero: string;
+}
+
+export interface FilaIngresos {
+  mes: string;
+  estancias: number;
+  /** Lo que queda para el alojamiento (hospedaje + servicio + limpieza) */
+  ingreso_sin_iva: number;
+  /** IVA y tasa municipal */
+  impuestos: number;
+  /** Lo cobrado al huésped */
+  ingreso_bruto: number;
 }
 
 export interface ResenaHost {
@@ -227,8 +246,12 @@ export class AnfitrionService {
   cancelarReserva(id: string, motivo?: string): Observable<{ reserva: ReservaHost; penalidad: number; reembolso: number }> {
     return datos(this.http.post<RespuestaApi<{ reserva: ReservaHost; penalidad: number; reembolso: number }>>(`${this.base}/orders/${id}/cancel`, motivo ? { motivo } : {}));
   }
-  ingresos(): Observable<{ mes: string; estancias: number; ingreso_sin_iva: number }[]> {
-    return datos(this.http.get<RespuestaApi<{ mes: string; estancias: number; ingreso_sin_iva: number }[]>>(`${this.base}/income`));
+  ingresos(): Observable<FilaIngresos[]> {
+    return datos(this.http.get<RespuestaApi<FilaIngresos[]>>(`${this.base}/income`));
+  }
+  /** Reintenta ahora los avisos pendientes a Booking (check-in y check-out). */
+  sincronizarBooking(): Observable<{ checkin: number; checkout: number }> {
+    return datos(this.http.post<RespuestaApi<{ checkin: number; checkout: number }>>(`${this.base}/orders/sync`, null));
   }
   resenas(): Observable<ResenaHost[]> {
     return datos(this.http.get<RespuestaApi<ResenaHost[]>>(`${this.base}/reviews`));

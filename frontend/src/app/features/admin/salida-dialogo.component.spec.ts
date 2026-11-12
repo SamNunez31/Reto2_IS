@@ -7,7 +7,7 @@ const RESERVA: ReservaHost = {
   huesped: 'ESB Booking Cuenta de servicio', fecha_entrada: '2020-11-12', fecha_salida: '2020-11-14', num_huespedes: 2, total: 119,
   created_at: '2020-11-10T20:26:00Z', metodo_pago: 'TARJETA', estado_pago: 'APROBADO', canal_booking: true, checkin_en: '2020-11-12T19:00:00Z',
   checkout_en: null, habitacion_asignada: 'Suite Familiar 109', hora_checkout: '12:00:00',
-  titular_nombre: 'Liz Cadena', titular_tipo_documento: 'CEDULA', titular_identificacion: '1722718150',
+  titular_nombre: 'Liz Cadena', titular_tipo_documento: 'CEDULA', titular_identificacion: '1722718150', motivo_cancelacion: null, cancelada_por: null, cancelada_en: null,
 };
 
 describe('SalidaDialogoComponent', () => {

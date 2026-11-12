@@ -36,3 +36,23 @@ describe('HostService.reservas: total mostrado en el panel', () => {
     expect(r.total).toBe(1);
   });
 });
+
+describe('Reservas del panel: motivo y autor de la cancelación', () => {
+  const sql = async (): Promise<string> => {
+    const { svc, sqls } = crear();
+    await svc.reservas(ADMIN, { limit: 20, offset: 0 } as never);
+    return sqls[0];
+  };
+
+  it('toma el motivo de la orden de Booking o, si no, el de la cancelación propia', async () => {
+    expect(await sql()).toContain('COALESCE(o.motivo_cancelacion, cn.motivo) AS motivo_cancelacion');
+  });
+
+  it('deduce quién canceló: el propio huésped es CLIENTE y el resto HOTEL', async () => {
+    expect(await sql()).toMatch(/cn\.cancelada_por = r\.huesped_id THEN 'CLIENTE' ELSE 'HOTEL'/);
+  });
+
+  it('une la tabla cancelacion sin perder las reservas no canceladas (LEFT JOIN)', async () => {
+    expect(await sql()).toContain('LEFT JOIN cancelacion cn ON cn.reserva_id = r.id');
+  });
+});

@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe, JsonPipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
@@ -10,7 +10,7 @@ import { SalidaDialogoComponent } from './salida-dialogo.component';
 import { HabitacionesComponent } from './habitaciones.component';
 import { DashboardAdminComponent } from './dashboard.component';
 import { ObservabilidadComponent } from './observabilidad.component';
-import { AnfitrionService, DatosSalida, HabitacionLibre, ResenaHost, ReservaHost } from '../../core/services/anfitrion.service';
+import { AnfitrionService, DatosSalida, FilaIngresos, HabitacionLibre, ResenaHost, ReservaHost } from '../../core/services/anfitrion.service';
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { avisoTemporal } from '../../shared/aviso';
 import { CalificacionComponent } from '../../shared/calificacion';
@@ -24,7 +24,9 @@ import { motivoClave, motivoEmail, motivoNombre, motivoNombreLugar, motivoRango,
 import { ConfirmarService } from '../../shared/confirmar';
 import { AlertaErrorComponent, CargandoComponent, EstadoComponent } from '../../shared/ui';
 
-type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'resenas' | 'usuarios' | 'catalogos' | 'impuestos' | 'eventos' | 'jobs' | 'observabilidad';
+type VistaRecepcion = 'todas' | 'pendientes' | 'hospedados' | 'completadas' | 'canceladas';
+
+type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'ingresos' | 'resenas' | 'usuarios' | 'catalogos' | 'impuestos' | 'eventos' | 'jobs' | 'observabilidad';
 
 /** Panel del ADMIN, operador de Posada EC: catálogo de alojamientos, reservas, reseñas, usuarios y configuración. */
 @Component({
@@ -52,6 +54,29 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
       @case ('observabilidad') { <app-observabilidad /> }
 
       @case ('habitaciones') { <app-habitaciones /> }
+
+      @case ('ingresos') {
+        <p class="ayuda">
+          Desglose por mes de las estancias completadas y las penalidades cobradas: lo que queda para el alojamiento,
+          lo que se entrega al Estado (IVA y tasa municipal) y lo cobrado al huésped.
+        </p>
+        <div class="tabla-scroll tarjeta">
+          <table class="tabla">
+            <caption class="sr-only">Ingresos por mes</caption>
+            <thead><tr><th scope="col">Mes</th><th scope="col">Estancias</th><th scope="col">Neto del alojamiento</th><th scope="col">Impuestos</th><th scope="col">Cobrado al huésped</th></tr></thead>
+            <tbody>
+              @for (f of ingresos(); track f.mes) {
+                <tr>
+                  <td>{{ mesLargo(f.mes) }}</td><td>{{ f.estancias }}</td>
+                  <td>{{ f.ingreso_sin_iva | currency: 'USD' }}</td>
+                  <td>{{ f.impuestos | currency: 'USD' }}</td>
+                  <td><strong>{{ f.ingreso_bruto | currency: 'USD' }}</strong></td>
+                </tr>
+              } @empty { @if (!cargando()) { <tr><td colspan="5">Todavía no hay estancias completadas</td></tr> } }
+            </tbody>
+          </table>
+        </div>
+      }
 
       @case ('alojamientos') {
         <div class="barra-acciones d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
@@ -111,14 +136,44 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
             <option value="">Todos</option><option value="PENDIENTE">Pago pendiente (efectivo)</option><option value="APROBADO">Pagado</option>
           </select>
         </label>
+        <button class="btn btn-chico" type="button" [disabled]="sincronizando()" (click)="sincronizarBooking()">
+          {{ sincronizando() ? 'Sincronizando…' : 'Sincronizar con Booking' }}
+        </button>
+        <div class="vistas-recepcion" role="group" aria-label="Vista de recepción">
+          @for (v of vistasRecepcion; track v.id) {
+            <button type="button" class="chip" [class.chip-activo]="vista() === v.id" [attr.aria-pressed]="vista() === v.id" (click)="vista.set(v.id)">
+              {{ v.nombre }} ({{ cuentaVista(v.id) }})
+            </button>
+          }
+        </div>
         <div class="tabla-scroll tarjeta">
           <table class="tabla">
             <caption class="sr-only">Reservas</caption>
             <thead><tr><th scope="col">Código de reserva</th><th scope="col">Alojamiento</th><th scope="col">Huésped</th><th scope="col">Fechas</th><th scope="col">Total</th><th scope="col">Estado</th><th scope="col">Pago</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
             <tbody>
-              @for (s of reservas(); track s.id) {
+              @for (s of reservasVisibles(); track s.id) {
                 <tr>
-                  <td>{{ s.codigo }}</td><td>{{ s.alojamiento }}</td><td>{{ s.huesped }} ({{ s.num_huespedes }})</td>
+                  <td>
+                    {{ s.codigo }}
+                    @if (s.estado === 'CANCELADA') { <span class="badge badge-cancelada">Cancelada</span> }
+                  </td>
+                  <td>{{ s.alojamiento }}</td>
+                  <td>
+                    {{ s.titular_nombre || s.huesped }} ({{ s.num_huespedes }})
+                    @if (s.canal_booking && s.estado !== 'CANCELADA') {
+                      @if (s.titular_identificacion) {
+                        <small class="doc">{{ tipoDoc(s) }} {{ s.titular_identificacion }}</small>
+                      } @else {
+                        <small class="sin-doc">⚠ Sin identificación registrada</small>
+                      }
+                    }
+                    @if (s.estado === 'CANCELADA' && (s.cancelada_por || s.motivo_cancelacion)) {
+                      <small class="motivo">
+                        @if (s.cancelada_por) { Cancelada por: {{ quienCancelo(s) }} }
+                        @if (s.motivo_cancelacion) { <em>«{{ s.motivo_cancelacion }}»</em> }
+                      </small>
+                    }
+                  </td>
                   <td>{{ rango(s.fecha_entrada, s.fecha_salida) }}</td><td>{{ s.total | currency: 'USD' }}</td>
                   <td><app-estado [estado]="s.estado" /></td>
                   <td><app-pago [metodo]="s.metodo_pago" [estado]="s.estado_pago" vista="admin" /></td>
@@ -139,7 +194,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
                     }
                   </td>
                 </tr>
-              } @empty { @if (!cargando()) { <tr><td colspan="8">Sin reservas</td></tr> } }
+              } @empty { @if (!cargando()) { <tr><td colspan="8">{{ reservas().length ? 'Ninguna reserva en esta vista' : 'Sin reservas' }}</td></tr> } }
             </tbody>
           </table>
         </div>
@@ -351,7 +406,13 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
     <app-salida-dialogo [reserva]="salida()" [enviando]="saliendo() !== null" (confirmar)="confirmarSalida($event)" (cerrar)="cerrarSalida()" />
     <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [habitaciones]="habitacionesLibres()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
   `,
-  styles: `.mt { margin-top: 1rem; } .filtro-inline { max-width: 240px; } pre { white-space: pre-wrap; font-size: .8rem; max-width: 420px; }
+  styles: `.mt { margin-top: 1rem; }
+    .vistas-recepcion { display: flex; gap: .4rem; flex-wrap: wrap; margin: .75rem 0; }
+    .chip { border: 1px solid var(--gris-300, #ccc); background: transparent; color: var(--c-texto); border-radius: 999px; padding: .3rem .8rem; cursor: pointer; font: inherit; font-size: .9rem; }
+    .chip-activo { background: var(--c-texto); color: var(--c-superficie); border-color: var(--c-texto); }
+    .doc, .motivo, .sin-doc { display: block; color: var(--gris-700); font-size: .8rem; }
+    .sin-doc { color: #8a5200; font-weight: 600; }
+    .badge-cancelada { background: #fde8e6; color: #8a1c13; margin-left: .35rem; } .filtro-inline { max-width: 240px; } pre { white-space: pre-wrap; font-size: .8rem; max-width: 420px; }
     .busqueda-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; margin-bottom: 1rem; }
     .busqueda-barra label { flex: 1 1 260px; max-width: 420px; } .busqueda-barra .btn { flex: 0 0 auto; }
     .filtros-aloj { align-items: flex-end; flex-wrap: wrap; } .acciones-fila { white-space: nowrap; } .acciones-fila .btn { margin: .1rem; }`,
@@ -377,6 +438,7 @@ export class AdminComponent implements OnInit {
     { id: 'alojamientos', nombre: 'Alojamientos' },
     { id: 'reservas', nombre: 'Reservas' },
     { id: 'habitaciones', nombre: 'Habitaciones' },
+    { id: 'ingresos', nombre: 'Ingresos' },
     { id: 'resenas', nombre: 'Reseñas' },
     { id: 'usuarios', nombre: 'Usuarios' },
     { id: 'catalogos', nombre: 'Catálogos' },
@@ -396,6 +458,18 @@ export class AdminComponent implements OnInit {
   readonly offset = signal(0);
   readonly cat = signal<Catalogos | null>(null);
   readonly reservas = signal<ReservaHost[]>([]);
+  readonly ingresos = signal<FilaIngresos[]>([]);
+  /** Vista de mostrador: agrupa las reservas por el momento de la estancia, no por el estado interno. */
+  readonly vistasRecepcion: { id: VistaRecepcion; nombre: string }[] = [
+    { id: 'todas', nombre: 'Todas' },
+    { id: 'pendientes', nombre: 'Pendientes de llegada' },
+    { id: 'hospedados', nombre: 'Hospedados' },
+    { id: 'completadas', nombre: 'Completadas' },
+    { id: 'canceladas', nombre: 'Canceladas' },
+  ];
+  readonly vista = signal<VistaRecepcion>('todas');
+  readonly sincronizando = signal(false);
+  readonly reservasVisibles = computed(() => this.reservas().filter((s) => this.enVista(s, this.vista())));
   readonly resenas = signal<ResenaHost[]>([]);
   readonly rango = rangoCorto;
   filtroAloj = '';
@@ -451,6 +525,9 @@ export class AdminComponent implements OnInit {
       case 'reservas':
         this.cargar(this.catalogo.reservas(this.filtroReservas, 100, 0, this.filtroPago), (d) => this.reservas.set(d.items));
         break;
+      case 'ingresos':
+        this.cargar(this.catalogo.ingresos(), (d) => this.ingresos.set(d));
+        break;
       case 'resenas':
         this.cargar(this.catalogo.resenas(), (d) => this.resenas.set(d));
         break;
@@ -467,6 +544,54 @@ export class AdminComponent implements OnInit {
         this.listar(this.api.eventos(this.tipoEvento, 20, this.offset()));
         break;
     }
+  }
+
+  /** ¿La reserva entra en esta vista de mostrador? */
+  private enVista(s: ReservaHost, v: VistaRecepcion): boolean {
+    switch (v) {
+      case 'todas': return true;
+      case 'pendientes': return s.estado === 'CONFIRMADA' && !s.checkin_en;
+      case 'hospedados': return !!s.checkin_en && !s.checkout_en && s.estado !== 'CANCELADA';
+      case 'completadas': return !!s.checkout_en || s.estado === 'COMPLETADA';
+      case 'canceladas': return s.estado === 'CANCELADA';
+    }
+  }
+
+  cuentaVista(v: VistaRecepcion): number {
+    return this.reservas().filter((s) => this.enVista(s, v)).length;
+  }
+
+  protected quienCancelo(s: ReservaHost): string {
+    return ({ CLIENTE: 'el cliente', HOTEL: 'el alojamiento', ADMIN: 'el administrador', SAGA_ORCHESTRATOR: 'Booking (compensación automática)' })[s.cancelada_por ?? ''] ?? s.cancelada_por ?? '';
+  }
+
+  protected tipoDoc(s: ReservaHost): string {
+    return ({ CEDULA: 'Cédula', PASAPORTE: 'Pasaporte', RUC: 'RUC' })[s.titular_tipo_documento ?? ''] ?? 'Doc.';
+  }
+
+  protected mesLargo(mes: string): string {
+    const [a, m] = mes.slice(0, 7).split('-');
+    return `${['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][Number(m)]} ${a}`;
+  }
+
+  /** Reenvía ahora los avisos a Booking que quedaron pendientes. */
+  sincronizarBooking(): void {
+    if (this.sincronizando()) return;
+    this.ok.limpiar();
+    this.error.set(null);
+    this.sincronizando.set(true);
+    this.catalogo.sincronizarBooking().subscribe({
+      next: (r) => {
+        this.sincronizando.set(false);
+        const n = r.checkin + r.checkout;
+        this.ok.mostrar(n === 0 ? 'No había avisos pendientes para Booking.' : `Se reenviaron ${n} aviso(s) a Booking.`);
+        this.ir('reservas');
+      },
+      error: (e) => {
+        this.sincronizando.set(false);
+        this.error.set(leerError(e));
+      },
+    });
   }
 
   paginaEventos(d: number): void {
@@ -536,6 +661,9 @@ export class AdminComponent implements OnInit {
         this.checkin.set(null);
         this.ok.mostrar(
           `Llegada de la reserva ${s.codigo} registrada (habitación ${r.habitacion_asignada}). ` +
+            (r.huespedes_extra > 0
+              ? `Llegaron ${r.huespedes_extra} huésped(es) más de los reservados; cóbralos como consumo extra en el check-out. `
+              : '') +
             (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
         );
         this.ir('reservas');

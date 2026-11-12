@@ -17,13 +17,17 @@ interface Opciones {
   checkoutEn?: string | null;
   recepcion?: boolean;
   estadoHabitacion?: string;
+  /** Capacidad total de la unidad reservada */
+  aforo?: number;
+  /** Huéspedes que figuran en la reserva */
+  reservados?: number;
 }
 
 /** HostService con BD y notificadores falsos; `sqls` guarda todo lo ejecutado. */
 function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: string[] } {
   const sqls: string[] = [];
   const avisos: string[] = [];
-  const reserva = { id: ID, codigo: 'BK-079C37F1', estado: o.estado ?? 'CONFIRMADA', canal_booking: true, anfitrion_id: 'x' };
+  const reserva = { id: ID, codigo: 'BK-079C37F1', estado: o.estado ?? 'CONFIRMADA', canal_booking: true, anfitrion_id: 'x', num_huespedes: o.reservados ?? 2 };
   const libres = o.libres ?? [{ id: HAB, numero: '109' }];
   const guion = async (sql: string): Promise<unknown[]> => {
     sqls.push(sql);
@@ -38,7 +42,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
     uno: async (sql: string) => {
       sqls.push(sql);
       if (/SELECT x\.\* FROM/.test(sql)) return reserva;
-      if (/FROM orden_v2 o JOIN unidad_alojamiento u/.test(sql)) return { checkin_en: o.checkinEn ?? null, recepcion: o.recepcion ?? false, habitacion: null, unidad: 'Suite Familiar', unidad_id: UNIDAD };
+      if (/FROM orden_v2 o JOIN unidad_alojamiento u/.test(sql)) return { checkin_en: o.checkinEn ?? null, recepcion: o.recepcion ?? false, habitacion: null, unidad: 'Suite Familiar', unidad_id: UNIDAD, aforo: o.aforo ?? 4 };
       if (/SELECT o\.checkin_en, o\.checkout_en/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null };
       if (/SELECT unidad_id::text AS unidad_id FROM orden_v2/.test(sql)) return { unidad_id: UNIDAD };
       if (/SELECT a\.id FROM alojamiento a/.test(sql)) return { id: 'aloj-1' };
@@ -48,7 +52,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
     query: guion,
     transaccion: async (f: (q: typeof guion) => Promise<unknown>) => f(guion),
   } as unknown as DbService;
-  const aviso = (n: string) => ({ notificar: async () => { avisos.push(n); return true; } });
+  const aviso = (n: string) => ({ notificar: async () => { avisos.push(n); return true; }, reintentarPendientes: async () => 0 });
   return { svc: new HostService(db, aviso('checkin') as never, aviso('checkout') as never), sqls, avisos };
 }
 
@@ -96,6 +100,42 @@ describe('HostService.registrarLlegada: habitación real', () => {
     const r = await svc.registrarLlegada(ID, {}, ADMIN);
     expect(r.ya_registrado).toBe(true);
     expect(sqls.some((s) => /UPDATE habitacion/.test(s))).toBe(false);
+  });
+});
+
+describe('HostService.registrarLlegada: llegaron más huéspedes de los reservados', () => {
+  it('con los reservados no hay extra', async () => {
+    const r = await crear({ reservados: 2, aforo: 4 }).svc.registrarLlegada(ID, { huespedes_reales: 2 }, ADMIN);
+    expect(r.huespedes_extra).toBe(0);
+    expect(r.aforo_maximo).toBe(4);
+  });
+
+  it('por encima de lo reservado pero dentro del aforo: se admite y se informa el extra', async () => {
+    const { svc, sqls } = crear({ reservados: 2, aforo: 4 });
+    const r = await svc.registrarLlegada(ID, { huespedes_reales: 3 }, ADMIN);
+    expect(r.huespedes_extra).toBe(1);
+    expect(sqls.some((s) => /checkin_huespedes = \$5/.test(s))).toBe(true);
+  });
+
+  it('por encima del aforo se rechaza (409) y no se registra la llegada', async () => {
+    const { svc, sqls } = crear({ reservados: 2, aforo: 4 });
+    await expect(svc.registrarLlegada(ID, { huespedes_reales: 5 }, ADMIN)).rejects.toMatchObject({ status: 409 });
+    expect(sqls.some((s) => /checkin_recepcion = true/.test(s))).toBe(false);
+  });
+
+  it('sin indicar cuántos llegaron se toman los reservados', async () => {
+    expect((await crear({ reservados: 3, aforo: 4 }).svc.registrarLlegada(ID, {}, ADMIN)).huespedes_extra).toBe(0);
+  });
+});
+
+describe('HostService.sincronizarBooking', () => {
+  it('reintenta los avisos pendientes de check-in y de check-out', async () => {
+    const svc = crear().svc;
+    expect(await svc.sincronizarBooking(ADMIN)).toEqual({ checkin: 0, checkout: 0 });
+  });
+
+  it('solo el administrador puede lanzarlo', async () => {
+    await expect(crear().svc.sincronizarBooking({ sub: 'u1', rol: 'USUARIO' } as never)).rejects.toMatchObject({ status: 409 });
   });
 });
 
