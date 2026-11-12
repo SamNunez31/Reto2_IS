@@ -354,32 +354,83 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
 
       @case ('catalogos') {
         @if (cat(); as k) {
-          <div class="dos-columnas">
-            <section class="tarjeta">
-              <h2>Amenidades ({{ k.amenidades.length }})</h2>
-              <ul class="chips d-flex flex-wrap p-0">@for (a of k.amenidades; track a.id) { <li>{{ a.nombre }} <small>· {{ a.categoria }}</small></li> }</ul>
-              <form class="fila" (ngSubmit)="crear('amenities', { nombre: nuevaAmenidad, categoria: nuevaCategoria })">
-                <label>Nombre <input name="na" [(ngModel)]="nuevaAmenidad" required /></label>
-                <label>Categoría <input name="nc" [(ngModel)]="nuevaCategoria" required /></label>
-                <button class="btn" type="submit">Agregar</button>
+          <p class="cat-intro">Listas que usan los anfitriones al publicar un alojamiento y los huéspedes al buscar. Lo que agregues aquí aparece de inmediato en esos formularios.</p>
+          <div class="cat-grid">
+            <section class="tarjeta cat-card cat-ancho" aria-labelledby="cat-amen">
+              <header class="cat-cab">
+                <span class="cat-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['amenidad']" /></svg></span>
+                <div><h2 id="cat-amen">Amenidades <span class="cat-cuenta">{{ k.amenidades.length }}</span></h2>
+                  <p class="ayuda">Servicios y comodidades que el anfitrión marca en su alojamiento, agrupados por categoría.</p></div>
+              </header>
+              @for (g of amenidadesPorCategoria(k.amenidades); track g.categoria) {
+                <div class="cat-grupo">
+                  <h3>{{ g.categoria }}</h3>
+                  <ul class="cat-chips">@for (a of g.items; track a.id) { <li>{{ a.nombre }}</li> }</ul>
+                </div>
+              }
+              <form class="cat-form" (ngSubmit)="agregarAmenidad()" novalidate>
+                <h3>Agregar amenidad</h3>
+                <div class="cat-form-fila">
+                  <label>Nombre
+                    <input name="na" [(ngModel)]="nuevaAmenidad" maxlength="60" placeholder="Ej.: Parqueadero techado" autocomplete="off" /></label>
+                  <label>Categoría
+                    <input name="nc" [(ngModel)]="nuevaCategoria" maxlength="40" list="cat-categorias" placeholder="Elige una o escribe una nueva" autocomplete="off" /></label>
+                  <datalist id="cat-categorias">@for (g of amenidadesPorCategoria(k.amenidades); track g.categoria) { <option [value]="g.categoria"></option> }</datalist>
+                  <button class="btn btn-primario" type="submit" [disabled]="!nuevaAmenidad.trim() || !nuevaCategoria.trim()">
+                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Agregar</button>
+                </div>
               </form>
             </section>
-            <section class="tarjeta">
-              <h2>Tipos de alojamiento</h2>
-              <ul class="chips d-flex flex-wrap p-0">@for (t of k.tipos; track t.id) { <li>{{ t.nombre }}</li> }</ul>
-              <p class="ayuda">Catálogo cerrado: los tipos más buscados en Ecuador.</p>
-              <h2>Ciudades ({{ k.ciudades.length }})</h2>
-              <form class="fila" (ngSubmit)="crearCiudad()" novalidate>
-                <label>Provincia <input name="np" appFiltro="nombre" [(ngModel)]="nuevaProvincia" maxlength="40" placeholder="Pichincha"
-                       [attr.aria-invalid]="!!nuevaProvincia && !!problemaCiudad().provincia" aria-describedby="msg-provincia" /></label>
-                <label>Ciudad <input name="nci" appFiltro="nombre" [(ngModel)]="nuevaCiudad" maxlength="80" placeholder="Quito"
-                       [attr.aria-invalid]="!!nuevaCiudad && !!problemaCiudad().ciudad" aria-describedby="msg-ciudad" /></label>
-                <button class="btn" type="submit" [disabled]="!!problemaCiudad().provincia || !!problemaCiudad().ciudad">Agregar ciudad</button>
+
+            <section class="tarjeta cat-card" aria-labelledby="cat-tipos">
+              <header class="cat-cab">
+                <span class="cat-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['alojamientos']" /></svg></span>
+                <div><h2 id="cat-tipos">Tipos de alojamiento <span class="cat-cuenta">{{ k.tipos.length }}</span></h2>
+                  <p class="ayuda">Lista cerrada con los tipos más buscados en Ecuador; no se pueden agregar más.</p></div>
+              </header>
+              <ul class="cat-chips">@for (t of k.tipos; track t.id) {
+                <li><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconoDeTipo(t.nombre)" /></svg>{{ t.nombre }}</li>
+              }</ul>
+            </section>
+
+            <section class="tarjeta cat-card" aria-labelledby="cat-pol">
+              <header class="cat-cab">
+                <span class="cat-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['impuestos']" /></svg></span>
+                <div><h2 id="cat-pol">Políticas de cancelación <span class="cat-cuenta">{{ k.politicas.length }}</span></h2>
+                  <p class="ayuda">Cuánto se devuelve al huésped según cuándo cancele. Cada anfitrión elige una.</p></div>
+              </header>
+              <ul class="cat-politicas">@for (p of k.politicas; track p.id) {
+                <li><strong>{{ nombrePolitica(p.nombre) }}</strong><span>{{ p.descripcion }}</span></li>
+              }</ul>
+            </section>
+
+            <section class="tarjeta cat-card cat-ancho" aria-labelledby="cat-ciu">
+              <header class="cat-cab">
+                <span class="cat-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['ciudad']" /></svg></span>
+                <div><h2 id="cat-ciu">Ciudades <span class="cat-cuenta">{{ k.ciudades.length }}</span></h2>
+                  <p class="ayuda">Destinos disponibles al crear un alojamiento y en el buscador, agrupados por provincia.</p></div>
+              </header>
+              @for (g of ciudadesPorProvincia(k.ciudades); track g.provincia) {
+                <div class="cat-grupo">
+                  <h3>{{ g.provincia }}</h3>
+                  <ul class="cat-chips">@for (c of g.items; track c.id) { <li>{{ c.nombre }}</li> }</ul>
+                </div>
+              }
+              <form class="cat-form" (ngSubmit)="crearCiudad()" novalidate>
+                <h3>Agregar ciudad</h3>
+                <div class="cat-form-fila">
+                  <label>Provincia
+                    <input name="np" appFiltro="nombre" [(ngModel)]="nuevaProvincia" maxlength="40" placeholder="Ej.: Pichincha" autocomplete="off"
+                           [attr.aria-invalid]="!!nuevaProvincia && !!problemaCiudad().provincia" aria-describedby="msg-provincia" /></label>
+                  <label>Ciudad
+                    <input name="nci" appFiltro="nombre" [(ngModel)]="nuevaCiudad" maxlength="80" placeholder="Ej.: Quito" autocomplete="off"
+                           [attr.aria-invalid]="!!nuevaCiudad && !!problemaCiudad().ciudad" aria-describedby="msg-ciudad" /></label>
+                  <button class="btn btn-primario" type="submit" [disabled]="!nuevaProvincia.trim() || !nuevaCiudad.trim() || !!problemaCiudad().provincia || !!problemaCiudad().ciudad">
+                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Agregar</button>
+                </div>
+                @if (nuevaProvincia && problemaCiudad().provincia; as p) { <p class="msg-campo msg-error" id="msg-provincia" role="alert"><span aria-hidden="true">✗</span> Provincia: {{ p }}</p> }
+                @if (nuevaCiudad && problemaCiudad().ciudad; as p) { <p class="msg-campo msg-error" id="msg-ciudad" role="alert"><span aria-hidden="true">✗</span> Ciudad: {{ p }}</p> }
               </form>
-              @if (nuevaProvincia && problemaCiudad().provincia; as p) { <p class="msg-campo msg-error" id="msg-provincia" role="alert"><span aria-hidden="true">✗</span> Provincia: {{ p }}</p> }
-              @if (nuevaCiudad && problemaCiudad().ciudad; as p) { <p class="msg-campo msg-error" id="msg-ciudad" role="alert"><span aria-hidden="true">✗</span> Ciudad: {{ p }}</p> }
-              <h3>Políticas de cancelación</h3>
-              <ul>@for (p of k.politicas; track p.id) { <li><strong>{{ p.nombre }}</strong>: {{ p.descripcion }}</li> }</ul>
             </section>
           </div>
         }
@@ -495,6 +546,33 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
       .buscador-estado { flex: 1 1 auto; }
     }
     /* Acciones de cada fila: compactas, con la destructiva separada del resto */
+    /* Catálogos: tarjetas por lista, con encabezado, grupos y formulario propio */
+    .cat-intro { color: var(--gris-700); margin: 0 0 1rem; max-width: 46rem; }
+    .cat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; align-items: start; }
+    .cat-grid .cat-card { margin: 0; } .cat-ancho { grid-column: 1 / -1; }
+    @media (max-width: 860px) { .cat-grid { grid-template-columns: 1fr; } }
+    .cat-cab { display: flex; gap: .8rem; align-items: flex-start; margin-bottom: 1rem; }
+    .cat-cab h2 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: .5rem; }
+    .cat-cab .ayuda { margin: .2rem 0 0; }
+    .cat-ico { flex: none; width: 2.5rem; height: 2.5rem; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+               background: var(--c-primario-suave); color: var(--c-primario-osc); }
+    .cat-ico .ico { width: 1.25rem; height: 1.25rem; }
+    .cat-cuenta { font-size: .75rem; font-weight: 700; padding: .05rem .5rem; border-radius: 999px; background: var(--gris-200, #ece9e3); color: var(--gris-700); }
+    .cat-grupo { display: grid; grid-template-columns: 9.5rem 1fr; gap: .4rem 1rem; align-items: start; padding: .65rem 0; border-top: 1px solid var(--c-borde-suave); }
+    .cat-grupo h3 { margin: .25rem 0 0; font-size: .8rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gris-700); }
+    @media (max-width: 560px) { .cat-grupo { grid-template-columns: 1fr; } }
+    .cat-chips { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; }
+    .cat-chips li { display: inline-flex; align-items: center; gap: .4rem; background: var(--c-primario-suave); color: var(--c-primario-osc);
+                    border-radius: 999px; padding: .25rem .8rem; font-size: .88rem; font-weight: 500; }
+    .cat-chips li .ico { width: .95rem; height: .95rem; }
+    .cat-politicas { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+    .cat-politicas li { display: grid; gap: .15rem; padding: .7rem .9rem; border: 1px solid var(--c-borde-suave); border-left: 4px solid var(--c-primario, #b4521f); border-radius: 10px; }
+    .cat-politicas strong { font-size: .95rem; } .cat-politicas span { font-size: .88rem; color: var(--gris-700); }
+    .cat-form { margin-top: .4rem; padding: 1rem; border-radius: 12px; background: var(--c-fondo, #f7f4ef); }
+    .cat-form h3 { margin: 0 0 .6rem; font-size: .95rem; }
+    .cat-form-fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .75rem; align-items: end; }
+    .cat-form-fila label { margin: 0; } .cat-form-fila .btn { height: 2.75rem; margin: 0; white-space: nowrap; }
+    @media (max-width: 680px) { .cat-form-fila { grid-template-columns: 1fr; } }
     td.acciones-fila { text-align: right; white-space: nowrap; }
     .acciones-fila > * { vertical-align: middle; margin: 0 0 0 .35rem; }
     .acciones-fila .btn { height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }
@@ -1002,6 +1080,33 @@ export class AdminComponent implements OnInit {
     this.accion(this.api.asignarAdmin(this.texto(u['id'])), 'Rol de administrador asignado', 'usuarios');
   }
 
+  /** Amenidades agrupadas por categoría (orden alfabético) para la lista de Catálogos. */
+  amenidadesPorCategoria(l: { id: number; nombre: string; categoria: string }[]): { categoria: string; items: { id: number; nombre: string }[] }[] {
+    const m = new Map<string, { id: number; nombre: string }[]>();
+    for (const a of l) m.set(a.categoria, [...(m.get(a.categoria) ?? []), { id: a.id, nombre: a.nombre }]);
+    return [...m.entries()].sort((x, y) => x[0].localeCompare(y[0], 'es')).map(([categoria, items]) => ({ categoria, items }));
+  }
+
+  /** Ciudades agrupadas por provincia. */
+  ciudadesPorProvincia(l: { id: number; provincia: string; nombre: string }[]): { provincia: string; items: { id: number; nombre: string }[] }[] {
+    const m = new Map<string, { id: number; nombre: string }[]>();
+    for (const c of l) m.set(c.provincia, [...(m.get(c.provincia) ?? []), { id: c.id, nombre: c.nombre }]);
+    return [...m.entries()].sort((x, y) => x[0].localeCompare(y[0], 'es'))
+      .map(([provincia, items]) => ({ provincia, items: items.sort((x, y) => x.nombre.localeCompare(y.nombre, 'es')) }));
+  }
+
+  /** NO_REEMBOLSABLE → «No reembolsable». */
+  nombrePolitica(n: string): string {
+    const t = n.toLowerCase().replace(/_/g, ' ');
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  agregarAmenidad(): void {
+    if (!this.nuevaAmenidad.trim() || !this.nuevaCategoria.trim()) return;
+    this.crear('amenities', { nombre: this.nuevaAmenidad.trim(), categoria: this.nuevaCategoria.trim() });
+    this.nuevaAmenidad = '';
+  }
+
   crear(tipo: 'amenities' | 'cities', cuerpo: object): void {
     this.accion(this.api.crearCatalogo(tipo, cuerpo), 'Catálogo actualizado', 'catalogos');
   }
@@ -1040,6 +1145,7 @@ export class AdminComponent implements OnInit {
     const p = this.problemaCiudad();
     if (p.provincia || p.ciudad) return;
     this.crear('cities', { provincia: this.nuevaProvincia.trim(), nombre: this.nuevaCiudad.trim() });
+    this.nuevaCiudad = '';
   }
 
   async cerrarImpuesto(t: Fila): Promise<void> {
