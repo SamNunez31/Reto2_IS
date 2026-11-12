@@ -418,6 +418,19 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .edicion-secciones { min-width: 0; }
 .seccion { scroll-margin-top: 90px; }
 .seccion > h2 { font-family: var(--fuente-titulos); font-weight: 400; font-size: 1.55rem; margin-bottom: 1rem; }
+.seccion { padding: 1.6rem 1.7rem; }
+.seccion-intro { color: var(--gris-700); margin: -.5rem 0 1.4rem; max-width: 46rem; }
+.seccion > h3 { font-size: 1.05rem; margin: 1.6rem 0 .7rem; padding-top: 1.2rem; border-top: 1px solid var(--c-borde-suave); }
+/* Un solo guardado para todo el formulario: barra fija al pie, como en los paneles de anfitrión de las plataformas de reservas */
+.barra-guardado { position: sticky; bottom: .75rem; z-index: 8; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; justify-content: flex-end;
+  margin: 1rem 0 .5rem; padding: .85rem 1.2rem; background: var(--c-superficie); border: 1px solid var(--c-borde-suave); border-radius: var(--radio-l); box-shadow: 0 -4px 24px rgb(0 0 0 / .1); }
+.barra-guardado-texto { margin-right: auto; display: grid; gap: .1rem; min-width: 14rem; }
+.barra-guardado-texto strong { font-size: .95rem; color: var(--gris-700); }
+.barra-guardado-texto strong.pendiente { color: var(--c-acento); }
+.barra-guardado-texto strong.pendiente::before { content: '● '; }
+.barra-guardado-texto small { color: var(--c-suave); }
+.barra-guardado .btn { margin: 0; }
+@media (max-width: 640px) { .barra-guardado { bottom: 0; border-radius: var(--radio-s); } .barra-guardado .btn { flex: 1 1 auto; } }
 .seccion-pie { border-top: 1px solid var(--c-borde-suave); }
 .estado-seccion { font-size: .85rem; font-weight: 600; color: var(--c-suave); margin-left: .6rem; }
 .estado-seccion.pendiente { color: var(--c-acento); }

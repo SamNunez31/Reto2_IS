@@ -38,7 +38,7 @@ const ESPERA_ESCRITURA_MS = 800;
     </div>
 
     <div class="mapa" #mapa role="region" aria-label="Mapa: toca o arrastra el pin hasta la ubicación exacta del alojamiento"></div>
-    <p class="ayuda">Toca el mapa o arrastra el pin para afinar la ubicación.</p>
+    <p class="ayuda">Toca el mapa o arrastra el pin: la dirección se completa sola con ese punto.</p>
     @if (latitud().invalid && latitud().touched) {
       <p class="msg-campo msg-error" role="alert"><span aria-hidden="true">✗</span> Ubica el alojamiento en el mapa: busca la dirección o toca el mapa.</p>
     } @else if (ubicado()) {
@@ -66,6 +66,7 @@ export class DireccionMapaComponent implements AfterViewInit, OnDestroy {
   private pin?: L.Marker;
   private temporizador?: ReturnType<typeof setTimeout>;
   private peticion?: AbortController;
+  private inversa?: AbortController;
 
   constructor() {
     // Centrar en la ciudad elegida mientras el usuario no haya puesto el pin
@@ -89,7 +90,7 @@ export class DireccionMapaComponent implements AfterViewInit, OnDestroy {
       maxZoom: 19,
       attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
     }).addTo(this.mapa);
-    this.mapa.on('click', (e: L.LeafletMouseEvent) => this.colocar(e.latlng.lat, e.latlng.lng, false));
+    this.mapa.on('click', (e: L.LeafletMouseEvent) => this.colocar(e.latlng.lat, e.latlng.lng, false, true));
     if (hayPunto) this.colocar(lat, lon, false);
     // El contenedor puede haber cambiado de tamaño al mostrarse el paso
     setTimeout(() => this.mapa?.invalidateSize(), 0);
@@ -98,6 +99,7 @@ export class DireccionMapaComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     clearTimeout(this.temporizador);
     this.peticion?.abort();
+    this.inversa?.abort();
     this.mapa?.remove();
   }
 
@@ -162,7 +164,7 @@ export class DireccionMapaComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Pone el pin (si está dentro de Ecuador) y guarda las coordenadas en el formulario. */
-  private colocar(lat: number, lon: number, acercar: boolean): void {
+  private colocar(lat: number, lon: number, acercar: boolean, rellenar = false): void {
     if (!this.mapa) return;
     if (!dentroDeEcuador(lat, lon)) {
       this.avisoMapa.set('El pin debe quedar dentro de Ecuador (incluidas las Galápagos).');
@@ -188,12 +190,32 @@ export class DireccionMapaComponent implements AfterViewInit, OnDestroy {
       }).addTo(this.mapa);
       this.pin.on('dragend', () => {
         const p = this.pin!.getLatLng();
-        this.colocar(p.lat, p.lng, false);
+        this.colocar(p.lat, p.lng, false, true);
       });
     } else {
       this.pin.setLatLng([lat, lon]);
     }
     if (acercar) this.mapa.setView([lat, lon], 17);
+    if (rellenar) void this.rellenarDireccion(lat, lon);
+  }
+
+  /** Al marcar un punto en el mapa, el campo «Dirección» se completa con la dirección de ese punto (editable). */
+  private async rellenarDireccion(lat: number, lon: number): Promise<void> {
+    this.inversa?.abort();
+    this.inversa = new AbortController();
+    this.sugerencias.set([]);
+    this.estado.set('Buscando la dirección de ese punto…');
+    try {
+      const texto = await this.geo.inversa(lat, lon, this.inversa.signal);
+      if (!texto) return;
+      this.direccion().setValue(texto);
+      this.direccion().markAsDirty();
+      this.direccion().markAsTouched();
+      this.estado.set('Dirección tomada del punto marcado. Puedes corregirla si hace falta.');
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      this.estado.set('No pudimos obtener la dirección de ese punto. Escríbela a mano.');
+    }
   }
 
   private async centrarEn(ciudad: string): Promise<void> {
