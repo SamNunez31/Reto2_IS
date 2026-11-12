@@ -83,20 +83,28 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
       }
 
       @case ('alojamientos') {
-        <div class="barra-acciones d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-          <form class="filtros-barra" role="search" (ngSubmit)="ir('alojamientos')">
-            <label class="filtro-estado"><span class="sr-only">Estado</span>
-              <select name="fe" aria-label="Estado" [(ngModel)]="filtroAloj" (change)="ir('alojamientos')">
-                <option value="">Todos los estados</option><option value="BORRADOR">Borrador</option>
+        <div class="barra-admin">
+          <form class="buscador" role="search" (ngSubmit)="ir('alojamientos')">
+            <span class="buscador-texto">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['buscar']" /></svg>
+              <input id="q-aloj" name="qa" type="search" [(ngModel)]="busquedaAloj" maxlength="80" placeholder="Buscar por nombre, ciudad o código" />
+              <label class="sr-only" for="q-aloj">Buscar alojamientos</label>
+            </span>
+            <span class="buscador-sep" aria-hidden="true"></span>
+            <label class="buscador-estado" for="estado-aloj">
+              <span class="buscador-etiqueta">Estado</span>
+              <select id="estado-aloj" name="fe" [(ngModel)]="filtroAloj" (change)="ir('alojamientos')">
+                <option value="">Todos</option><option value="BORRADOR">Borrador</option>
                 <option value="PUBLICADO">Publicado</option><option value="SUSPENDIDO">Suspendido</option>
               </select>
             </label>
-            <label class="busqueda-campo"><span class="sr-only">Buscar alojamientos</span>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-              <input name="qa" type="search" [(ngModel)]="busquedaAloj" maxlength="80" placeholder="Nombre, ciudad o código" /></label>
-            <button class="btn btn-primario" type="submit">Buscar</button>
+            <button class="buscador-ir" type="submit" title="Buscar" aria-label="Buscar alojamientos">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['buscar']" /></svg>
+            </button>
           </form>
-          <a class="btn btn-primario" routerLink="/admin/alojamientos/nuevo">+ Nuevo alojamiento</a>
+          <a class="btn btn-primario nuevo-aloj" routerLink="/admin/alojamientos/nuevo">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Nuevo alojamiento
+          </a>
         </div>
         <p class="meta">{{ total() }} alojamiento{{ total() === 1 ? '' : 's' }}</p>
         <div class="tabla-scroll tarjeta">
@@ -440,12 +448,31 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [sugerencias]="sugerencias()" [alojamientoCodigo]="alojamientoCheckin()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
   `,
   styles: `.mt { margin-top: 1rem; }
-    /* Barra de herramientas: filtros a la izquierda, acción principal a la derecha, sin saltos raros */
-    .barra-acciones { gap: 1rem 1.5rem; }
-    .filtros-barra { flex: 1 1 auto; flex-wrap: nowrap; }
-    .filtros-barra .btn { flex: none; }
-    .filtros-barra .busqueda-campo { flex: 1 1 14rem; min-width: 10rem; }
-    @media (max-width: 760px) { .filtros-barra { flex-wrap: wrap; } .filtros-barra .busqueda-campo { flex-basis: 100%; max-width: none; } }
+    /* Buscador: un solo control continuo (texto · estado · lupa), como en los portales de reservas */
+    .barra-admin { display: flex; align-items: center; justify-content: space-between; gap: 1rem 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .buscador { display: flex; align-items: stretch; gap: 0; flex: 1 1 26rem; max-width: 42rem; min-width: 16rem; margin: 0;
+                background: var(--c-superficie, #fff); border: 1px solid var(--gris-300, #ddd); border-radius: 999px; padding: .3rem .3rem .3rem 1rem;
+                box-shadow: 0 1px 2px rgb(0 0 0 / .04); transition: box-shadow .15s ease, border-color .15s ease; }
+    .buscador:focus-within { border-color: var(--c-texto); box-shadow: 0 2px 10px rgb(0 0 0 / .08); }
+    .buscador-texto { display: flex; align-items: center; gap: .55rem; flex: 1 1 auto; min-width: 0; color: var(--c-suave, #8a8a82); }
+    .buscador-texto input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; height: 2.4rem; padding: 0; font: inherit; color: var(--c-texto); }
+    .buscador-texto input:focus { outline: none; box-shadow: none; }
+    .buscador-sep { width: 1px; background: var(--gris-300, #e4e2dd); margin: .45rem .85rem; flex: none; }
+    .buscador-estado { display: flex; flex-direction: column; justify-content: center; gap: 0; margin: 0; flex: none; }
+    .buscador-etiqueta { font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-700); line-height: 1; }
+    .buscador-estado select { border: 0; background: transparent; height: 1.5rem; padding: 0 1.4rem 0 0; font: inherit; font-weight: 600; width: auto; min-width: 7rem; }
+    .buscador-estado select:focus { outline: none; box-shadow: none; }
+    .buscador-ir { flex: none; width: 2.5rem; height: 2.5rem; margin-left: .6rem; border: 0; border-radius: 50%; cursor: pointer;
+                   background: var(--c-primario, #b4521f); color: #fff; display: inline-flex; align-items: center; justify-content: center; transition: .15s ease; }
+    .buscador-ir:hover { filter: brightness(1.08); transform: scale(1.04); }
+    .buscador-ir .ico { width: 1.15rem; height: 1.15rem; stroke-width: 2.1; margin: 0; }
+    .nuevo-aloj { flex: none; }
+    @media (max-width: 680px) {
+      .buscador { flex-wrap: wrap; border-radius: var(--radio-l, 1rem); padding: .6rem .8rem; }
+      .buscador-texto { flex-basis: 100%; }
+      .buscador-sep { display: none; }
+      .buscador-estado { flex: 1 1 auto; }
+    }
     /* Acciones de cada fila: compactas, con la destructiva separada del resto */
     .acciones-fila { display: flex; justify-content: flex-end; align-items: center; gap: .35rem; flex-wrap: wrap; }
     .acciones-fila .btn { margin: 0; height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }

@@ -27,6 +27,7 @@ export const ICONOS: Record<string, string> = {
   checkin: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
   checkout: 'M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M16 17l5-5-5-5M21 12H9',
   limpieza: 'M19 3l-7 7M14 5l5 5M11 11l-8 8 3 3 8-8zM5 21h4',
+  buscar: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M20.5 20.5L16 16',
   sincronizar: 'M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M3 4v5h5M21 20v-5h-5',
   // Tipos de alojamiento
   hotel: 'M3 21V5h12v16M15 21h6V11h-6M6 9h2M11 9h2M6 13h2M11 13h2M6 17h2M11 17h2',
