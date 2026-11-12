@@ -210,7 +210,7 @@ export class HostController {
     @Req() req: Request,
   ): Promise<RespuestaApi<RespuestaSalida>> {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-    const r = await this.host.registrarSalida(id, { observaciones: b.observaciones }, u);
+    const r = await this.host.registrarSalida(id, { observaciones: b.observaciones, consumos: b.consumos, metodo_pago_consumos: b.metodo_pago_consumos }, u);
     auditar('operacion_critica', req, { reserva_id: id, accion: 'checkout_recepcion', ya_registrado: r.ya_registrado, booking_notificado: r.booking_notificado });
     return ok(r, r.ya_registrado ? 'El check-out ya estaba registrado' : 'Salida registrada; la habitación quedó en preparación');
   }

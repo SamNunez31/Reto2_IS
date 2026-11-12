@@ -35,7 +35,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
       sqls.push(sql);
       if (/SELECT x\.\* FROM/.test(sql)) return reserva;
       if (/FROM orden_v2 o JOIN unidad_alojamiento u/.test(sql)) return { checkin_en: o.checkinEn ?? null, recepcion: o.recepcion ?? false, habitacion: null, unidad: 'Suite Familiar', unidad_id: UNIDAD };
-      if (/SELECT o\.checkin_en, o\.checkout_en FROM orden_v2/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null };
+      if (/SELECT o\.checkin_en, o\.checkout_en/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null };
       if (/SELECT unidad_id::text AS unidad_id FROM orden_v2/.test(sql)) return { unidad_id: UNIDAD };
       if (/SELECT a\.id FROM alojamiento a/.test(sql)) return { id: 'aloj-1' };
       if (/SELECT estado::text AS estado FROM habitacion/.test(sql)) return { estado: o.estadoHabitacion ?? 'EN_PREPARACION' };
@@ -112,6 +112,30 @@ describe('HostService.registrarSalida (check-out)', () => {
     expect(sqls.some((s) => /UPDATE reserva SET estado = 'COMPLETADA'/.test(s))).toBe(true);
     expect(sqls.some((s) => /checkout_recepcion = true/.test(s))).toBe(true);
     expect(avisos).toEqual(['checkout']);
+  });
+
+  it('cobra los consumos extra (minibar) y devuelve el total', async () => {
+    const { svc, sqls } = crear({ checkinEn: '2026-11-11T01:27:00Z' });
+    const r = await svc.registrarSalida(
+      ID,
+      { consumos: [{ item: 'Agua', cantidad: 2, precio: '1.50' }, { item: 'Snack', precio: '2.25' }], metodo_pago_consumos: 'CARGO_A_RESERVA' },
+      ADMIN,
+    );
+    expect(r.consumos_total).toBe('5.25');
+    expect(sqls.some((s) => /consumos_total = \$4/.test(s))).toBe(true);
+  });
+
+  it('sin consumos el total es 0.00', async () => {
+    const { svc } = crear({ checkinEn: '2026-11-11T01:27:00Z' });
+    expect((await svc.registrarSalida(ID, {}, ADMIN)).consumos_total).toBe('0.00');
+  });
+
+  it('rechaza (400) consumos mal formados o un método de cobro desconocido', async () => {
+    const { svc } = crear();
+    await expect(svc.registrarSalida(ID, { consumos: [{ item: '', precio: '1.00' }] }, ADMIN)).rejects.toMatchObject({ status: 400 });
+    await expect(svc.registrarSalida(ID, { consumos: [{ item: 'x', precio: '1,5' }] }, ADMIN)).rejects.toMatchObject({ status: 400 });
+    await expect(svc.registrarSalida(ID, { consumos: [{ item: 'x', cantidad: 0, precio: '1.00' }] }, ADMIN)).rejects.toMatchObject({ status: 400 });
+    await expect(svc.registrarSalida(ID, { metodo_pago_consumos: 'BITCOIN' }, ADMIN)).rejects.toMatchObject({ status: 400 });
   });
 
   it('exige el check-in previo (409)', async () => {

@@ -6,10 +6,11 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { Listado } from '../../core/models/api.models';
 import { AdminService, Catalogos, Fila } from '../../core/services/admin.service';
 import { CheckinDialogoComponent, DatosCheckin } from './checkin-dialogo.component';
+import { SalidaDialogoComponent } from './salida-dialogo.component';
 import { HabitacionesComponent } from './habitaciones.component';
 import { DashboardAdminComponent } from './dashboard.component';
 import { ObservabilidadComponent } from './observabilidad.component';
-import { AnfitrionService, HabitacionLibre, ResenaHost, ReservaHost } from '../../core/services/anfitrion.service';
+import { AnfitrionService, DatosSalida, HabitacionLibre, ResenaHost, ReservaHost } from '../../core/services/anfitrion.service';
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { avisoTemporal } from '../../shared/aviso';
 import { CalificacionComponent } from '../../shared/calificacion';
@@ -30,7 +31,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
   selector: 'app-admin',
   imports: [
     CurrencyPipe, DatePipe, JsonPipe, FormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, EstadoComponent, CalificacionComponent, PagoComponent,
-    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent, CheckinDialogoComponent, HabitacionesComponent,
+    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent, CheckinDialogoComponent, SalidaDialogoComponent, HabitacionesComponent,
   ],
   template: `
     <h1>Administración</h1>
@@ -129,7 +130,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
                       <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">Registrar check-in</button>
                     } @else if (s.canal_booking && s.checkin_en && !s.checkout_en) {
                       <span class="badge">{{ s.habitacion_asignada ? 'En ' + s.habitacion_asignada : 'Huésped en el hotel' }}</span>
-                      <button class="btn btn-chico btn-primario" type="button" [disabled]="saliendo() === s.id" (click)="registrarSalida(s)">Registrar check-out</button>
+                      <button class="btn btn-chico btn-primario" type="button" (click)="registrarSalida(s)">Registrar check-out</button>
                     } @else if (s.canal_booking && s.checkout_en) {
                       <span class="badge">Check-out hecho</span>
                     }
@@ -347,6 +348,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'r
       }
     }
     </div>
+    <app-salida-dialogo [reserva]="salida()" [enviando]="saliendo() !== null" (confirmar)="confirmarSalida($event)" (cerrar)="cerrarSalida()" />
     <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [habitaciones]="habitacionesLibres()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
   `,
   styles: `.mt { margin-top: 1rem; } .filtro-inline { max-width: 240px; } pre { white-space: pre-wrap; font-size: .8rem; max-width: 420px; }
@@ -367,7 +369,8 @@ export class AdminComponent implements OnInit {
   /** Datos del check-in en hoteles: habitaciones libres del tipo reservado */
   readonly habitacionesLibres = signal<HabitacionLibre[]>([]);
   readonly esHotel = signal(false);
-  /** Reserva cuyo check-out se está enviando */
+  /** Reserva cuyo diálogo de check-out está abierto (null = cerrado) */
+  readonly salida = signal<ReservaHost | null>(null);
   readonly saliendo = signal<string | null>(null);
   readonly pestanas: { id: Pestana; nombre: string }[] = [
     { id: 'indicadores', nombre: 'Dashboard' },
@@ -518,34 +521,6 @@ export class AdminComponent implements OnInit {
     });
   }
 
-  async registrarSalida(s: ReservaHost): Promise<void> {
-    if (this.saliendo()) return;
-    const si = await this.confirmar.pedir({
-      titulo: 'Registrar check-out',
-      mensaje: `${s.huesped} sale de ${s.habitacion_asignada ?? s.alojamiento}. La reserva ${s.codigo} se completará, la habitación quedará «En preparación» y se avisará a Booking.`,
-      confirmar: 'Registrar check-out',
-    });
-    if (!si) return;
-    this.ok.limpiar();
-    this.error.set(null);
-    this.saliendo.set(s.id);
-    this.catalogo.registrarSalida(s.id).subscribe({
-      next: (r) => {
-        this.saliendo.set(null);
-        this.ok.mostrar(
-          `Check-out de la reserva ${s.codigo} registrado` +
-            (r.habitacion_en_preparacion ? `: la habitación ${r.habitacion_en_preparacion} quedó en preparación. ` : '. ') +
-            (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
-        );
-        this.ir('reservas');
-      },
-      error: (e) => {
-        this.saliendo.set(null);
-        this.error.set(leerError(e));
-      },
-    });
-  }
-
   cerrarCheckin(): void {
     if (!this.enviandoCheckin()) this.checkin.set(null);
   }
@@ -568,6 +543,40 @@ export class AdminComponent implements OnInit {
       error: (e) => {
         this.enviandoCheckin.set(false);
         this.checkin.set(null);
+        this.error.set(leerError(e));
+      },
+    });
+  }
+
+  registrarSalida(s: ReservaHost): void {
+    this.salida.set(s);
+  }
+
+  cerrarSalida(): void {
+    if (!this.saliendo()) this.salida.set(null);
+  }
+
+  confirmarSalida(datos: DatosSalida): void {
+    const s = this.salida();
+    if (!s || this.saliendo()) return;
+    this.ok.limpiar();
+    this.error.set(null);
+    this.saliendo.set(s.id);
+    this.catalogo.registrarSalida(s.id, datos).subscribe({
+      next: (r) => {
+        this.saliendo.set(null);
+        this.salida.set(null);
+        this.ok.mostrar(
+          `Check-out de la reserva ${s.codigo} registrado` +
+            (r.habitacion_en_preparacion ? `: la habitación ${r.habitacion_en_preparacion} quedó en preparación. ` : '. ') +
+            (Number(r.consumos_total) > 0 ? `Consumos extra: ${this.usd(Number(r.consumos_total))}. ` : '') +
+            (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
+        );
+        this.ir('reservas');
+      },
+      error: (e) => {
+        this.saliendo.set(null);
+        this.salida.set(null);
         this.error.set(leerError(e));
       },
     });

@@ -91,6 +91,8 @@ export interface ReservaHost {
   checkout_en: string | null;
   /** Habitación asignada en el check-in (hotel: «Suite Familiar 109») */
   habitacion_asignada: string | null;
+  /** Hora de salida del alojamiento (HH:MM:SS) */
+  hora_checkout: string;
   /** Titular real de la reserva de Booking (null en reservas del canal propio) */
   titular_nombre: string | null;
   titular_tipo_documento: string | null;
@@ -105,10 +107,23 @@ export interface RespuestaLlegada {
   booking_notificado: boolean;
 }
 
+export interface ConsumoExtra {
+  item: string;
+  cantidad: number;
+  precio: string;
+}
+
+export interface DatosSalida {
+  observaciones?: string;
+  consumos?: ConsumoExtra[];
+  metodo_pago_consumos?: 'EFECTIVO' | 'CARGO_A_RESERVA';
+}
+
 export interface RespuestaSalida {
   reserva: ReservaHost;
   estado: 'CHECKED_OUT';
   habitacion_en_preparacion: string | null;
+  consumos_total: string;
   ya_registrado: boolean;
   booking_notificado: boolean;
 }
@@ -194,7 +209,7 @@ export class AnfitrionService {
     return datos(this.http.get<RespuestaApi<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }>>(`${this.base}/orders/${id}/available-rooms`));
   }
   /** Check-out en recepción: la habitación queda EN_PREPARACION y se avisa a Booking. */
-  registrarSalida(id: string, cuerpo: { observaciones?: string } = {}): Observable<RespuestaSalida> {
+  registrarSalida(id: string, cuerpo: DatosSalida = {}): Observable<RespuestaSalida> {
     return datos(this.http.post<RespuestaApi<RespuestaSalida>>(`${this.base}/orders/${id}/departure`, cuerpo));
   }
   habitaciones(codigo: number): Observable<HabitacionHost[]> {

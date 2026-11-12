@@ -3,6 +3,7 @@ import { UsuarioToken } from '../../common/auth/decorators';
 import { Listado } from '../../common/http/respuestas';
 import { conflicto, invalido, noEncontrado } from '../../common/problem/problem';
 import { Consulta, DbService } from '../../database/db.service';
+import { aCentavos, aMoney, RE_MONEY } from '../alojamientos-v2/util-v2';
 import { sqlPago } from '../alojamientos/services/ordenes.service';
 import { NotificadorCheckin } from '../integracion/notificador-checkin';
 import { NotificadorCheckout } from '../integracion/notificador-checkout';
@@ -28,7 +29,8 @@ const SQL_RESERVA_HOST = `
          u.nombres || ' ' || u.apellidos AS huesped, r.fecha_entrada, r.fecha_salida, r.num_huespedes,
          COALESCE(o.total, t.total) AS total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
          o.titular->>'nombreCompleto' AS titular_nombre, o.titular->>'tipoDocumento' AS titular_tipo_documento,
-         o.titular->>'identificacion' AS titular_identificacion, o.habitacion_asignada, o.checkout_en
+         o.titular->>'identificacion' AS titular_identificacion, o.habitacion_asignada, o.checkout_en,
+         a.hora_checkout::text AS hora_checkout
     FROM reserva r
     LEFT JOIN orden_v2 o ON o.reserva_id = r.id
     JOIN alojamiento a ON a.id = r.alojamiento_id
@@ -92,6 +94,8 @@ export interface ReservaHost {
   habitacion_asignada: string | null;
   /** Momento de salida del huésped; null si aún no salió */
   checkout_en: string | null;
+  /** Hora de salida del alojamiento (HH:MM:SS) */
+  hora_checkout: string;
 }
 
 export interface RespuestaLlegada {
@@ -112,11 +116,50 @@ export interface DatosLlegada {
   habitacion_id?: string;
 }
 
+export interface DatosSalida {
+  observaciones?: unknown;
+  /** Consumos extra a cobrar en recepción (minibar, restaurante…) */
+  consumos?: unknown;
+  /** Cómo se cobran: EFECTIVO o CARGO_A_RESERVA (tarjeta registrada) */
+  metodo_pago_consumos?: unknown;
+}
+
+const METODOS_CONSUMO = ['EFECTIVO', 'CARGO_A_RESERVA'] as const;
+
+/** Valida los consumos extra del check-out; devuelve las líneas y el total en centavos. */
+export function leerConsumos(d: DatosSalida): { lineas: { item: string; cantidad: number; precio: string }[]; centavos: number; metodo: string } {
+  const campos: { name: string; reason: string }[] = [];
+  const lineas: { item: string; cantidad: number; precio: string }[] = [];
+  let centavos = 0;
+  if (d.consumos !== undefined) {
+    if (!Array.isArray(d.consumos) || d.consumos.length > 50) campos.push({ name: 'consumos', reason: 'lista de hasta 50 consumos' });
+    else {
+      d.consumos.forEach((c: unknown, i: number) => {
+        const x = (c ?? {}) as Record<string, unknown>;
+        const cantidad = x.cantidad === undefined ? 1 : x.cantidad;
+        if (typeof x.item !== 'string' || !x.item.trim() || x.item.length > 80) campos.push({ name: `consumos[${i}].item`, reason: 'texto de 1 a 80 caracteres' });
+        else if (typeof cantidad !== 'number' || !Number.isInteger(cantidad) || cantidad < 1 || cantidad > 100) campos.push({ name: `consumos[${i}].cantidad`, reason: 'entero entre 1 y 100' });
+        else if (typeof x.precio !== 'string' || !RE_MONEY.test(x.precio)) campos.push({ name: `consumos[${i}].precio`, reason: 'importe como "3.50"' });
+        else {
+          centavos += cantidad * aCentavos(x.precio);
+          lineas.push({ item: x.item.trim(), cantidad, precio: x.precio });
+        }
+      });
+    }
+  }
+  const metodo = d.metodo_pago_consumos === undefined ? 'EFECTIVO' : String(d.metodo_pago_consumos);
+  if (!(METODOS_CONSUMO as readonly string[]).includes(metodo)) campos.push({ name: 'metodo_pago_consumos', reason: 'EFECTIVO o CARGO_A_RESERVA' });
+  if (campos.length) throw invalido('Datos de salida no válidos', campos);
+  return { lineas, centavos, metodo };
+}
+
 export interface RespuestaSalida {
   reserva: ReservaHost;
   estado: 'CHECKED_OUT';
   /** Número de la habitación que quedó EN_PREPARACION; null si la estadía no tenía habitación real (no es hotel) */
   habitacion_en_preparacion: string | null;
+  /** Consumos extra cobrados en la salida (minibar, etc.), importe "0.00" si no hubo */
+  consumos_total: string;
   ya_registrado: boolean;
   booking_notificado: boolean;
 }
@@ -431,10 +474,10 @@ export class HostService {
    * Check-out en recepción: el huésped salió. La reserva pasa a COMPLETADA, la habitación queda EN_PREPARACION
    * (el dueño la marca DISPONIBLE cuando esté lista) y se avisa a Booking. Idempotente.
    */
-  async registrarSalida(reservaId: string, datos: { observaciones?: unknown }, user: UsuarioToken): Promise<RespuestaSalida> {
+  async registrarSalida(reservaId: string, datos: DatosSalida, user: UsuarioToken): Promise<RespuestaSalida> {
     const actual = await this.reserva(reservaId, user);
-    const fila = await this.db.uno<{ checkin_en: string | null; checkout_en: string | null }>(
-      `SELECT o.checkin_en, o.checkout_en FROM orden_v2 o WHERE o.reserva_id = $1`,
+    const fila = await this.db.uno<{ checkin_en: string | null; checkout_en: string | null; consumos_total: string | null }>(
+      `SELECT o.checkin_en, o.checkout_en, o.consumos_total::text AS consumos_total FROM orden_v2 o WHERE o.reserva_id = $1`,
       [reservaId],
     );
     if (!fila) throw conflicto('El check-out en recepción se registra solo para reservas del canal Booking');
@@ -442,14 +485,16 @@ export class HostService {
     if (datos.observaciones !== undefined && (typeof datos.observaciones !== 'string' || datos.observaciones.length > 300)) {
       throw invalido('Datos de salida no válidos', [{ name: 'observaciones', reason: 'máximo 300 caracteres' }]);
     }
+    const extras = leerConsumos(datos);
     const yaRegistrado = fila.checkout_en !== null;
     let numero: string | null = null;
     if (!yaRegistrado) {
       if (actual.estado !== 'CONFIRMADA' && actual.estado !== 'COMPLETADA') throw conflicto(`La reserva está ${actual.estado.toLowerCase()}: no admite check-out`);
       numero = await this.db.transaccion(async (q) => {
         await q(
-          `UPDATE orden_v2 SET checkout_en = now(), checkout_recepcion = true, checkout_observaciones = $2, clave_digital = NULL WHERE reserva_id = $1`,
-          [reservaId, (datos.observaciones as string | undefined) ?? null],
+          `UPDATE orden_v2 SET checkout_en = now(), checkout_recepcion = true, checkout_observaciones = $2, clave_digital = NULL,
+                  consumos = $3::jsonb, consumos_total = $4 WHERE reserva_id = $1`,
+          [reservaId, (datos.observaciones as string | undefined) ?? null, JSON.stringify(extras.lineas.map((l) => ({ ...l, metodo: extras.metodo }))), aMoney(extras.centavos)],
         );
         // El job de estancias puede haberla completado ya al pasar la fecha de salida
         if (actual.estado === 'CONFIRMADA') await q(`UPDATE reserva SET estado = 'COMPLETADA' WHERE id = $1`, [reservaId]);
@@ -457,7 +502,7 @@ export class HostService {
       });
     }
     const notificado = await this.checkout.notificar(reservaId);
-    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_OUT', habitacion_en_preparacion: numero, ya_registrado: yaRegistrado, booking_notificado: notificado };
+    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_OUT', habitacion_en_preparacion: numero, consumos_total: yaRegistrado ? (fila.consumos_total ?? '0.00') : aMoney(extras.centavos), ya_registrado: yaRegistrado, booking_notificado: notificado };
   }
 
   /** Habitaciones de un hotel con su estado. */
