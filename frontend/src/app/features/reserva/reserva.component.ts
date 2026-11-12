@@ -24,15 +24,15 @@ const VIGENCIA_MS = 15 * 60 * 1000;
 const ESPERA_PAGO_MS = 1500;
 type Paso = 'factura' | 'pago' | 'confirmacion';
 type MetodoPago = 'TARJETA' | 'EFECTIVO';
-type TipoFactura = 'CEDULA' | 'RUC' | 'PASAPORTE' | 'CONSUMIDOR_FINAL';
+type TipoFactura = 'CEDULA' | 'RUC' | 'PASAPORTE';
 
 const err = (m: string | null) => (m ? { mensaje: m } : null);
 const tipoDe = (c: AbstractControl): TipoFactura => (c.parent?.get('tipo')?.value ?? 'CEDULA') as TipoFactura;
 /** Validadores que dependen del tipo de documento elegido. */
-const vNumero: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : err(motivoDocumento(tipoDe(c), (c.value ?? '').trim())));
+const vNumero: ValidatorFn = (c) => err(motivoDocumento(tipoDe(c), (c.value ?? '').trim()));
 const vPersona = (campo: 'nombres' | 'apellidos'): ValidatorFn => (c) => (['CEDULA', 'PASAPORTE'].includes(tipoDe(c)) ? vNombre(campo)(c) : null);
 const vRazon: ValidatorFn = (c) => (tipoDe(c) === 'RUC' ? err(motivoRazon(c.value ?? '')) : null);
-const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : vEmail()(c));
+const vCorreo: ValidatorFn = vEmail();
 
 @Component({
   selector: 'app-reserva',
@@ -75,7 +75,6 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
                 </div>
               </fieldset>
 
-              @if (tipo() !== 'CONSUMIDOR_FINAL') {
                 <div class="grupo">
                   <label for="fac-numero">{{ etiquetaNumero() }}</label>
                   <input id="fac-numero" formControlName="numero" autocomplete="off" [attr.inputmode]="tipo() === 'PASAPORTE' ? 'text' : 'numeric'"
@@ -111,9 +110,6 @@ const vCorreo: ValidatorFn = (c) => (tipoDe(c) === 'CONSUMIDOR_FINAL' ? null : v
                          [attr.aria-invalid]="mal(factura.controls.correo)" aria-describedby="msg-fac-correo" />
                   <app-campo-mensaje [control]="factura.controls.correo" id="msg-fac-correo" />
                 </div>
-              } @else {
-                <p class="nota">La factura se emitirá a <strong>consumidor final</strong>; no necesitas ingresar más datos.</p>
-              }
               <button class="btn btn-primario" type="submit">Continuar al pago</button>
             </form>
           }
@@ -306,7 +302,6 @@ export class ReservaComponent implements OnInit {
     { id: 'CEDULA', titulo: 'Cédula', detalle: 'Persona con cédula ecuatoriana' },
     { id: 'RUC', titulo: 'RUC', detalle: 'Empresa o persona con RUC' },
     { id: 'PASAPORTE', titulo: 'Pasaporte', detalle: 'Visitantes extranjeros' },
-    { id: 'CONSUMIDOR_FINAL', titulo: 'Consumidor final', detalle: 'Sin datos adicionales' },
   ];
   readonly tarjetasPrueba = TARJETAS_PRUEBA;
   readonly nombreMarca = NOMBRE_MARCA;
@@ -409,7 +404,6 @@ export class ReservaComponent implements OnInit {
   }
   resumenFactura(): string {
     const v = this.factura.getRawValue();
-    if (v.tipo === 'CONSUMIDOR_FINAL') return 'consumidor final';
     const nombre = v.tipo === 'RUC' ? v.razon.trim() : `${normalizarNombre(v.nombres)} ${normalizarNombre(v.apellidos)}`;
     return `${nombre} (${this.tipos.find((t) => t.id === v.tipo)?.titulo} ${v.numero})`;
   }
@@ -540,7 +534,6 @@ export class ReservaComponent implements OnInit {
 
   private datosFactura(): DatosFactura {
     const v = this.factura.getRawValue();
-    if (v.tipo === 'CONSUMIDOR_FINAL') return { document_type: 'CONSUMIDOR_FINAL', email: this.usuario?.email };
     const base: DatosFactura = { document_type: v.tipo, document_number: v.numero.trim().toUpperCase(), email: normalizarEmail(v.correo) };
     return v.tipo === 'RUC'
       ? { ...base, business_name: v.razon.trim(), first_name: this.usuario?.nombres, last_name: this.usuario?.apellidos }

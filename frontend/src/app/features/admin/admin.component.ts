@@ -10,7 +10,7 @@ import { SalidaDialogoComponent } from './salida-dialogo.component';
 import { HabitacionesComponent } from './habitaciones.component';
 import { DashboardAdminComponent } from './dashboard.component';
 import { ObservabilidadComponent } from './observabilidad.component';
-import { AnfitrionService, DatosSalida, FilaIngresos, HabitacionLibre, ResenaHost, ReservaHost } from '../../core/services/anfitrion.service';
+import { AnfitrionService, DatosSalida, FilaIngresos, ResenaHost, ReservaHost, SugerenciaHabitacion } from '../../core/services/anfitrion.service';
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { avisoTemporal } from '../../shared/aviso';
 import { CalificacionComponent } from '../../shared/calificacion';
@@ -404,9 +404,20 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     }
     </div>
     <app-salida-dialogo [reserva]="salida()" [enviando]="saliendo() !== null" (confirmar)="confirmarSalida($event)" (cerrar)="cerrarSalida()" />
-    <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [habitaciones]="habitacionesLibres()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
+    <app-checkin-dialogo [reserva]="checkin()" [enviando]="enviandoCheckin()" [esHotel]="esHotel()" [sugerencias]="sugerencias()" [alojamientoCodigo]="alojamientoCheckin()" (confirmar)="confirmarCheckin($event)" (cerrar)="cerrarCheckin()" />
   `,
   styles: `.mt { margin-top: 1rem; }
+    /* Barra de herramientas: filtros a la izquierda, acción principal a la derecha, sin saltos raros */
+    .barra-acciones { gap: 1rem 1.5rem; }
+    .filtros-barra { flex: 1 1 auto; flex-wrap: nowrap; }
+    .filtros-barra .btn { flex: none; }
+    .filtros-barra .busqueda-campo { flex: 1 1 14rem; min-width: 10rem; }
+    @media (max-width: 760px) { .filtros-barra { flex-wrap: wrap; } .filtros-barra .busqueda-campo { flex-basis: 100%; max-width: none; } }
+    /* Acciones de cada fila: compactas, con la destructiva separada del resto */
+    .acciones-fila { display: flex; justify-content: flex-end; align-items: center; gap: .35rem; flex-wrap: wrap; }
+    .acciones-fila .btn { margin: 0; height: 2rem; padding: 0 .7rem; font-size: .85rem; border-radius: 999px; }
+    .acciones-fila .btn-peligro-borde { margin-left: .35rem; }
+    .meta { color: var(--gris-700); margin: 0 0 .6rem; }
     .vistas-recepcion { display: flex; gap: .4rem; flex-wrap: wrap; margin: .75rem 0; }
     .chip { border: 1px solid var(--gris-300, #ccc); background: transparent; color: var(--c-texto); border-radius: 999px; padding: .3rem .8rem; cursor: pointer; font: inherit; font-size: .9rem; }
     .chip-activo { background: var(--c-texto); color: var(--c-superficie); border-color: var(--c-texto); }
@@ -427,9 +438,10 @@ export class AdminComponent implements OnInit {
   /** Reserva cuyo diálogo de check-in está abierto (null = cerrado). */
   readonly checkin = signal<ReservaHost | null>(null);
   readonly enviandoCheckin = signal(false);
-  /** Datos del check-in en hoteles: habitaciones libres del tipo reservado */
-  readonly habitacionesLibres = signal<HabitacionLibre[]>([]);
+  /** Tipos libres esas fechas, por si llegaron más huéspedes de los reservados */
+  readonly sugerencias = signal<SugerenciaHabitacion[]>([]);
   readonly esHotel = signal(false);
+  readonly alojamientoCheckin = signal<number | null>(null);
   /** Reserva cuyo diálogo de check-out está abierto (null = cerrado) */
   readonly salida = signal<ReservaHost | null>(null);
   readonly saliendo = signal<string | null>(null);
@@ -636,11 +648,12 @@ export class AdminComponent implements OnInit {
   /** Abre el diálogo de check-in; en hoteles primero trae las habitaciones libres del tipo reservado. */
   registrarLlegada(s: ReservaHost): void {
     this.error.set(null);
-    this.catalogo.habitacionesLibres(s.id).subscribe({
+    this.catalogo.datosCheckin(s.id).subscribe({
       next: (r) => {
         this.esHotel.set(r.es_hotel);
-        this.habitacionesLibres.set(r.habitaciones);
-        this.checkin.set(s);
+        this.sugerencias.set(r.sugerencias);
+        this.alojamientoCheckin.set(r.alojamiento_codigo);
+        this.checkin.set(r.habitacion_asignada ? { ...s, habitacion_asignada: r.habitacion_asignada } : s);
       },
       error: (e) => this.error.set(leerError(e)),
     });
@@ -661,9 +674,7 @@ export class AdminComponent implements OnInit {
         this.checkin.set(null);
         this.ok.mostrar(
           `Llegada de la reserva ${s.codigo} registrada (habitación ${r.habitacion_asignada}). ` +
-            (r.huespedes_extra > 0
-              ? `Llegaron ${r.huespedes_extra} huésped(es) más de los reservados; cóbralos como consumo extra en el check-out. `
-              : '') +
+            (r.huespedes_extra > 0 ? `Llegaron ${r.huespedes_extra} huésped(es) más de los reservados. ` : '') +
             (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
         );
         this.ir('reservas');

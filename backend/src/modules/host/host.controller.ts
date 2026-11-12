@@ -9,7 +9,7 @@ import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, RangoFechasDto,
   ResponderResenaDto, UnidadDto,
 } from './dto/host.dto';
-import { FilaIngresos, HabitacionHost, HostService, ReservaHost, RespuestaLlegada, RespuestaSalida, ResumenAlojamiento, UnidadHost } from './host.service';
+import { DatosCheckinHost, FilaIngresos, HabitacionHost, HostService, ReservaHost, RespuestaLlegada, RespuestaSalida, ResumenAlojamiento, UnidadHost } from './host.service';
 
 const uuid = (n: string) =>
   new ParseUUIDPipe({ exceptionFactory: () => invalido(`${n} debe ser un UUID`, [{ name: n, reason: 'formato UUID requerido' }]) });
@@ -188,12 +188,15 @@ export class HostController {
   }
 
   @Get('orders/:id/available-rooms')
-  @ApiOperation({ summary: 'Habitaciones libres del tipo reservado (para elegir en el check-in de un hotel)' })
+  @ApiOperation({
+    summary: 'Datos del check-in: habitación ya asignada y tipos libres por si llegaron más huéspedes',
+    description: 'La habitación se fija al crear la reserva; en recepción no se elige. Las sugerencias sirven para reservar otra habitación.',
+  })
   async habitacionesLibres(
     @Param('id', uuid('id')) id: string,
     @UsuarioActual() u: UsuarioToken,
-  ): Promise<RespuestaApi<{ es_hotel: boolean; habitaciones: { id: string; numero: string }[] }>> {
-    return ok(await this.host.habitacionesParaCheckin(id, u));
+  ): Promise<RespuestaApi<DatosCheckinHost>> {
+    return ok(await this.host.datosParaCheckin(id, u));
   }
 
   @Post('orders/:id/departure')

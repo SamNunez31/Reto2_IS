@@ -34,6 +34,42 @@ export async function unidadConHabitaciones(q: Consulta, unidadId: string): Prom
   return (f[0]?.n ?? 0) > 0;
 }
 
+/**
+ * Reserva una habitación concreta para unas fechas: elige la primera del tipo que no esté ya asignada a otra
+ * estancia que se solape. No cambia el estado físico (la habitación sigue DISPONIBLE hasta que el huésped llega).
+ */
+export async function asignarHabitacionParaFechas(
+  q: Consulta,
+  reservaId: string,
+  unidadId: string,
+  entrada: string,
+  salida: string,
+): Promise<{ id: string; numero: string } | null> {
+  const libres = await q<{ id: string; numero: string }>(
+    `SELECT h.id::text AS id, h.numero FROM habitacion h
+      WHERE h.unidad_id = $1::uuid
+        AND NOT EXISTS (SELECT 1 FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
+                         WHERE o.habitacion_id = h.id AND r.estado <> 'CANCELADA'
+                           AND r.fecha_entrada < $3::date AND r.fecha_salida > $2::date)
+      ORDER BY h.numero::integer LIMIT 1`,
+    [unidadId, entrada, salida],
+  );
+  const h = libres[0];
+  if (!h) return null;
+  await q(`UPDATE orden_v2 SET habitacion_id = $2::uuid WHERE reserva_id = $1::uuid`, [reservaId, h.id]);
+  return h;
+}
+
+/** Marca como OCUPADA la habitación ya asignada a la reserva (al llegar el huésped). */
+export async function ocuparHabitacionAsignada(q: Consulta, reservaId: string): Promise<string | null> {
+  const f = await q<{ numero: string }>(
+    `UPDATE habitacion SET estado = 'OCUPADA', actualizada_en = now()
+      WHERE id = (SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid) RETURNING numero`,
+    [reservaId],
+  );
+  return f[0]?.numero ?? null;
+}
+
 /** Habitaciones libres de un tipo de habitación, en orden de número. */
 export function habitacionesDisponibles(q: Consulta, unidadId: string): Promise<HabitacionLibre[]> {
   return q<HabitacionLibre>(

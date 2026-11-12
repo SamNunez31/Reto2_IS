@@ -6,7 +6,7 @@ import { hoyEcuador, noches as contarNoches } from '../../common/http/respuestas
 import { InvalidParam, ProblemException, invalido } from '../../common/problem/problem';
 import { logJson } from '../../common/logging/log-json';
 import { DbService } from '../../database/db.service';
-import { asignarHabitacion, etiquetaHabitacion, pasarAPreparacion } from '../habitaciones/habitaciones';
+import { asignarHabitacion, asignarHabitacionParaFechas, esUnidadDeHotel, etiquetaHabitacion, ocuparHabitacionAsignada, pasarAPreparacion } from '../habitaciones/habitaciones';
 import { vincularTitular } from './clientes-v2';
 import {
   ComunV2,
@@ -392,6 +392,12 @@ export class AlojamientosV2Service {
           JSON.stringify(precio.nochesDetalle),
         ],
       );
+      // La habitación concreta queda fijada desde la reserva: el huésped y Booking ya saben cuál es,
+      // y en recepción no se elige nada (solo se marca OCUPADA cuando llega).
+      const hab = await asignarHabitacionParaFechas(q, id, unidad.id, c.fechaInicio as string, c.fechaFin as string);
+      if (hab) {
+        await q(`UPDATE orden_v2 SET habitacion_asignada = $2 WHERE reserva_id = $1::uuid`, [id, etiquetaHabitacion(unidad.nombre, hab.numero)]);
+      }
       return id;
     });
     await vincularTitular((sql, p) => this.db.query(sql, p), reservaId, t); // ficha del huésped (no duplica; nunca rompe la reserva)
@@ -772,11 +778,17 @@ export class AlojamientosV2Service {
       if (Date.now() < habilitado) {
         throw reglaV2('CHECKIN_TIME_NOT_REACHED', 'El check-in digital se habilita a partir de las 14:00 (hora de Guayaquil) del día de llegada.', undefined, { habilitadoDesde: iso5(habilitado) });
       }
-      // Unidad física real (hotel, casa, cabaña…): queda OCUPADA. Sin habitación libre se conserva la etiqueta anterior para no romper el check-in de Booking.
-      const asignada = await asignarHabitacion(q, r.id, r.unidad_id);
-      const habitacion = asignada.tipo === 'ASIGNADA'
-        ? etiquetaHabitacion(r.tipo_nombre, asignada.numero)
-        : asignada.tipo === 'NO_HOTEL' ? r.tipo_nombre.slice(0, 100) : `${r.tipo_nombre} ${randomInt(101, 600)}`.slice(0, 100);
+      // La habitación se fijó al crear la reserva: aquí solo pasa a OCUPADA.
+      // Reservas anteriores a esa mejora no tienen ninguna: se toma la primera libre y, si no queda, se conserva una etiqueta
+      // para no romper el check-in de Booking.
+      let numero = await ocuparHabitacionAsignada(q, r.id);
+      if (numero === null) {
+        const asignada = await asignarHabitacion(q, r.id, r.unidad_id);
+        numero = asignada.tipo === 'ASIGNADA' ? asignada.numero : null;
+      }
+      const habitacion = numero !== null
+        ? etiquetaHabitacion(r.tipo_nombre, numero)
+        : (await esUnidadDeHotel(q, r.unidad_id)) ? `${r.tipo_nombre} ${randomInt(101, 600)}`.slice(0, 100) : r.tipo_nombre.slice(0, 100);
       const clave = String(randomInt(100000, 1000000));
       const ahora = Date.now();
       await q(`UPDATE orden_v2 SET checkin_en = now(), habitacion_asignada = $2, clave_digital = $3 WHERE reserva_id = $1`, [r.id, habitacion, clave]);

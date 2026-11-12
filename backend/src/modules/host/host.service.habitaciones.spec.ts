@@ -19,6 +19,8 @@ interface Opciones {
   estadoHabitacion?: string;
   /** Capacidad total de la unidad reservada */
   aforo?: number;
+  /** La reserva no trae habitación fijada (reservas anteriores a la mejora) */
+  sinAsignar?: boolean;
   /** Huéspedes que figuran en la reserva */
   reservados?: number;
 }
@@ -27,15 +29,24 @@ interface Opciones {
 function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: string[] } {
   const sqls: string[] = [];
   const avisos: string[] = [];
-  const reserva = { id: ID, codigo: 'BK-079C37F1', estado: o.estado ?? 'CONFIRMADA', canal_booking: true, anfitrion_id: 'x', num_huespedes: o.reservados ?? 2 };
+  const reserva = {
+    id: ID, codigo: 'BK-079C37F1', estado: o.estado ?? 'CONFIRMADA', canal_booking: true, anfitrion_id: 'x',
+    num_huespedes: o.reservados ?? 2, habitacion_asignada: 'Habitación Individual 101',
+    fecha_entrada: '2026-11-11', fecha_salida: '2026-11-13',
+  };
   const libres = o.libres ?? [{ id: HAB, numero: '109' }];
   const guion = async (sql: string): Promise<unknown[]> => {
     sqls.push(sql);
     if (/t\.nombre = 'Hotel'/.test(sql)) return [{ es: o.hotel ?? true }];
     if (/count\(\*\)::int AS n FROM habitacion/.test(sql)) return [{ n: (o.conHabitaciones ?? true) ? 3 : 0 }];
+    // Ocupar la habitación ya fijada en la reserva (va antes que la asignación genérica)
+    if (/UPDATE habitacion SET estado = 'OCUPADA'[\s\S]*habitacion_id FROM orden_v2/.test(sql)) return o.sinAsignar ? [] : [{ numero: '109' }];
     if (/UPDATE habitacion SET estado = 'OCUPADA'/.test(sql)) return libres.slice(0, 1);
     if (/UPDATE habitacion SET estado = 'EN_PREPARACION'/.test(sql)) return [{ numero: '109' }];
     if (/FROM habitacion WHERE unidad_id = \$1::uuid AND estado = 'DISPONIBLE'/.test(sql)) return libres;
+    if (/FROM unidad_alojamiento u/.test(sql) && /fn_cupo_unidad/.test(sql)) {
+      return [{ codigo_tipo: 'HABITACION_DOBLE', nombre: 'Habitación doble', capacidad: 2, precio_noche: 100, libres: 1 }];
+    }
     return [];
   };
   const db = {
@@ -44,7 +55,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
       if (/SELECT x\.\* FROM/.test(sql)) return reserva;
       if (/FROM orden_v2 o JOIN unidad_alojamiento u/.test(sql)) return { checkin_en: o.checkinEn ?? null, recepcion: o.recepcion ?? false, habitacion: null, unidad: 'Suite Familiar', unidad_id: UNIDAD, aforo: o.aforo ?? 4 };
       if (/SELECT o\.checkin_en, o\.checkout_en/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null };
-      if (/SELECT unidad_id::text AS unidad_id FROM orden_v2/.test(sql)) return { unidad_id: UNIDAD };
+      if (/o\.unidad_id::text AS unidad_id/.test(sql)) return { unidad_id: UNIDAD, alojamiento_codigo: 1033 };
       if (/SELECT a\.id FROM alojamiento a/.test(sql)) return { id: 'aloj-1' };
       if (/SELECT estado::text AS estado FROM habitacion/.test(sql)) return { estado: o.estadoHabitacion ?? 'EN_PREPARACION' };
       return null;
@@ -64,16 +75,17 @@ describe('HostService.registrarLlegada: habitación real', () => {
     expect(sqls.some((s) => /UPDATE habitacion SET estado = 'OCUPADA'/.test(s))).toBe(true);
   });
 
-  it('con una habitación elegida pide esa y no la primera libre', async () => {
+  it('ocupa la habitación que ya traía la reserva, sin elegir ninguna', async () => {
     const { svc, sqls } = crear();
-    await svc.registrarLlegada(ID, { habitacion_id: HAB }, ADMIN);
-    expect(sqls.find((s) => /UPDATE habitacion SET estado = 'OCUPADA'/.test(s))).toMatch(/WHERE id = \$1::uuid AND unidad_id/);
+    await svc.registrarLlegada(ID, {}, ADMIN);
+    expect(sqls.find((s) => /UPDATE habitacion SET estado = 'OCUPADA'/.test(s))).toMatch(/habitacion_id FROM orden_v2/);
   });
 
-  it('sin habitaciones libres responde 409 y no registra la llegada', async () => {
-    const { svc, sqls } = crear({ libres: [] });
-    await expect(svc.registrarLlegada(ID, {}, ADMIN)).rejects.toMatchObject({ status: 409 });
-    expect(sqls.some((s) => /checkin_recepcion = true/.test(s))).toBe(false);
+  it('una reserva antigua sin habitación fijada toma la primera libre', async () => {
+    const { svc, sqls } = crear({ sinAsignar: true });
+    const r = await svc.registrarLlegada(ID, {}, ADMIN);
+    expect(r.habitacion_asignada).toBe('Suite Familiar 109');
+    expect(sqls.some((s) => /SKIP LOCKED/.test(s))).toBe(true);
   });
 
   it('una casa o cabaña también ocupa su unidad física, sin selector', async () => {
@@ -83,11 +95,9 @@ describe('HostService.registrarLlegada: habitación real', () => {
     expect(sqls.some((s) => /UPDATE habitacion SET estado = 'OCUPADA'/.test(s))).toBe(true);
   });
 
-  it('un tipo sin unidades registradas conserva el nombre del tipo y no toca habitaciones', async () => {
-    const { svc, sqls } = crear({ hotel: false, conHabitaciones: false });
-    const r = await svc.registrarLlegada(ID, {}, ADMIN);
-    expect(r.habitacion_asignada).toBe('Suite Familiar');
-    expect(sqls.some((s) => /UPDATE habitacion/.test(s))).toBe(false);
+  it('un tipo sin unidades registradas conserva el nombre del tipo', async () => {
+    const { svc } = crear({ hotel: false, conHabitaciones: false, sinAsignar: true });
+    expect((await svc.registrarLlegada(ID, {}, ADMIN)).habitacion_asignada).toBe('Suite Familiar');
   });
 
   it('rechaza (400) un habitacion_id que no es UUID', async () => {
@@ -117,10 +127,11 @@ describe('HostService.registrarLlegada: llegaron más huéspedes de los reservad
     expect(sqls.some((s) => /checkin_huespedes = \$5/.test(s))).toBe(true);
   });
 
-  it('por encima del aforo se rechaza (409) y no se registra la llegada', async () => {
+  it('por encima del aforo no se bloquea la llegada: se registra y se informa el excedente', async () => {
     const { svc, sqls } = crear({ reservados: 2, aforo: 4 });
-    await expect(svc.registrarLlegada(ID, { huespedes_reales: 5 }, ADMIN)).rejects.toMatchObject({ status: 409 });
-    expect(sqls.some((s) => /checkin_recepcion = true/.test(s))).toBe(false);
+    const r = await svc.registrarLlegada(ID, { huespedes_reales: 5 }, ADMIN);
+    expect(r.huespedes_extra).toBe(3);
+    expect(sqls.some((s) => /checkin_recepcion = true/.test(s))).toBe(true);
   });
 
   it('sin indicar cuántos llegaron se toman los reservados', async () => {
@@ -139,17 +150,19 @@ describe('HostService.sincronizarBooking', () => {
   });
 });
 
-describe('HostService.habitacionesParaCheckin', () => {
-  it('lista las libres del tipo reservado en un hotel', async () => {
-    const { svc } = crear({ libres: [{ id: HAB, numero: '109' }, { id: 'h2', numero: '110' }] });
-    const r = await svc.habitacionesParaCheckin(ID, ADMIN);
+describe('HostService.datosParaCheckin', () => {
+  it('devuelve la habitación ya fijada en la reserva, sin pedir que se elija ninguna', async () => {
+    const { svc } = crear();
+    const r = await svc.datosParaCheckin(ID, ADMIN);
+    expect(r.habitacion_asignada).toBe('Habitación Individual 101');
     expect(r.es_hotel).toBe(true);
-    expect(r.habitaciones.map((h) => h.numero)).toEqual(['109', '110']);
   });
 
-  it('fuera de hoteles no hay selector: es_hotel false y lista vacía', async () => {
-    const { svc } = crear({ hotel: false });
-    expect(await svc.habitacionesParaCheckin(ID, ADMIN)).toEqual({ es_hotel: false, habitaciones: [] });
+  it('sugiere los tipos que siguen libres esas fechas, para reservar a los huéspedes de más', async () => {
+    const { svc, sqls } = crear();
+    const r = await svc.datosParaCheckin(ID, ADMIN);
+    expect(r.sugerencias.map((s) => s.nombre)).toEqual(['Habitación doble']);
+    expect(sqls.some((s) => /fn_cupo_unidad\(u\.id/.test(s) && /u\.id <> \$4::uuid/.test(s))).toBe(true);
   });
 });
 

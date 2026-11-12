@@ -8,7 +8,7 @@ import { sqlPago } from '../alojamientos/services/ordenes.service';
 import { NotificadorCheckin } from '../integracion/notificador-checkin';
 import { NotificadorCheckout } from '../integracion/notificador-checkout';
 import {
-  asignarHabitacion, ESTADOS_EDITABLES, esUnidadDeHotel, EstadoHabitacion, etiquetaHabitacion, HabitacionLibre, habitacionesDisponibles, pasarAPreparacion,
+  asignarHabitacion, ESTADOS_EDITABLES, esUnidadDeHotel, EstadoHabitacion, etiquetaHabitacion, ocuparHabitacionAsignada, pasarAPreparacion,
 } from '../habitaciones/habitaciones';
 import {
   ActualizarAlojamientoDto, ActualizarUnidadDto, CalendarioDto, CrearAlojamientoDto, FiltroReservasHostDto, UnidadDto,
@@ -176,6 +176,23 @@ export interface FilaIngresos {
   impuestos: number;
   /** Lo cobrado al huésped */
   ingreso_bruto: number;
+}
+
+export interface SugerenciaHabitacion {
+  codigo_tipo: string;
+  nombre: string;
+  capacidad: number;
+  precio_noche: number;
+  libres: number;
+}
+
+export interface DatosCheckinHost {
+  es_hotel: boolean;
+  /** Habitación fijada al crear la reserva (p. ej. «Habitación Individual 101») */
+  habitacion_asignada: string | null;
+  alojamiento_codigo: number;
+  /** Otros tipos libres esas fechas, por si llegaron más huéspedes de los reservados */
+  sugerencias: SugerenciaHabitacion[];
 }
 
 export interface RespuestaSalida {
@@ -463,25 +480,23 @@ export class HostService {
     if (datos.habitacion_id !== undefined && (typeof datos.habitacion_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(datos.habitacion_id))) errores.push({ name: 'habitacion_id', reason: 'UUID' });
     if (errores.length) throw invalido('Datos de llegada no válidos', errores);
 
-    // Llegaron más personas de las reservadas: se admite hasta la capacidad de la unidad y se deja constancia;
-    // por encima del aforo no se puede alojar a nadie más (regla de seguridad del alojamiento).
+    // Llegaron más personas de las reservadas: no se bloquea la llegada (el huésped ya está en el mostrador);
+    // se deja constancia y el panel ofrece reservar otra habitación para los que no caben.
     const llegaron = datos.huespedes_reales ?? actual.num_huespedes;
-    if (llegaron > fila.aforo) {
-      throw conflicto(
-        `Llegaron ${llegaron} huéspedes y ${fila.unidad} admite ${fila.aforo}. No se puede alojar a más personas que la capacidad: añade otra habitación o cambia de tipo.`,
-      );
-    }
     const extra = Math.max(0, llegaron - actual.num_huespedes);
 
     const yaRegistrado = fila.recepcion;
     let habitacion = fila.habitacion;
     if (!yaRegistrado) {
       await this.db.transaccion(async (q) => {
-        // Se ocupa una unidad física real: en hoteles la que elige el admin; en casas, cabañas y departamentos, la primera libre.
-        const asignada = await asignarHabitacion(q, reservaId, fila.unidad_id, datos.habitacion_id);
-        if (asignada.tipo === 'SIN_DISPONIBLES') throw conflicto('No hay habitaciones disponibles de este tipo. Marca una como lista en la pestaña Habitaciones.');
-        if (asignada.tipo === 'NO_VALIDA') throw conflicto('La habitación elegida ya no está disponible: elige otra');
-        habitacion = asignada.tipo === 'ASIGNADA' ? etiquetaHabitacion(fila.unidad, asignada.numero) : (datos.habitacion ?? fila.habitacion ?? fila.unidad).slice(0, 100);
+        // La habitación se fijó al crear la reserva: aquí solo se marca OCUPADA.
+        // Si la reserva es anterior a esa mejora y no tiene ninguna, se toma la primera libre.
+        let numero = await ocuparHabitacionAsignada(q, reservaId);
+        if (numero === null) {
+          const asignada = await asignarHabitacion(q, reservaId, fila.unidad_id);
+          numero = asignada.tipo === 'ASIGNADA' ? asignada.numero : null;
+        }
+        habitacion = numero !== null ? etiquetaHabitacion(fila.unidad, numero) : (fila.habitacion ?? fila.unidad).slice(0, 100);
         await q(
           `UPDATE orden_v2 SET checkin_recepcion = true, checkin_en = COALESCE(checkin_en, now()), habitacion_asignada = $2,
                   checkin_admin = $3, checkin_observaciones = $4, checkin_huespedes = $5
@@ -501,12 +516,34 @@ export class HostService {
   }
 
   /** Habitaciones libres del tipo reservado, para elegir en el check-in. Solo los hoteles eligen: fuera de ellos es_hotel false y lista vacía (se asigna sola la primera libre). */
-  async habitacionesParaCheckin(reservaId: string, user: UsuarioToken): Promise<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }> {
-    await this.reserva(reservaId, user);
-    const fila = await this.db.uno<{ unidad_id: string }>(`SELECT unidad_id::text AS unidad_id FROM orden_v2 WHERE reserva_id = $1`, [reservaId]);
+  /**
+   * Datos para el check-in: la habitación ya asignada en la reserva y, por si llegaron más huéspedes
+   * de los reservados, los tipos que siguen libres esas mismas fechas para hacerles otra reserva.
+   */
+  async datosParaCheckin(reservaId: string, user: UsuarioToken): Promise<DatosCheckinHost> {
+    const r = await this.reserva(reservaId, user);
+    const fila = await this.db.uno<{ unidad_id: string; alojamiento_codigo: number }>(
+      `SELECT o.unidad_id::text AS unidad_id, a.codigo::int AS alojamiento_codigo
+         FROM orden_v2 o JOIN reserva rs ON rs.id = o.reserva_id JOIN alojamiento a ON a.id = rs.alojamiento_id
+        WHERE o.reserva_id = $1`,
+      [reservaId],
+    );
     if (!fila) throw conflicto('El check-in en recepción se registra solo para reservas del canal Booking');
-    if (!(await esUnidadDeHotel(this.consulta, fila.unidad_id))) return { es_hotel: false, habitaciones: [] };
-    return { es_hotel: true, habitaciones: await habitacionesDisponibles(this.consulta, fila.unidad_id) };
+    const sugerencias = await this.db.query<SugerenciaHabitacion>(
+      `SELECT u.codigo_tipo, u.nombre, u.capacidad_huespedes::int AS capacidad, u.precio_noche_base::float8 AS precio_noche,
+              fn_cupo_unidad(u.id, $2::date, $3::date)::int AS libres
+         FROM unidad_alojamiento u
+        WHERE u.alojamiento_id = (SELECT alojamiento_id FROM reserva WHERE id = $1) AND u.activa AND u.id <> $4::uuid
+          AND fn_cupo_unidad(u.id, $2::date, $3::date) > 0
+        ORDER BY u.precio_noche_base, u.nombre`,
+      [reservaId, r.fecha_entrada.slice(0, 10), r.fecha_salida.slice(0, 10), fila.unidad_id],
+    );
+    return {
+      es_hotel: await esUnidadDeHotel(this.consulta, fila.unidad_id),
+      habitacion_asignada: r.habitacion_asignada,
+      alojamiento_codigo: fila.alojamiento_codigo,
+      sugerencias,
+    };
   }
 
   /**

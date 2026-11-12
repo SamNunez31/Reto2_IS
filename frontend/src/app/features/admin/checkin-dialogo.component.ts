@@ -2,7 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Component, effect, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FiltroDirective } from '../../shared/entrada';
-import { HabitacionLibre, ReservaHost } from '../../core/services/anfitrion.service';
+import { ReservaHost, SugerenciaHabitacion } from '../../core/services/anfitrion.service';
 import { plural, rangoLargo } from '../../shared/textos';
 
 export interface DatosCheckin {
@@ -36,22 +36,10 @@ export interface DatosCheckin {
             }
             <div><dt>Alojamiento</dt><dd>{{ r.alojamiento }}</dd></div>
             <div><dt>Estadía</dt><dd>{{ rango(r) }}</dd></div>
+            @if (r.habitacion_asignada) { <div><dt>Habitación</dt><dd>{{ r.habitacion_asignada }}</dd></div> }
             <div><dt>Huéspedes reservados</dt><dd>{{ personas(r.num_huespedes) }}</dd></div>
             <div><dt>Total de la reserva</dt><dd>{{ r.total | currency: 'USD' }}</dd></div>
           </dl>
-
-          @if (esHotel()) {
-            <div class="ck-campo">
-              <label for="ck-hab">Habitación</label>
-              @if (habitaciones().length) {
-                <select id="ck-hab" name="hab" [(ngModel)]="habitacion">
-                  @for (h of habitaciones(); track h.id) { <option [value]="h.id">Habitación {{ h.numero }}</option> }
-                </select>
-              } @else {
-                <p class="ck-error" role="alert">No quedan habitaciones disponibles de este tipo. Marca una como disponible en la pestaña Habitaciones.</p>
-              }
-            </div>
-          }
 
           <div class="ck-campo">
             <label for="ck-reales">Huéspedes que llegaron</label>
@@ -59,10 +47,25 @@ export interface DatosCheckin {
                    [attr.aria-invalid]="errorReales() ? 'true' : null" [attr.aria-describedby]="errorReales() ? 'ck-error-reales' : null" />
             @if (errorReales(); as e) { <p id="ck-error-reales" class="ck-error" role="alert">{{ e }}</p> }
             @if (extra(r) > 0) {
-              <p class="ck-extra" role="status">
-                Llegaron {{ extra(r) }} huésped(es) más de los {{ r.num_huespedes }} reservados. Si el alojamiento cobra por persona adicional,
-                regístralo como consumo extra en el check-out.
-              </p>
+              <div class="ck-extra" role="status">
+                <p class="ck-extra-titulo">Llegaron {{ personas(extra(r)) }} más de los {{ r.num_huespedes }} reservados.</p>
+                @if (sugerencias().length) {
+                  <p>Estas habitaciones siguen libres para {{ rangoLargoTexto(r) }}:</p>
+                  <ul class="ck-sugerencias">
+                    @for (s of sugerencias(); track s.codigo_tipo) {
+                      <li>
+                        <strong>{{ s.nombre }}</strong> · hasta {{ personas(s.capacidad) }} ·
+                        {{ s.precio_noche | currency: 'USD' }}/noche · {{ s.libres }} libre{{ s.libres === 1 ? '' : 's' }}
+                      </li>
+                    }
+                  </ul>
+                  @if (enlaceReserva(r); as enlace) {
+                    <a class="btn btn-chico btn-primario" [href]="enlace" target="_blank" rel="noopener">Reservar otra habitación</a>
+                  }
+                } @else {
+                  <p>No quedan habitaciones libres para esas fechas en este alojamiento.</p>
+                }
+              </div>
             }
           </div>
 
@@ -83,7 +86,7 @@ export interface DatosCheckin {
 
           <div class="ck-acciones">
             <button type="button" class="btn" (click)="cerrar.emit()">Todavía no</button>
-            <button type="submit" class="btn btn-primario" [disabled]="!verificado || enviando() || (esHotel() && !habitaciones().length)">Confirmar check-in</button>
+            <button type="submit" class="btn btn-primario" [disabled]="!verificado || enviando()">Confirmar check-in</button>
           </div>
         </form>
       }
@@ -108,7 +111,11 @@ export interface DatosCheckin {
     .ck-campo select { width: 100%; }
     .ck-campo textarea { width: 100%; resize: vertical; font: inherit; }
     .ck-ayuda { margin: 0; font-size: .85rem; color: var(--gris-700); }
-    .ck-extra { margin: .35rem 0 0; padding: .5rem .7rem; background: #fff4d6; color: #7a5200; border-radius: var(--radio-s); font-size: .85rem; }
+    .ck-extra { margin: .5rem 0 0; padding: .7rem .9rem; background: #fff4d6; color: #7a5200; border-radius: var(--radio-s); font-size: .875rem; display: grid; gap: .4rem; }
+    .ck-extra p { margin: 0; }
+    .ck-extra-titulo { font-weight: 700; }
+    .ck-sugerencias { margin: 0; padding-left: 1.1rem; display: grid; gap: .2rem; }
+    .ck-extra .btn { justify-self: start; }
     .ck-error { margin: 0; font-size: .875rem; color: var(--c-error-texto, #b3261e); font-weight: 600; }
     .ck-verificado { display: flex; flex-direction: row; align-items: flex-start; gap: .6rem; font-size: 1rem; color: var(--c-texto); font-weight: 600; cursor: pointer; margin: .4rem 0 0; }
     .ck-verificado input { width: 1.25rem; height: 1.25rem; margin-top: .1rem; flex: none; }
@@ -121,8 +128,11 @@ export class CheckinDialogoComponent {
   readonly reserva = input<ReservaHost | null>(null);
   readonly enviando = input(false);
   /** null = aún cargando o no es hotel; en hoteles, las habitaciones libres del tipo reservado */
-  readonly habitaciones = input<HabitacionLibre[]>([]);
+  /** Tipos que siguen libres esas fechas, para los huéspedes que llegaron de más */
+  readonly sugerencias = input<SugerenciaHabitacion[]>([]);
   readonly esHotel = input(false);
+  /** Código del alojamiento, para abrir su anuncio y hacer la reserva adicional */
+  readonly alojamientoCodigo = input<number | null>(null);
   readonly confirmar = output<DatosCheckin>();
   readonly cerrar = output<void>();
 
@@ -130,7 +140,6 @@ export class CheckinDialogoComponent {
   protected reales: number | null = 1;
   protected observaciones = '';
   protected verificado = false;
-  protected habitacion = '';
   protected readonly errorReales = signal<string | null>(null);
   private foco: HTMLElement | null = null;
 
@@ -143,7 +152,6 @@ export class CheckinDialogoComponent {
         this.reales = r.num_huespedes;
         this.observaciones = '';
         this.verificado = false;
-        this.habitacion = '';
         this.errorReales.set(null);
         d.showModal();
       } else if (!r && d.open) {
@@ -160,6 +168,16 @@ export class CheckinDialogoComponent {
     ({ CEDULA: 'Cédula', PASAPORTE: 'Pasaporte', RUC: 'RUC' })[r.titular_tipo_documento ?? ''] ?? 'Documento';
   protected personas = (n: number): string => plural(n, 'huésped', 'huéspedes');
   /** Huéspedes por encima de los reservados (0 si coinciden o si el campo está vacío). */
+  /** Enlace al anuncio con las fechas de la estadía ya puestas, para hacer la reserva adicional. */
+  protected enlaceReserva(r: ReservaHost): string | null {
+    const c = this.alojamientoCodigo();
+    if (c === null) return null;
+    const p = new URLSearchParams({ checkin: r.fecha_entrada.slice(0, 10), checkout: r.fecha_salida.slice(0, 10), adultos: String(this.extra(r)) });
+    return `/alojamientos/${c}?${p.toString()}`;
+  }
+
+  protected rangoLargoTexto = (r: ReservaHost): string => rangoLargo(r.fecha_entrada, r.fecha_salida);
+
   protected extra = (r: ReservaHost): number => Math.max(0, Number(this.reales ?? 0) - r.num_huespedes);
 
   protected enviar(): void {
@@ -172,8 +190,7 @@ export class CheckinDialogoComponent {
     }
     this.errorReales.set(null);
     const obs = this.observaciones.trim();
-    const hab = this.habitacion || this.habitaciones()[0]?.id;
-    this.confirmar.emit({ huespedes_reales: n, ...(obs ? { observaciones: obs } : {}), ...(this.esHotel() && hab ? { habitacion_id: hab } : {}) });
+    this.confirmar.emit({ huespedes_reales: n, ...(obs ? { observaciones: obs } : {}) });
   }
 
   /** Clic en el fondo oscuro (fuera del cuadro) = cerrar. */

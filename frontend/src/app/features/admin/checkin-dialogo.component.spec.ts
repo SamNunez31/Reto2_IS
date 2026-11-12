@@ -112,11 +112,11 @@ describe('CheckinDialogoComponent', () => {
   });
 });
 
-describe('CheckinDialogoComponent · hoteles', () => {
+describe('CheckinDialogoComponent · habitación de la reserva', () => {
   let fixture: ComponentFixture<CheckinDialogoComponent>;
   let el: HTMLElement;
-  const abrir = async (): Promise<void> => {
-    fixture.componentRef.setInput('reserva', RESERVA);
+  const abrir = async (r: ReservaHost): Promise<void> => {
+    fixture.componentRef.setInput('reserva', r);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -128,17 +128,19 @@ describe('CheckinDialogoComponent · hoteles', () => {
     el = fixture.nativeElement as HTMLElement;
   });
 
-  it('fuera de hoteles no pide habitación', async () => {
-    await abrir();
+  it('muestra la habitación que ya traía la reserva y no pide elegir ninguna', async () => {
+    await abrir({ ...RESERVA, habitacion_asignada: 'Habitación Individual 101' });
+    expect(el.textContent).toContain('Habitación Individual 101');
     expect(el.querySelector('#ck-hab')).toBeNull();
   });
 
-  it('en un hotel muestra las habitaciones libres y envía la elegida', async () => {
-    fixture.componentRef.setInput('esHotel', true);
-    fixture.componentRef.setInput('habitaciones', [{ id: 'h1', numero: '109' }, { id: 'h2', numero: '110' }]);
-    await abrir();
-    const opciones = Array.from(el.querySelectorAll('#ck-hab option')).map((o) => o.textContent?.trim());
-    expect(opciones).toEqual(['Habitación 109', 'Habitación 110']);
+  it('sin habitación asignada no muestra esa fila', async () => {
+    await abrir(RESERVA);
+    expect(el.querySelector('dl')?.textContent).not.toContain('Habitación');
+  });
+
+  it('confirma sin enviar ninguna habitación', async () => {
+    await abrir(RESERVA);
     const enviados: DatosCheckin[] = [];
     fixture.componentInstance.confirmar.subscribe((d) => enviados.push(d));
     (el.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
@@ -146,19 +148,7 @@ describe('CheckinDialogoComponent · hoteles', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     (el.querySelector('button[type="submit"]') as HTMLButtonElement).click();
-    expect(enviados[0].habitacion_id).toBe('h1');
-  });
-
-  it('en un hotel sin habitaciones libres avisa y bloquea la confirmación', async () => {
-    fixture.componentRef.setInput('esHotel', true);
-    fixture.componentRef.setInput('habitaciones', []);
-    await abrir();
-    expect(el.textContent).toContain('No quedan habitaciones disponibles');
-    (el.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect((el.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(enviados[0]).toEqual({ huespedes_reales: 2 });
   });
 });
 
@@ -184,11 +174,24 @@ describe('CheckinDialogoComponent · llegaron más huéspedes', () => {
     expect(el.textContent).not.toContain('más de los');
   });
 
-  it('al subir el número avisa de los huéspedes adicionales', async () => {
+  it('al subir el número avisa y ofrece las habitaciones libres de esas fechas', async () => {
+    fixture.componentRef.setInput('sugerencias', [{ codigo_tipo: 'DOBLE', nombre: 'Habitación doble', capacidad: 2, precio_noche: 100, libres: 1 }]);
+    fixture.componentRef.setInput('alojamientoCodigo', 1033);
     const campo = el.querySelector('#ck-reales') as HTMLInputElement;
     campo.value = '3';
     campo.dispatchEvent(new Event('input'));
     await refrescar();
-    expect(el.textContent).toContain('Llegaron 1 huésped(es) más de los 2 reservados');
+    expect(el.textContent).toContain('Llegaron 1 huésped más de los 2 reservados');
+    expect(el.textContent).toContain('Habitación doble');
+    const enlace = el.querySelector('.ck-extra a') as HTMLAnchorElement;
+    expect(enlace.getAttribute('href')).toBe('/alojamientos/1033?checkin=2026-11-12&checkout=2026-11-14&adultos=1');
+  });
+
+  it('si no queda nada libre lo dice claramente', async () => {
+    const campo = el.querySelector('#ck-reales') as HTMLInputElement;
+    campo.value = '4';
+    campo.dispatchEvent(new Event('input'));
+    await refrescar();
+    expect(el.textContent).toContain('No quedan habitaciones libres');
   });
 });

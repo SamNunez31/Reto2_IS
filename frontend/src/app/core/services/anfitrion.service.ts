@@ -149,9 +149,21 @@ export interface HabitacionHost {
   reserva_codigo: string | null;
 }
 
-export interface HabitacionLibre {
-  id: string;
-  numero: string;
+export interface SugerenciaHabitacion {
+  codigo_tipo: string;
+  nombre: string;
+  capacidad: number;
+  precio_noche: number;
+  libres: number;
+}
+
+export interface DatosCheckinHost {
+  es_hotel: boolean;
+  /** Habitación fijada al crear la reserva («Habitación Individual 101») */
+  habitacion_asignada: string | null;
+  alojamiento_codigo: number;
+  /** Otros tipos libres esas fechas, para los huéspedes que llegaron de más */
+  sugerencias: SugerenciaHabitacion[];
 }
 
 export interface FilaIngresos {
@@ -219,13 +231,13 @@ export class AnfitrionService {
   }
   /** Marca como recibido el pago en efectivo de la reserva (idempotente). */
   /** Check-in en recepción: el huésped llegó. El backend avisa a Booking. */
-  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number; habitacion_id?: string } = {}): Observable<RespuestaLlegada> {
+  registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number } = {}): Observable<RespuestaLlegada> {
     return datos(this.http.post<RespuestaApi<RespuestaLlegada>>(`${this.base}/orders/${id}/arrival`, cuerpo));
   }
 
-  /** Habitaciones libres del tipo reservado (solo hoteles) para elegir en el check-in. */
-  habitacionesLibres(id: string): Observable<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }> {
-    return datos(this.http.get<RespuestaApi<{ es_hotel: boolean; habitaciones: HabitacionLibre[] }>>(`${this.base}/orders/${id}/available-rooms`));
+  /** Datos del check-in: habitación ya asignada y tipos libres por si llegaron más huéspedes. */
+  datosCheckin(id: string): Observable<DatosCheckinHost> {
+    return datos(this.http.get<RespuestaApi<DatosCheckinHost>>(`${this.base}/orders/${id}/available-rooms`));
   }
   /** Check-out en recepción: la habitación queda EN_PREPARACION y se avisa a Booking. */
   registrarSalida(id: string, cuerpo: DatosSalida = {}): Observable<RespuestaSalida> {
