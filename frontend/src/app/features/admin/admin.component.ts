@@ -174,11 +174,10 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
               </select>
             </label>
           </div>
-          <button class="btn nuevo-aloj" type="button" [disabled]="sincronizando()" (click)="sincronizarBooking()"
-                  title="Trae de Booking las reservas y cancelaciones nuevas">
-            <svg class="ico" [class.girando]="sincronizando()" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['sincronizar']" /></svg>
-            {{ sincronizando() ? 'Sincronizando…' : 'Sincronizar con Booking' }}
-          </button>
+          <p class="en-vivo" role="status" aria-live="off" title="Las reservas y cancelaciones de Booking llegan solas">
+            <span class="punto-vivo" aria-hidden="true"></span>
+            En vivo<span class="en-vivo-hora">@if (actualizadoA()) { · actualizado {{ actualizadoA() }} }</span>
+          </p>
         </div>
         <div class="vistas-recepcion" role="group" aria-label="Vista de recepción">
           @for (v of vistasRecepcion; track v.id) {
@@ -600,7 +599,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .cat-form-fila label { margin: 0; } .cat-form-fila .btn { height: 2.75rem; margin: 0; white-space: nowrap; }
     @media (max-width: 680px) { .cat-form-fila { grid-template-columns: 1fr; } }
     /* Reservas: filtros en línea y tabla legible */
-    .filtros-res { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
+    .filtros-res { display: flex; gap: .9rem; flex-wrap: wrap; align-items: flex-end; }
     .filtro-campo { display: grid; gap: .25rem; margin: 0; font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-700); }
     .filtro-campo select { width: auto; min-width: 11rem; height: 2.6rem; border-radius: 999px; padding: 0 2rem 0 1rem; font-size: .92rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--c-texto); }
     th.th-der, td.num-der { text-align: right; } .nowrap { white-space: nowrap; }
@@ -625,7 +624,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .btn .ico { margin-right: .35rem; vertical-align: -.2em; }
     .girando { animation: gira 1s linear infinite; }
     @keyframes gira { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .girando { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .girando { animation: none; } .punto-vivo::after { animation: none; } }
     /* Acciones de fila: un botón por icono, con el texto en el tooltip */
     .ico-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; border-radius: 50%;
                border: 1px solid var(--gris-300, #ddd); background: transparent; color: var(--gris-700); cursor: pointer; transition: .15s ease; }
@@ -640,8 +639,16 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .tabla tbody tr { transition: background .15s ease; }
     .tabla tbody tr:hover { background: var(--c-fondo, #faf9f7); }
     .vistas-recepcion { display: flex; gap: .4rem; flex-wrap: wrap; margin: .75rem 0; }
-    .chip { border: 1px solid var(--gris-300, #ccc); background: transparent; color: var(--c-texto); border-radius: 999px; padding: .3rem .8rem; cursor: pointer; font: inherit; font-size: .9rem; }
-    .chip-activo { background: var(--c-texto); color: var(--c-superficie); border-color: var(--c-texto); }
+    .chip { border: 1px solid var(--c-borde-suave); background: var(--c-superficie); color: var(--gris-700); border-radius: 999px; padding: .4rem 1rem; cursor: pointer; font: inherit; font-size: .9rem; font-weight: 600;
+      transition: background var(--transicion), border-color var(--transicion), color var(--transicion); }
+    .chip:hover { border-color: var(--c-primario); color: var(--c-primario); }
+    .chip:focus-visible { outline: 2px solid var(--c-primario); outline-offset: 2px; }
+    .chip-activo, .chip-activo:hover { background: var(--c-primario); color: #fff; border-color: var(--c-primario); }
+    .en-vivo { display: inline-flex; align-items: center; gap: .5rem; margin: 0; padding: .45rem .95rem; border-radius: 999px; background: var(--c-primario-suave); color: var(--c-primario); font-size: .85rem; font-weight: 700; }
+    .en-vivo-hora { font-weight: 500; font-variant-numeric: tabular-nums; }
+    .punto-vivo { position: relative; width: .55rem; height: .55rem; border-radius: 50%; background: #1f9d55; flex: none; }
+    .punto-vivo::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: #1f9d55; animation: pulso 1.8s ease-out infinite; }
+    @keyframes pulso { from { transform: scale(1); opacity: .6; } to { transform: scale(2.6); opacity: 0; } }
     .doc, .motivo, .sin-doc { display: block; color: var(--gris-700); font-size: .8rem; }
     .sin-doc { color: #8a5200; font-weight: 600; }
     .badge-cancelada { background: #fde8e6; color: #8a1c13; margin-left: .35rem; } .filtro-inline { max-width: 240px; } pre { white-space: pre-wrap; font-size: .8rem; max-width: 420px; }
@@ -714,6 +721,8 @@ export class AdminComponent implements OnInit {
   ];
   readonly vista = signal<VistaRecepcion>('todas');
   readonly sincronizando = signal(false);
+  /** Hora de la última lectura de reservas (indicador «En vivo»). */
+  readonly actualizadoA = signal('');
   readonly reservasVisibles = computed(() => this.reservas().filter((s) => this.enVista(s, this.vista())));
   readonly resenas = signal<ResenaHost[]>([]);
   readonly rango = rangoCorto;
@@ -742,13 +751,19 @@ export class AdminComponent implements OnInit {
     this.ir(tab && this.pestanas.some((p) => p.id === tab) ? tab : 'indicadores');
     // En vivo: las reservas (p. ej. las que llegan desde Booking) aparecen solas, sin botón de actualizar
     enVivo(this.destruir, () => this.refrescarReservas(), 10000);
+    // Y el reenvío de avisos pendientes / traída de novedades de Booking también es automático
+    enVivo(this.destruir, () => this.sincronizarBooking(), 30000);
+  }
+
+  private marcarHora(): void {
+    this.actualizadoA.set(new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   }
 
   /** Relee las reservas en segundo plano (sin spinner ni vaciar la lista); ignora errores transitorios. */
   private refrescarReservas(): void {
     if (this.pestana() !== 'reservas' || this.cargando()) return;
     this.catalogo.reservas(this.filtroReservas, 100, 0, this.filtroPago).subscribe({
-      next: (d) => { if (this.pestana() === 'reservas') this.reservas.set(d.items); },
+      next: (d) => { if (this.pestana() === 'reservas') { this.reservas.set(d.items); this.marcarHora(); } },
       error: () => undefined,
     });
   }
@@ -779,7 +794,7 @@ export class AdminComponent implements OnInit {
         this.listar(this.api.alojamientos(this.filtroAloj, this.busquedaAloj.trim(), 100, 0));
         break;
       case 'reservas':
-        this.cargar(this.catalogo.reservas(this.filtroReservas, 100, 0, this.filtroPago), (d) => this.reservas.set(d.items));
+        this.cargar(this.catalogo.reservas(this.filtroReservas, 100, 0, this.filtroPago), (d) => { this.reservas.set(d.items); this.marcarHora(); });
         break;
       case 'ingresos':
         this.cargar(this.catalogo.ingresos(), (d) => this.ingresos.set(d));
@@ -830,23 +845,16 @@ export class AdminComponent implements OnInit {
     return `${['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][Number(m)]} ${a}`;
   }
 
-  /** Reenvía ahora los avisos a Booking que quedaron pendientes. */
-  sincronizarBooking(): void {
-    if (this.sincronizando()) return;
-    this.ok.limpiar();
-    this.error.set(null);
+  /** Sincroniza con Booking en segundo plano (sin botón): reenvía avisos pendientes y, si hubo novedades, relee las reservas. */
+  private sincronizarBooking(): void {
+    if (this.pestana() !== 'reservas' || this.sincronizando()) return;
     this.sincronizando.set(true);
     this.catalogo.sincronizarBooking().subscribe({
       next: (r) => {
         this.sincronizando.set(false);
-        const n = r.checkin + r.checkout;
-        this.ok.mostrar(n === 0 ? 'No había avisos pendientes para Booking.' : `Se reenviaron ${n} aviso(s) a Booking.`);
-        this.ir('reservas');
+        if (r.checkin + r.checkout > 0) this.refrescarReservas();
       },
-      error: (e) => {
-        this.sincronizando.set(false);
-        this.error.set(leerError(e));
-      },
+      error: () => this.sincronizando.set(false),
     });
   }
 
