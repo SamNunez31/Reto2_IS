@@ -13,7 +13,7 @@ import {
   formatearCaducidad, formatearNumero, largoCvv, marcaDe, MENSAJE_RECHAZO, motivoCaducidad, motivoCvv, motivoNumero, motivoTitular,
   NOMBRE_MARCA, referenciaPago, resultadoSimulado, ResultadoPrueba, soloDigitos, TARJETAS_PRUEBA,
 } from '../../shared/tarjeta';
-import { plural, rangoLargo, textoPersonas, tituloPolitica } from '../../shared/textos';
+import { noches, plural, rangoLargo, textoPersonas, tituloPolitica } from '../../shared/textos';
 import { QrComponent } from '../../shared/qr';
 import { AlertaErrorComponent, CargandoComponent } from '../../shared/ui';
 import { bloquearNoDigitos, FiltroDirective } from '../../shared/entrada';
@@ -234,30 +234,40 @@ const vCorreo: ValidatorFn = vEmail();
           @if (paso() === 'confirmacion') {
             @if (orden(); as o) {
               <div class="confirmacion">
-                <p class="confirmacion-icono" aria-hidden="true">✅</p>
-                <h2>Reserva confirmada en {{ s.nombreAlojamiento }}</h2>
-                <ul class="confirmacion-datos">
-                  <li><span aria-hidden="true">📅</span> {{ fechas() }}</li>
-                  <li><span aria-hidden="true">👥</span> {{ personas() }}</li>
-                  @if (lineaPolitica()) { <li><span aria-hidden="true">↩️</span> {{ lineaPolitica() }}</li> }
+                <div class="boleto">
+                  <header class="boleto-cabecera">
+                    <span class="boleto-check" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+                    <p class="boleto-estado">{{ metodo() === 'EFECTIVO' ? 'Reserva confirmada · pago pendiente' : 'Reserva confirmada y pagada' }}</p>
+                    <h2>{{ s.nombreAlojamiento }}</h2>
+                    <p class="boleto-hab">{{ s.producto.name }}</p>
+                  </header>
+
+                  <dl class="boleto-datos">
+                    <div><dt>Llegada</dt><dd>{{ fechaCorta(s.checkin) }}</dd><small>desde las {{ horaCheckin() }}</small></div>
+                    <div><dt>Salida</dt><dd>{{ fechaCorta(s.checkout) }}</dd><small>{{ nochesTexto(s.checkin, s.checkout) }}</small></div>
+                    <div><dt>Huéspedes</dt><dd>{{ personas() }}</dd></div>
+                    <div><dt>{{ metodo() === 'EFECTIVO' ? 'A pagar al llegar' : 'Total pagado' }}</dt><dd class="boleto-total">{{ o.total_price | currency: 'USD' }}</dd><small>{{ metodo() === 'EFECTIVO' ? 'en efectivo' : 'con tarjeta' }}</small></div>
+                  </dl>
+
                   @if (metodo() === 'EFECTIVO') {
-                    <li><span aria-hidden="true">💵</span> Total a pagar en efectivo al llegar: <strong>{{ o.total_price | currency: 'USD' }}</strong></li>
-                  } @else {
-                    <li><span aria-hidden="true">💳</span> Total pagado con tarjeta: <strong>{{ o.total_price | currency: 'USD' }}</strong></li>
+                    <p class="alerta alerta-aviso boleto-aviso" role="status">Pagarás en efectivo al llegar. Presenta tu código de reserva.</p>
                   }
-                </ul>
-                @if (metodo() === 'EFECTIVO') {
-                  <p class="alerta alerta-aviso" role="status">Pago pendiente: pagarás en efectivo al llegar. Presenta tu código de reserva.</p>
-                }
-                <div class="codigo-reserva">
-                  <span class="etiqueta">Código de reserva</span>
-                  <strong class="localizador">{{ o.locator }}</strong>
-                  <button type="button" class="btn btn-chico" (click)="copiar(o.locator)">{{ copiado() ? 'Copiado ✓' : 'Copiar' }}</button>
-                  <span class="sr-only" aria-live="polite">{{ copiado() ? 'Código copiado' : '' }}</span>
-                </div>
-                <div class="qr-reserva">
-                  <app-qr [texto]="o.locator" />
-                  <small>Muestra este QR en recepción al llegar</small>
+                  @if (lineaPolitica()) { <p class="boleto-politica">{{ lineaPolitica() }}</p> }
+
+                  <div class="boleto-corte" aria-hidden="true"></div>
+
+                  <div class="boleto-talon">
+                    <div class="boleto-codigo">
+                      <span class="etiqueta">Código de reserva</span>
+                      <strong class="localizador">{{ o.locator }}</strong>
+                      <button type="button" class="btn btn-chico" (click)="copiar(o.locator)">{{ copiado() ? 'Copiado ✓' : 'Copiar código' }}</button>
+                      <span class="sr-only" aria-live="polite">{{ copiado() ? 'Código copiado' : '' }}</span>
+                    </div>
+                    <div class="qr-reserva">
+                      <app-qr [texto]="o.locator" />
+                      <small>Muestra este QR en recepción</small>
+                    </div>
+                  </div>
                 </div>
                 <div class="acciones">
                   <a class="btn btn-primario" routerLink="/mis-reservas">Ver mis reservas</a>
@@ -388,6 +398,13 @@ export class ReservaComponent implements OnInit {
     const s = this.sel();
     return s ? rangoLargo(s.checkin, s.checkout) : '';
   });
+  nochesTexto(a: string, b: string): string {
+    return plural(noches(a, b), 'noche');
+  }
+  fechaCorta(iso: string): string {
+    const t = new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
   readonly horaCheckin = computed(() => this.sel()?.horaCheckin || HORA_CHECKIN_DEFECTO);
   /** "Cancelación gratis hasta el 9 nov, 14:00 · …" con las fechas reales de esta estancia. */
   readonly lineaPolitica = computed(() => {

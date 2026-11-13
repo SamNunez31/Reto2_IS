@@ -608,6 +608,36 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .tarjetas-prueba summary { cursor: pointer; font-weight: 700; font-size: .9rem; }
 .tarjetas-prueba ul { margin: .4rem 0; padding-left: 1.1rem; font-size: .88rem; }
 .confirmacion { text-align: center; }
+/* Confirmación como boleto: cabecera, datos, corte perforado y talón con código y QR */
+.boleto { max-width: 36rem; margin: 0 auto 1.4rem; text-align: left; background: var(--c-superficie); border: 1px solid var(--c-borde); border-radius: 1.2rem; overflow: hidden;
+  box-shadow: 0 20px 40px -26px rgba(16, 60, 54, .55); }
+.boleto-cabecera { position: relative; padding: 1.6rem 1.5rem 1.4rem; text-align: center; color: #fff; overflow: hidden;
+  background: linear-gradient(135deg, var(--marca-900), var(--marca-700)); }
+.boleto-cabecera::after { content: ''; position: absolute; width: 14rem; height: 14rem; right: -5rem; top: -7rem; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c-acento) 60%, transparent), transparent 68%); opacity: .5; }
+.boleto-cabecera > * { position: relative; z-index: 1; }
+.boleto-check { display: inline-flex; align-items: center; justify-content: center; width: 3.4rem; height: 3.4rem; border-radius: 50%; background: rgba(255,255,255,.16);
+  box-shadow: 0 0 0 .45rem rgba(255,255,255,.08); margin-bottom: .6rem; }
+.boleto-estado { margin: 0; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+.boleto-cabecera h2 { margin: .25rem 0 0; color: #fff; font-size: 1.7rem; }
+.boleto-hab { margin: .2rem 0 0; opacity: .8; font-size: .95rem; }
+.boleto-datos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem 1.5rem; margin: 0; padding: 1.4rem 1.5rem .6rem; }
+.boleto-datos > div { display: flex; flex-direction: column; gap: .12rem; min-width: 0; }
+.boleto-datos dt { font-size: .72rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--c-suave); }
+.boleto-datos dd { margin: 0; font-weight: 700; font-size: 1.02rem; color: var(--c-texto); }
+.boleto-datos small { color: var(--c-suave); font-size: .82rem; }
+.boleto-total { font-size: 1.35rem !important; color: var(--c-primario); }
+.boleto-aviso { margin: .6rem 1.5rem 0; }
+.boleto-politica { margin: .4rem 1.5rem 1.3rem; padding: .7rem .9rem; font-size: .86rem; line-height: 1.45; color: var(--gris-700); background: var(--c-fondo); border-radius: .7rem; }
+.boleto-corte { position: relative; border-top: 2px dashed var(--c-borde); margin: 0 1.2rem; }
+.boleto-corte::before, .boleto-corte::after { content: ''; position: absolute; top: -1.05rem; width: 2rem; height: 2rem; border-radius: 50%; background: var(--c-superficie);
+  border: 1px solid var(--c-borde); }
+.boleto-corte::before { left: -2.2rem; } .boleto-corte::after { right: -2.2rem; }
+.boleto-talon { display: flex; align-items: center; justify-content: center; gap: 1.6rem; flex-wrap: wrap; padding: 1.5rem; }
+.boleto-codigo { display: flex; flex-direction: column; align-items: center; gap: .4rem; }
+.boleto-codigo .etiqueta { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--c-suave); }
+.boleto-codigo .localizador { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.5rem; letter-spacing: .12em; color: var(--c-primario-osc); }
+.boleto .qr-reserva { margin: 0; }
 .confirmacion-icono { font-size: 2.6rem; margin: 0; }
 .confirmacion h2 { font-family: var(--fuente-titulos); font-weight: 400; font-size: 1.6rem; }
 .confirmacion-datos { list-style: none; padding: 0; margin: .8rem 0 1.2rem; display: grid; gap: .35rem; color: var(--gris-700); }
