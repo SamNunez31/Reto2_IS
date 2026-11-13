@@ -35,7 +35,14 @@ export function usarSsl(url: string | undefined): boolean {
         migrationsRun: false,
         autoLoadEntities: false,
         entities: [],
-        extra: { options: '-c search_path=booking,public,extensions', max: 10 },
+        // El pooler de Supabase (modo sesion) solo admite 15 clientes en total y hay 4 apps
+        // compartiendo la BD: el tope por app debe ser pequeno (4 x 3 = 12 < 15). Ajustable por env.
+        extra: {
+          options: '-c search_path=booking,public,extensions',
+          max: Number(process.env.DB_POOL_MAX) > 0 ? Number(process.env.DB_POOL_MAX) : 3,
+          idleTimeoutMillis: 5000,
+          connectionTimeoutMillis: 8000,
+        },
       }),
     }),
   ],
