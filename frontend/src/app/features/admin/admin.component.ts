@@ -181,7 +181,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
         </div>
         <div class="vistas-recepcion" role="group" aria-label="Vista de recepción">
           @for (v of vistasRecepcion; track v.id) {
-            <button type="button" class="chip" [class.chip-activo]="vista() === v.id" [attr.aria-pressed]="vista() === v.id" (click)="vista.set(v.id)">
+            <button type="button" class="chip" [class.chip-activo]="vista() === v.id" [attr.aria-pressed]="vista() === v.id" (click)="cambiarVista(v.id)">
               {{ v.nombre }} ({{ cuentaVista(v.id) }})
             </button>
           }
@@ -191,7 +191,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <caption class="sr-only">Reservas</caption>
             <thead><tr><th scope="col">Reserva</th><th scope="col">Alojamiento</th><th scope="col">Huésped</th><th scope="col">Fechas</th><th scope="col" class="th-der">Total</th><th scope="col">Estado</th><th scope="col">Pago</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
-              @for (s of reservasVisibles(); track s.id) {
+              @for (s of reservasPagina(); track s.id) {
                 <tr class="fila-reserva">
                   <td>
                     <span class="cod-reserva">{{ s.codigo }}</span>
@@ -246,6 +246,13 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             </tbody>
           </table>
         </div>
+        @if (totalPaginasRes() > 1) {
+          <nav class="paginacion pag-reservas d-flex justify-content-center align-items-center gap-3" aria-label="Paginación de reservas">
+            <button class="btn" type="button" (click)="paginaReservas(-1)" [disabled]="paginaRes() === 0">Anterior</button>
+            <span>Página {{ paginaRes() + 1 }} de {{ totalPaginasRes() }} · {{ reservasVisibles().length }} reservas</span>
+            <button class="btn" type="button" (click)="paginaReservas(1)" [disabled]="paginaRes() >= totalPaginasRes() - 1">Siguiente</button>
+          </nav>
+        }
       }
 
       @case ('resenas') {
@@ -642,6 +649,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .chip { border: 1px solid var(--c-borde-suave); background: var(--c-superficie); color: var(--gris-700); border-radius: 999px; padding: .4rem 1rem; cursor: pointer; font: inherit; font-size: .9rem; font-weight: 600;
       transition: background var(--transicion), border-color var(--transicion), color var(--transicion); }
     .chip:hover { border-color: var(--c-primario); color: var(--c-primario); }
+    .pag-reservas { margin-top: 1.25rem; }
     .chip:focus-visible { outline: 2px solid var(--c-primario); outline-offset: 2px; }
     .chip-activo, .chip-activo:hover { background: var(--c-primario); color: #fff; border-color: var(--c-primario); }
     .en-vivo { display: inline-flex; align-items: center; gap: .5rem; margin: 0; padding: .45rem .95rem; border-radius: 999px; background: var(--c-primario-suave); color: var(--c-primario); font-size: .85rem; font-weight: 700; }
@@ -724,6 +732,16 @@ export class AdminComponent implements OnInit {
   /** Hora de la última lectura de reservas (indicador «En vivo»). */
   readonly actualizadoA = signal('');
   readonly reservasVisibles = computed(() => this.reservas().filter((s) => this.enVista(s, this.vista())));
+  /** Paginación de la lista de reservas (se hace en pantalla: las más recientes primero). */
+  private readonly porPaginaRes = 10;
+  private readonly paginaSolicitada = signal(0);
+  readonly totalPaginasRes = computed(() => Math.max(1, Math.ceil(this.reservasVisibles().length / this.porPaginaRes)));
+  /** Página mostrada: si la lista se acorta (p. ej. una cancelación), nunca queda fuera de rango. */
+  readonly paginaRes = computed(() => Math.min(this.paginaSolicitada(), this.totalPaginasRes() - 1));
+  readonly reservasPagina = computed(() => {
+    const desde = this.paginaRes() * this.porPaginaRes;
+    return this.reservasVisibles().slice(desde, desde + this.porPaginaRes);
+  });
   readonly resenas = signal<ResenaHost[]>([]);
   readonly rango = rangoCorto;
   filtroAloj = '';
@@ -753,6 +771,15 @@ export class AdminComponent implements OnInit {
     enVivo(this.destruir, () => this.refrescarReservas(), 10000);
     // Y el reenvío de avisos pendientes / traída de novedades de Booking también es automático
     enVivo(this.destruir, () => this.sincronizarBooking(), 30000);
+  }
+
+  paginaReservas(d: number): void {
+    this.paginaSolicitada.set(Math.max(0, Math.min(this.paginaRes() + d, this.totalPaginasRes() - 1)));
+  }
+
+  cambiarVista(v: VistaRecepcion): void {
+    this.vista.set(v);
+    this.paginaSolicitada.set(0);
   }
 
   private marcarHora(): void {
@@ -788,6 +815,7 @@ export class AdminComponent implements OnInit {
 
   ir(p: Pestana): void {
     this.pestana.set(p);
+    if (p === 'reservas') this.paginaSolicitada.set(0);
     this.error.set(null);
     switch (p) {
       case 'alojamientos':
