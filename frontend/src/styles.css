@@ -159,7 +159,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .btn-ojo { position: absolute; right: .3rem; top: 50%; transform: translateY(-50%); background: none; border: 0; cursor: pointer;
   font-size: 1.1rem; line-height: 1; padding: .35rem .45rem; border-radius: var(--radio-s); color: var(--c-suave); }
 .btn-ojo:hover { background: var(--gris-100); }
-.requisitos-clave { list-style: none; padding: 0; margin: .15rem 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .1rem .8rem; font-size: .82rem; color: var(--c-suave); }
+
 .requisitos-clave li { display: flex; gap: .35rem; }
 .requisitos-clave li.falta { color: var(--c-error-texto); }
 .requisitos-clave li.cumple { color: var(--c-ok-texto); }
@@ -1041,3 +1041,40 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .perfil-pie { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0 0 !important; padding: 1rem 1.6rem;
   background: var(--c-fondo); border-top: 1px solid var(--c-borde-suave); color: var(--c-suave); font-size: .92rem; }
 .perfil form { margin-bottom: 0; }
+
+/* Medidor de clave */
+.medidor-clave { margin-top: .5rem; }
+.medidor-barras { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; }
+.medidor-barras span { height: .3rem; border-radius: 999px; background: var(--c-borde); transition: background .2s; }
+.medidor-barras span.on[data-nivel='bajo'] { background: var(--c-peligro); }
+.medidor-barras span.on[data-nivel='medio'] { background: #d9962b; }
+.medidor-barras span.on[data-nivel='ok'] { background: #1d9e75; }
+.medidor-texto { margin: .35rem 0 0; font-size: .82rem; color: var(--c-suave); }
+.medidor-texto[data-nivel='bajo'] strong { color: var(--c-error-texto); }
+.medidor-texto[data-nivel='medio'] strong { color: var(--c-aviso-texto); }
+.medidor-texto[data-nivel='ok'] strong { color: var(--c-ok-texto); }
+
+/* Registro: panel de beneficios + formulario */
+.registro-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); max-width: 56rem; margin: 1rem auto; padding: 0; overflow: hidden; }
+.registro-panel { position: relative; padding: 2rem 1.6rem; color: #fff; overflow: hidden; display: flex; flex-direction: column; gap: 1.4rem;
+  background: linear-gradient(160deg, var(--marca-900), var(--marca-700)); }
+.registro-panel::after { content: ''; position: absolute; width: 16rem; height: 16rem; left: -6rem; bottom: -8rem; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c-acento) 60%, transparent), transparent 68%); opacity: .45; pointer-events: none; }
+.registro-panel > * { position: relative; z-index: 1; }
+.registro-marca { margin: 0; font-family: var(--fuente-titulos); font-size: 1.5rem; }
+.registro-marca span { color: #f0a070; }
+.registro-lema { margin: -.8rem 0 0; color: #cfe3e0; font-size: .95rem; line-height: 1.45; }
+.registro-beneficios { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: 1.1rem; }
+.registro-beneficios li { display: flex; gap: .8rem; align-items: flex-start; }
+.rb-icono { flex: none; width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.16); }
+.registro-beneficios strong { display: block; font-size: .98rem; }
+.registro-beneficios span:not(.rb-icono) { display: block; margin-top: .1rem; font-size: .85rem; line-height: 1.4; color: #cfe3e0; }
+.registro-form { padding: 1.8rem 1.8rem 1.4rem; }
+.registro-form h1 { margin-top: 0; }
+@media (max-width: 760px) {
+  .registro-split { grid-template-columns: 1fr; max-width: 520px; }
+  .registro-panel { padding: 1.1rem 1.4rem; gap: .5rem; }
+  .registro-lema { margin: 0; }
+  .registro-beneficios { display: none; }
+  .registro-form { padding: 1.4rem; }
+}

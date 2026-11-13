@@ -19,9 +19,28 @@ export const mensajeCorreoDuplicado = (detalle?: string): string => (detalle?.tr
   selector: 'app-registro',
   imports: [ReactiveFormsModule, RouterLink, AlertaErrorComponent, CampoMensajeComponent, RequisitosClaveComponent, OjoClaveComponent, FiltroDirective],
   template: `
-    <section class="tarjeta auth">
+    <section class="tarjeta registro-split">
+      <aside class="registro-panel" aria-label="Qué puedes hacer con tu cuenta">
+        <p class="registro-marca">Posada<span>EC</span></p>
+        <p class="registro-lema">Tu próxima estadía en Ecuador, a un clic.</p>
+        <ul class="registro-beneficios">
+          <li>
+            <span class="rb-icono" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span>
+            <div><strong>Reserva en minutos</strong><span>Elige fechas y habitación con precio garantizado.</span></div>
+          </li>
+          <li>
+            <span class="rb-icono" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6 15h4"/></svg></span>
+            <div><strong>Paga como prefieras</strong><span>Con tarjeta ahora o en efectivo al llegar.</span></div>
+          </li>
+          <li>
+            <span class="rb-icono" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 3"/></svg></span>
+            <div><strong>Tus reservas, en un lugar</strong><span>Código y QR a la mano, con cancelación clara.</span></div>
+          </li>
+        </ul>
+      </aside>
+      <div class="registro-form">
       <h1>Crear cuenta</h1>
-      <p class="ayuda">Con tu cuenta puedes buscar, reservar, pagar, ver tus reservas y dejar reseñas.</p>
+      <p class="ayuda">Solo te toma un minuto. Con tu cuenta también puedes dejar reseñas.</p>
       <app-alerta-error [error]="errorGeneral()" />
       <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
         <div class="fila">
@@ -68,6 +87,7 @@ export const mensajeCorreoDuplicado = (detalle?: string): string => (detalle?.tr
         <button class="btn btn-primario" type="submit" [disabled]="enviando()">{{ enviando() ? 'Registrando…' : 'Registrarme' }}</button>
       </form>
       <p class="pie">¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a></p>
+      </div>
     </section>
   `,
 })

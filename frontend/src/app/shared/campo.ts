@@ -1,4 +1,4 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { AbstractControl } from '@angular/forms';
 import { mensajeDe, REQUISITOS_CLAVE } from './validadores';
 
@@ -31,18 +31,21 @@ export class CampoMensajeComponent {
   }
 }
 
-/** Lista en vivo de requisitos de la clave (✓/✗). */
+/** Medidor en vivo de la clave: 4 barras (una por requisito cumplido) y qué falta. */
 @Component({
   selector: 'app-requisitos-clave',
   template: `
-    <ul class="requisitos-clave" [id]="id()" aria-live="polite">
-      @for (r of requisitos; track r.texto) {
-        <li [class.cumple]="r.cumple(valor())" [class.falta]="tocado() && !r.cumple(valor())">
-          <span aria-hidden="true">{{ r.cumple(valor()) ? '✓' : tocado() ? '✗' : '○' }}</span>
-          {{ r.texto }}<span class="sr-only">: {{ r.cumple(valor()) ? 'cumple' : 'falta' }}</span>
-        </li>
-      }
-    </ul>
+    <div class="medidor-clave" [id]="id()" aria-live="polite">
+      <div class="medidor-barras" aria-hidden="true">
+        @for (r of requisitos; track r.texto; let i = $index) {
+          <span [class.on]="i < cumplidos()" [attr.data-nivel]="nivel()"></span>
+        }
+      </div>
+      <p class="medidor-texto" [attr.data-nivel]="nivel()">
+        <strong>{{ etiqueta() }}</strong>
+        @if (faltan().length && (tocado() || valor())) { · Falta: {{ faltan().join(', ') }} }
+      </p>
+    </div>
   `,
 })
 export class RequisitosClaveComponent {
@@ -51,6 +54,10 @@ export class RequisitosClaveComponent {
   readonly tocado = input(false);
   readonly id = input.required<string>();
   readonly requisitos = REQUISITOS_CLAVE;
+  readonly cumplidos = computed(() => this.requisitos.filter((r) => r.cumple(this.valor())).length);
+  readonly nivel = computed(() => (this.cumplidos() === 4 ? 'ok' : this.cumplidos() === 3 ? 'medio' : this.valor() ? 'bajo' : 'vacio'));
+  readonly etiqueta = computed(() => ({ ok: 'Clave válida', medio: 'Casi lista', bajo: 'Clave débil', vacio: 'Escribe tu clave' })[this.nivel()]);
+  readonly faltan = computed(() => this.requisitos.filter((r) => !r.cumple(this.valor())).map((r) => r.texto.toLowerCase()));
 }
 
 /** Input de clave con botón de ojo para mostrar/ocultar. Se usa con un <input> proyectado. */
