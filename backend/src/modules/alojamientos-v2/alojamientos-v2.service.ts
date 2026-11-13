@@ -32,7 +32,7 @@ import {
 } from './util-v2';
 
 const INICIO = Date.now();
-const TASA_MUNICIPAL_CENTAVOS = 200; // USD 2.00 por noche y por habitación (contrato v2, §fórmula de precio)
+const TASA_MUNICIPAL_CENTAVOS = 0; // Sin tasa municipal: el precio es subtotal + IVA (antes USD 2.00 por noche y por habitación)
 const PLAN_POR_DEFECTO = 'STANDARD';
 
 /** to_char con offset fijo de Guayaquil: 2026-11-01T14:00:00-05:00 */
@@ -1462,7 +1462,8 @@ export class AlojamientosV2Service {
     const ivaPct = Number(f.iva_pct);
     const impuestos = [
       { codigo: 'IVA', nombre: `IVA ${ivaPct} %`, porcentaje: ivaPct, monto: aMoney(aCentavos(String(f.iva_valor))), incluidoEnPrecio: false },
-      { codigo: 'TASA_MUNICIPAL', nombre: 'Tasa municipal', monto: aMoney(aCentavos(String(f.tasa))), incluidoEnPrecio: false },
+      // Las órdenes antiguas conservan su tasa municipal; las nuevas ya no la llevan.
+      ...(aCentavos(String(f.tasa)) > 0 ? [{ codigo: 'TASA_MUNICIPAL', nombre: 'Tasa municipal', monto: aMoney(aCentavos(String(f.tasa))), incluidoEnPrecio: false }] : []),
     ];
     const historial = [{ estado: 'CONFIRMED', en: f.creada }];
     if (f.checkin_en) historial.push({ estado: 'CHECKED_IN', en: f.checkin_en });
@@ -1559,7 +1560,7 @@ function desglose(p: Precio): Record<string, unknown> {
     totalPagar: aMoney(p.totalC),
     impuestos: [
       { codigo: 'IVA', nombre: `IVA ${p.ivaPct} %`, porcentaje: p.ivaPct, monto: aMoney(p.ivaC), incluidoEnPrecio: false },
-      { codigo: 'TASA_MUNICIPAL', nombre: 'Tasa municipal', monto: aMoney(p.tasaC), incluidoEnPrecio: false },
+      ...(p.tasaC > 0 ? [{ codigo: 'TASA_MUNICIPAL', nombre: 'Tasa municipal', monto: aMoney(p.tasaC), incluidoEnPrecio: false }] : []),
     ],
     nochesDetalle: p.nochesDetalle,
   };
