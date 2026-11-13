@@ -48,11 +48,12 @@ export async function asignarHabitacionParaFechas(
   const libres = await q<{ id: string; numero: string }>(
     `SELECT h.id::text AS id, h.numero FROM habitacion h
       WHERE h.unidad_id = $1::uuid
-        AND NOT EXISTS (SELECT 1 FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
-                         WHERE o.habitacion_id = h.id AND r.estado <> 'CANCELADA'
+        AND NOT EXISTS (SELECT 1 FROM reserva r LEFT JOIN orden_v2 o ON o.reserva_id = r.id
+                         WHERE COALESCE(o.habitacion_id, r.habitacion_id) = h.id AND r.estado <> 'CANCELADA'
                            AND r.fecha_entrada < $3::date AND r.fecha_salida > $2::date
                            -- Si ese huésped ya se fue antes de esta llegada, la habitación vuelve a estar libre
-                           AND (o.checkout_en IS NULL OR (o.checkout_en AT TIME ZONE 'America/Guayaquil')::date > $2::date))
+                           AND (COALESCE(o.checkout_en, r.checkout_en) IS NULL
+                                OR (COALESCE(o.checkout_en, r.checkout_en) AT TIME ZONE 'America/Guayaquil')::date > $2::date))
       ORDER BY h.numero::integer LIMIT 1`,
     [unidadId, entrada, salida],
   );
@@ -62,11 +63,17 @@ export async function asignarHabitacionParaFechas(
   return h;
 }
 
+/** Guarda la habitación en la orden de Booking o, si la reserva es directa (sin orden), en la propia reserva. */
+async function vincularHabitacion(q: Consulta, reservaId: string, habitacionId: string): Promise<void> {
+  await q(`UPDATE orden_v2 SET habitacion_id = $2::uuid WHERE reserva_id = $1::uuid`, [reservaId, habitacionId]);
+  await q(`UPDATE reserva SET habitacion_id = $2::uuid WHERE id = $1::uuid AND NOT EXISTS (SELECT 1 FROM orden_v2 WHERE reserva_id = $1::uuid)`, [reservaId, habitacionId]);
+}
+
 /** Marca como OCUPADA la habitación ya asignada a la reserva (al llegar el huésped). */
 export async function ocuparHabitacionAsignada(q: Consulta, reservaId: string): Promise<string | null> {
   const f = await q<{ numero: string }>(
     `UPDATE habitacion SET estado = 'OCUPADA', actualizada_en = now()
-      WHERE id = (SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid) RETURNING numero`,
+      WHERE id = COALESCE((SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid), (SELECT habitacion_id FROM reserva WHERE id = $1::uuid)) RETURNING numero`,
     [reservaId],
   );
   return f[0]?.numero ?? null;
@@ -100,7 +107,7 @@ export async function asignarHabitacion(q: Consulta, reservaId: string, unidadId
         [unidadId],
       );
   if (!tomada.length) return { tipo: habitacionId ? 'NO_VALIDA' : 'SIN_DISPONIBLES' };
-  await q(`UPDATE orden_v2 SET habitacion_id = $2::uuid WHERE reserva_id = $1::uuid`, [reservaId, tomada[0].id]);
+  await vincularHabitacion(q, reservaId, tomada[0].id);
   return { tipo: 'ASIGNADA', id: tomada[0].id, numero: tomada[0].numero };
 }
 
@@ -108,7 +115,7 @@ export async function asignarHabitacion(q: Consulta, reservaId: string, unidadId
 export async function pasarAPreparacion(q: Consulta, reservaId: string): Promise<string | null> {
   const f = await q<{ numero: string }>(
     `UPDATE habitacion SET estado = 'EN_PREPARACION', actualizada_en = now()
-      WHERE id = (SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid) RETURNING numero`,
+      WHERE id = COALESCE((SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid), (SELECT habitacion_id FROM reserva WHERE id = $1::uuid)) RETURNING numero`,
     [reservaId],
   );
   return f[0]?.numero ?? null;
@@ -150,10 +157,11 @@ export async function habitacionesLibresParaFechas(
   return q<HabitacionLibre>(
     `SELECT h.id::text AS id, h.numero FROM habitacion h
       WHERE h.unidad_id = $1::uuid AND h.estado = 'DISPONIBLE' AND ($4::uuid IS NULL OR h.id <> $4::uuid)
-        AND NOT EXISTS (SELECT 1 FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
-                         WHERE o.habitacion_id = h.id AND r.estado <> 'CANCELADA'
+        AND NOT EXISTS (SELECT 1 FROM reserva r LEFT JOIN orden_v2 o ON o.reserva_id = r.id
+                         WHERE COALESCE(o.habitacion_id, r.habitacion_id) = h.id AND r.estado <> 'CANCELADA'
                            AND r.fecha_entrada < $3::date AND r.fecha_salida > $2::date
-                           AND (o.checkout_en IS NULL OR (o.checkout_en AT TIME ZONE 'America/Guayaquil')::date > $2::date))
+                           AND (COALESCE(o.checkout_en, r.checkout_en) IS NULL
+                                OR (COALESCE(o.checkout_en, r.checkout_en) AT TIME ZONE 'America/Guayaquil')::date > $2::date))
       ORDER BY h.numero::integer`,
     [unidadId, entrada, salida, excluirId ?? null],
   );
@@ -173,9 +181,9 @@ export async function cambiarHabitacion(q: Consulta, reservaId: string, unidadId
   // La que tenía reservada vuelve a quedar libre
   await q(
     `UPDATE habitacion SET estado = 'DISPONIBLE', actualizada_en = now()
-      WHERE id = (SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid) AND id <> $2::uuid AND estado <> 'EN_PREPARACION'`,
+      WHERE id = COALESCE((SELECT habitacion_id FROM orden_v2 WHERE reserva_id = $1::uuid), (SELECT habitacion_id FROM reserva WHERE id = $1::uuid)) AND id <> $2::uuid AND estado <> 'EN_PREPARACION'`,
     [reservaId, habitacionId],
   );
-  await q(`UPDATE orden_v2 SET habitacion_id = $2::uuid WHERE reserva_id = $1::uuid`, [reservaId, habitacionId]);
+  await vincularHabitacion(q, reservaId, habitacionId);
   return f[0].numero;
 }

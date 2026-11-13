@@ -225,14 +225,14 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                       <button class="btn btn-chico btn-primario" type="button" (click)="confirmarPago(s)">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['publicar']" /></svg>Confirmar pago</button>
                     }
-                    @if (s.canal_booking && s.estado === 'CONFIRMADA' && !s.checkin_en) {
+                    @if (s.estado === 'CONFIRMADA' && !s.checkin_en) {
                       <button class="btn btn-chico btn-primario" type="button" (click)="registrarLlegada(s)">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkin']" /></svg>Check-in</button>
-                    } @else if (s.canal_booking && s.checkin_en && !s.checkout_en) {
+                    } @else if (s.checkin_en && !s.checkout_en) {
                       <span class="badge">{{ s.habitacion_asignada ? 'En ' + s.habitacion_asignada : 'Huésped en el hotel' }}</span>
                       <button class="btn btn-chico btn-primario" type="button" (click)="registrarSalida(s)">
                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="iconos['checkout']" /></svg>Check-out</button>
-                    } @else if (s.canal_booking && s.checkout_en) {
+                    } @else if (s.checkout_en) {
                       <span class="badge">Check-out hecho</span>
                     }
                     @if (s.estado === 'PENDIENTE' && !s.canal_booking) {
@@ -890,7 +890,7 @@ export class AdminComponent implements OnInit {
         this.ok.mostrar(
           `Llegada de la reserva ${s.codigo} registrada (habitación ${r.habitacion_asignada}). ` +
             (r.huespedes_extra > 0 ? `Llegaron ${r.huespedes_extra} huésped(es) más de los reservados. ` : '') +
-            (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
+            (!s.canal_booking ? '' : r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
         );
         this.ir('reservas');
       },
@@ -924,7 +924,7 @@ export class AdminComponent implements OnInit {
           `Check-out de la reserva ${s.codigo} registrado` +
             (r.habitacion_en_preparacion ? `: la habitación ${r.habitacion_en_preparacion} quedó en preparación. ` : '. ') +
             (Number(r.consumos_total) > 0 ? `Consumos extra: ${this.usd(Number(r.consumos_total))}. ` : '') +
-            (r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
+            (!s.canal_booking ? '' : r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
         );
         this.ir('reservas');
       },

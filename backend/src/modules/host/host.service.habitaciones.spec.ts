@@ -25,6 +25,8 @@ interface Opciones {
   unidadesDelAlojamiento?: number;
   /** Huéspedes que figuran en la reserva */
   reservados?: number;
+  /** Reserva del canal propio: sin orden de Booking */
+  directa?: boolean;
 }
 
 /** HostService con BD y notificadores falsos; `sqls` guarda todo lo ejecutado. */
@@ -32,7 +34,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
   const sqls: string[] = [];
   const avisos: string[] = [];
   const reserva = {
-    id: ID, codigo: 'BK-079C37F1', estado: o.estado ?? 'CONFIRMADA', canal_booking: true, anfitrion_id: 'x',
+    id: ID, codigo: 'BK-079C37F1', estado: o.estado ?? 'CONFIRMADA', canal_booking: !o.directa, anfitrion_id: 'x',
     num_huespedes: o.reservados ?? 2, habitacion_asignada: 'Habitación Individual 101',
     fecha_entrada: '2026-11-11', fecha_salida: '2026-11-13',
   };
@@ -58,6 +60,9 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
     uno: async (sql: string) => {
       sqls.push(sql);
       if (/SELECT x\.\* FROM/.test(sql)) return reserva;
+      if (o.directa && /FROM reserva r JOIN reserva_detalle d ON d\.reserva_id = r\.id JOIN unidad_alojamiento u/.test(sql.replace(/\s+/g, ' '))) return { checkin_en: o.checkinEn ?? null, habitacion: null, unidad: 'Suite Familiar', unidad_id: UNIDAD, aforo: o.aforo ?? 4 };
+      if (o.directa && /SELECT r\.checkin_en, r\.checkout_en/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null, consumos_total: '0.00' };
+      if (o.directa && /FROM orden_v2/.test(sql)) return null;
       if (/FROM orden_v2 o JOIN unidad_alojamiento u/.test(sql)) return { checkin_en: o.checkinEn ?? null, recepcion: o.recepcion ?? false, habitacion: null, unidad: 'Suite Familiar', unidad_id: UNIDAD, aforo: o.aforo ?? 4 };
       if (/SELECT o\.checkin_en, o\.checkout_en/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null };
       if (/o\.unidad_id::text AS unidad_id/.test(sql)) return { unidad_id: UNIDAD, alojamiento_codigo: 1033 };
@@ -291,5 +296,42 @@ describe('HostService.cambiarEstadoHabitacion (lo hace el dueño)', () => {
     const { svc, sqls } = crear({ estadoHabitacion: 'DISPONIBLE' });
     await svc.cambiarEstadoHabitacion(7, HAB, 'DISPONIBLE', ADMIN);
     expect(sqls.some((s) => /UPDATE habitacion/.test(s))).toBe(false);
+  });
+});
+
+describe('Reservas directas (canal propio): check-in y check-out en recepción', () => {
+  it('registra la llegada: ocupa la habitación, guarda en la reserva y no avisa a Booking', async () => {
+    const { svc, sqls, avisos } = crear({ directa: true });
+    const r = await svc.registrarLlegada(ID, { huespedes_reales: 2 }, ADMIN);
+    expect(r.estado).toBe('CHECKED_IN');
+    expect(r.booking_notificado).toBe(false);
+    expect(avisos).toEqual([]);
+    expect(sqls.some((q) => /UPDATE reserva SET checkin_en/.test(q))).toBe(true);
+    expect(sqls.some((q) => /UPDATE orden_v2 SET checkin_recepcion/.test(q))).toBe(false);
+  });
+
+  it('es idempotente: si ya hizo check-in no vuelve a escribir', async () => {
+    const { svc, sqls } = crear({ directa: true, checkinEn: '2026-11-11T01:27:00Z' });
+    const r = await svc.registrarLlegada(ID, {}, ADMIN);
+    expect(r.ya_registrado).toBe(true);
+    expect(sqls.some((q) => /UPDATE reserva SET checkin_en/.test(q))).toBe(false);
+  });
+
+  it('rechaza la llegada de una reserva que no está confirmada', async () => {
+    await expect(crear({ directa: true, estado: 'CANCELADA' }).svc.registrarLlegada(ID, {}, ADMIN)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('registra la salida: completa la reserva, deja la habitación en preparación y no avisa a Booking', async () => {
+    const { svc, sqls, avisos } = crear({ directa: true });
+    const r = await svc.registrarSalida(ID, {}, ADMIN);
+    expect(r.estado).toBe('CHECKED_OUT');
+    expect(r.habitacion_en_preparacion).toBe('109');
+    expect(avisos).toEqual([]);
+    expect(sqls.some((q) => /UPDATE reserva SET checkout_en/.test(q))).toBe(true);
+    expect(sqls.some((q) => /UPDATE reserva SET estado = 'COMPLETADA'/.test(q))).toBe(true);
+  });
+
+  it('no permite la salida sin haber hecho check-in', async () => {
+    await expect(crear({ directa: true, checkinEn: null }).svc.registrarSalida(ID, {}, ADMIN)).rejects.toMatchObject({ status: 409 });
   });
 });

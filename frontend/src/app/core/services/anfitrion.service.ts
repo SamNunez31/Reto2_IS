@@ -83,7 +83,7 @@ export interface ReservaHost {
   metodo_pago: string | null;
   /** PENDIENTE (efectivo aún no recibido) | APROBADO */
   estado_pago: string | null;
-  /** true si llegó por Booking (orden v2): solo esas admiten check-in en recepción */
+  /** true si llegó por Booking (orden v2). Las directas también admiten check-in y check-out, sin aviso a Booking */
   canal_booking: boolean;
   /** Momento de llegada del huésped; null si aún no llegó */
   checkin_en: string | null;
@@ -239,7 +239,7 @@ export class AnfitrionService {
     return datos(this.http.get<RespuestaApi<Listado<ReservaHost>>>(`${this.base}/orders`, { params }));
   }
   /** Marca como recibido el pago en efectivo de la reserva (idempotente). */
-  /** Check-in en recepción: el huésped llegó. El backend avisa a Booking. */
+  /** Check-in en recepción: el huésped llegó. En reservas de Booking, el backend también le avisa. */
   registrarLlegada(id: string, cuerpo: { observaciones?: string; huespedes_reales?: number; habitacion_id?: string; motivo_cambio?: string } = {}): Observable<RespuestaLlegada> {
     return datos(this.http.post<RespuestaApi<RespuestaLlegada>>(`${this.base}/orders/${id}/arrival`, cuerpo));
   }
@@ -248,7 +248,7 @@ export class AnfitrionService {
   datosCheckin(id: string): Observable<DatosCheckinHost> {
     return datos(this.http.get<RespuestaApi<DatosCheckinHost>>(`${this.base}/orders/${id}/available-rooms`));
   }
-  /** Check-out en recepción: la habitación queda EN_PREPARACION y se avisa a Booking. */
+  /** Check-out en recepción: la habitación queda EN_PREPARACION (y se avisa a Booking si la reserva vino de allí). */
   registrarSalida(id: string, cuerpo: DatosSalida = {}): Observable<RespuestaSalida> {
     return datos(this.http.post<RespuestaApi<RespuestaSalida>>(`${this.base}/orders/${id}/departure`, cuerpo));
   }

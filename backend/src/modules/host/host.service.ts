@@ -28,9 +28,10 @@ const COLUMNAS_ALOJ = [
 const SQL_RESERVA_HOST = `
   SELECT r.id, r.codigo, r.estado::text AS estado, a.nombre AS alojamiento, a.codigo AS alojamiento_codigo, a.anfitrion_id,
          u.nombres || ' ' || u.apellidos AS huesped, r.fecha_entrada, r.fecha_salida, r.num_huespedes,
-         COALESCE(o.total, t.total) AS total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, o.checkin_en,
+         COALESCE(o.total, t.total) AS total, r.created_at, ${sqlPago('r.id')}, (o.reserva_id IS NOT NULL) AS canal_booking, COALESCE(o.checkin_en, r.checkin_en) AS checkin_en,
          o.titular->>'nombreCompleto' AS titular_nombre, o.titular->>'tipoDocumento' AS titular_tipo_documento,
-         o.titular->>'identificacion' AS titular_identificacion, o.habitacion_asignada, o.checkout_en,
+         o.titular->>'identificacion' AS titular_identificacion, COALESCE(o.habitacion_asignada, r.habitacion_asignada) AS habitacion_asignada,
+         COALESCE(o.checkout_en, r.checkout_en) AS checkout_en,
          a.hora_checkout::text AS hora_checkout,
          COALESCE(o.motivo_cancelacion, cn.motivo) AS motivo_cancelacion,
          COALESCE(o.solicitado_por, CASE WHEN cn.reserva_id IS NULL THEN NULL
@@ -88,7 +89,7 @@ export interface ReservaHost {
   metodo_pago: string | null;
   /** PENDIENTE (efectivo aún no recibido) | APROBADO */
   estado_pago: string | null;
-  /** true si la reserva llegó por el canal Booking (orden v2): solo esas admiten check-in en recepción */
+  /** true si la reserva llegó por el canal Booking (orden v2). Las directas también admiten check-in y check-out, sin aviso a Booking */
   canal_booking: boolean;
   /** Momento en que el huésped llegó (null si aún no) */
   checkin_en: string | null;
@@ -481,7 +482,7 @@ export class HostService {
          FROM orden_v2 o JOIN unidad_alojamiento u ON u.id = o.unidad_id WHERE o.reserva_id = $1`,
       [reservaId],
     );
-    if (!fila) throw conflicto('El check-in en recepción se registra solo para reservas del canal Booking');
+    if (!fila) return this.llegadaDirecta(reservaId, datos, actual, user);
     if (actual.estado !== 'CONFIRMADA') throw conflicto(`La reserva está ${actual.estado.toLowerCase()}: solo una reserva confirmada admite check-in`);
 
     const errores: { name: string; reason: string }[] = [];
@@ -538,6 +539,94 @@ export class HostService {
     };
   }
 
+  /**
+   * Check-in de una reserva directa (canal propio): mismo flujo que el de Booking, pero los datos viven en la
+   * propia reserva y no se avisa a nadie fuera del sistema.
+   */
+  private async llegadaDirecta(reservaId: string, datos: DatosLlegada, actual: ReservaHost, user: UsuarioToken): Promise<RespuestaLlegada> {
+    const fila = await this.db.uno<{ checkin_en: string | null; habitacion: string | null; unidad: string; unidad_id: string; aforo: number }>(
+      `SELECT r.checkin_en, r.habitacion_asignada AS habitacion, u.nombre AS unidad, u.id::text AS unidad_id,
+              (u.capacidad_huespedes * GREATEST(d.cantidad, 1))::int AS aforo
+         FROM reserva r JOIN reserva_detalle d ON d.reserva_id = r.id JOIN unidad_alojamiento u ON u.id = d.unidad_id
+        WHERE r.id = $1 ORDER BY u.id LIMIT 1`,
+      [reservaId],
+    );
+    if (!fila) throw conflicto('La reserva no tiene un tipo de habitación asignado');
+    if (actual.estado !== 'CONFIRMADA') throw conflicto(`La reserva está ${actual.estado.toLowerCase()}: solo una reserva confirmada admite check-in`);
+
+    const errores: { name: string; reason: string }[] = [];
+    if (datos.observaciones !== undefined && (typeof datos.observaciones !== 'string' || datos.observaciones.length > 300)) errores.push({ name: 'observaciones', reason: 'máximo 300 caracteres' });
+    if (datos.huespedes_reales !== undefined && !(Number.isInteger(datos.huespedes_reales) && datos.huespedes_reales >= 1 && datos.huespedes_reales <= 30)) errores.push({ name: 'huespedes_reales', reason: 'entero de 1 a 30' });
+    if (datos.habitacion_id !== undefined && (typeof datos.habitacion_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(datos.habitacion_id))) errores.push({ name: 'habitacion_id', reason: 'UUID' });
+    if (datos.habitacion_id !== undefined && (typeof datos.motivo_cambio !== 'string' || !datos.motivo_cambio.trim() || datos.motivo_cambio.length > 200)) {
+      errores.push({ name: 'motivo_cambio', reason: 'obligatorio al cambiar de habitación: de 1 a 200 caracteres' });
+    }
+    if (errores.length) throw invalido('Datos de llegada no válidos', errores);
+
+    const llegaron = datos.huespedes_reales ?? actual.num_huespedes;
+    const extra = Math.max(0, llegaron - actual.num_huespedes);
+    const yaRegistrado = fila.checkin_en !== null;
+    let habitacion = fila.habitacion;
+    if (!yaRegistrado) {
+      await this.db.transaccion(async (q) => {
+        let numero: string | null;
+        if (datos.habitacion_id) {
+          numero = await cambiarHabitacion(q, reservaId, fila.unidad_id, datos.habitacion_id);
+          if (numero === null) throw conflicto('Esa habitación ya no está libre: vuelve a abrir el check-in para ver las disponibles');
+        } else {
+          numero = await ocuparHabitacionAsignada(q, reservaId);
+          if (numero === null) {
+            const asignada = await asignarHabitacion(q, reservaId, fila.unidad_id);
+            numero = asignada.tipo === 'ASIGNADA' ? asignada.numero : null;
+          }
+        }
+        habitacion = numero !== null ? await etiquetaDeUnidad(q, fila.unidad_id, fila.unidad, numero) : (fila.habitacion ?? fila.unidad).slice(0, 100);
+        const nota = datos.habitacion_id ? `Cambio de habitación: ${(datos.motivo_cambio ?? '').trim()}` : null;
+        const observaciones = [nota, datos.observaciones?.trim() || null].filter(Boolean).join(' · ') || null;
+        await q(
+          `UPDATE reserva SET checkin_en = COALESCE(checkin_en, now()), habitacion_asignada = $2, checkin_observaciones = $3, checkin_huespedes = $4
+            WHERE id = $1`,
+          [reservaId, habitacion, observaciones, datos.huespedes_reales ?? null],
+        );
+      });
+    }
+    return {
+      reserva: await this.reserva(reservaId, user), estado: 'CHECKED_IN', habitacion_asignada: habitacion ?? '',
+      huespedes_extra: extra, aforo_maximo: fila.aforo, ya_registrado: yaRegistrado, booking_notificado: false,
+    };
+  }
+
+  /** Check-out de una reserva directa: COMPLETADA, habitación EN_PREPARACION y cupo recuperado. Idempotente. */
+  private async salidaDirecta(reservaId: string, datos: DatosSalida, actual: ReservaHost, user: UsuarioToken): Promise<RespuestaSalida> {
+    const fila = await this.db.uno<{ checkin_en: string | null; checkout_en: string | null; consumos_total: string | null }>(
+      `SELECT r.checkin_en, r.checkout_en, r.consumos_total::text AS consumos_total FROM reserva r WHERE r.id = $1`,
+      [reservaId],
+    );
+    if (!fila) throw noEncontrado('La reserva no existe');
+    if (!fila.checkin_en) throw conflicto('El huésped aún no hizo check-in: registra primero su llegada');
+    if (datos.observaciones !== undefined && (typeof datos.observaciones !== 'string' || datos.observaciones.length > 300)) {
+      throw invalido('Datos de salida no válidos', [{ name: 'observaciones', reason: 'máximo 300 caracteres' }]);
+    }
+    const extras = leerConsumos(datos);
+    const yaRegistrado = fila.checkout_en !== null;
+    let numero: string | null = null;
+    if (!yaRegistrado) {
+      if (actual.estado !== 'CONFIRMADA' && actual.estado !== 'COMPLETADA') throw conflicto(`La reserva está ${actual.estado.toLowerCase()}: no admite check-out`);
+      numero = await this.db.transaccion(async (q) => {
+        await q(
+          `UPDATE reserva SET checkout_en = now(), checkout_observaciones = $2, consumos = $3::jsonb, consumos_total = $4 WHERE id = $1`,
+          [reservaId, (datos.observaciones as string | undefined) ?? null, JSON.stringify(extras.lineas.map((l) => ({ ...l, metodo: extras.metodo }))), aMoney(extras.centavos)],
+        );
+        if (actual.estado === 'CONFIRMADA') await q(`UPDATE reserva SET estado = 'COMPLETADA' WHERE id = $1`, [reservaId]);
+        return pasarAPreparacion(q, reservaId);
+      });
+    }
+    return {
+      reserva: await this.reserva(reservaId, user), estado: 'CHECKED_OUT', habitacion_en_preparacion: numero,
+      consumos_total: yaRegistrado ? (fila.consumos_total ?? '0.00') : aMoney(extras.centavos), ya_registrado: yaRegistrado, booking_notificado: false,
+    };
+  }
+
   /** Habitaciones libres del tipo reservado, para elegir en el check-in. Solo los hoteles eligen: fuera de ellos es_hotel false y lista vacía (se asigna sola la primera libre). */
   /**
    * Datos para el check-in: la habitación ya asignada en la reserva y, por si llegaron más huéspedes
@@ -545,13 +634,19 @@ export class HostService {
    */
   async datosParaCheckin(reservaId: string, user: UsuarioToken): Promise<DatosCheckinHost> {
     const r = await this.reserva(reservaId, user);
-    const fila = await this.db.uno<{ unidad_id: string; alojamiento_codigo: number }>(
+    const filaOrden = await this.db.uno<{ unidad_id: string; alojamiento_codigo: number }>(
       `SELECT o.unidad_id::text AS unidad_id, a.codigo::int AS alojamiento_codigo
          FROM orden_v2 o JOIN reserva rs ON rs.id = o.reserva_id JOIN alojamiento a ON a.id = rs.alojamiento_id
         WHERE o.reserva_id = $1`,
       [reservaId],
     );
-    if (!fila) throw conflicto('El check-in en recepción se registra solo para reservas del canal Booking');
+    const fila = filaOrden ?? (await this.db.uno<{ unidad_id: string; alojamiento_codigo: number }>(
+      `SELECT d.unidad_id::text AS unidad_id, a.codigo::int AS alojamiento_codigo
+         FROM reserva_detalle d JOIN reserva rs ON rs.id = d.reserva_id JOIN alojamiento a ON a.id = rs.alojamiento_id
+        WHERE d.reserva_id = $1 ORDER BY d.unidad_id LIMIT 1`,
+      [reservaId],
+    ));
+    if (!fila) throw conflicto('La reserva no tiene un tipo de habitación asignado');
     const sugerencias = await this.db.query<SugerenciaHabitacion>(
       `SELECT u.codigo_tipo, u.nombre, u.capacidad_huespedes::int AS capacidad, u.precio_noche_base::float8 AS precio_noche,
               fn_cupo_unidad(u.id, $2::date, $3::date)::int AS libres
@@ -584,7 +679,7 @@ export class HostService {
       `SELECT o.checkin_en, o.checkout_en, o.consumos_total::text AS consumos_total FROM orden_v2 o WHERE o.reserva_id = $1`,
       [reservaId],
     );
-    if (!fila) throw conflicto('El check-out en recepción se registra solo para reservas del canal Booking');
+    if (!fila) return this.salidaDirecta(reservaId, datos, actual, user);
     if (!fila.checkin_en) throw conflicto('El huésped aún no hizo check-in: registra primero su llegada');
     if (datos.observaciones !== undefined && (typeof datos.observaciones !== 'string' || datos.observaciones.length > 300)) {
       throw invalido('Datos de salida no válidos', [{ name: 'observaciones', reason: 'máximo 300 caracteres' }]);
@@ -615,17 +710,19 @@ export class HostService {
     return this.db.query<HabitacionHost>(
       `SELECT h.id::text AS id, h.numero, h.estado::text AS estado, h.actualizada_en, a.codigo AS alojamiento_codigo, a.nombre AS alojamiento,
               u.nombre AS unidad,
-              (SELECT r.codigo FROM orden_v2 o JOIN reserva r ON r.id = o.reserva_id
-                WHERE o.habitacion_id = h.id AND o.checkin_en IS NOT NULL AND o.checkout_en IS NULL LIMIT 1) AS reserva_codigo,
+              (SELECT r.codigo FROM reserva r LEFT JOIN orden_v2 o ON o.reserva_id = r.id
+                WHERE COALESCE(o.habitacion_id, r.habitacion_id) = h.id AND COALESCE(o.checkin_en, r.checkin_en) IS NOT NULL
+                  AND COALESCE(o.checkout_en, r.checkout_en) IS NULL LIMIT 1) AS reserva_codigo,
               pr.codigo AS proxima_codigo, to_char(pr.fecha_entrada, 'YYYY-MM-DD') AS proxima_entrada,
               to_char(pr.fecha_salida, 'YYYY-MM-DD') AS proxima_salida, pr.huesped AS proxima_huesped
          FROM habitacion h
          LEFT JOIN LATERAL (
               SELECT r.codigo, r.fecha_entrada, r.fecha_salida, COALESCE(o.titular->>'nombreCompleto', us.nombres || ' ' || us.apellidos) AS huesped
-                FROM orden_v2 o
-                JOIN reserva r ON r.id = o.reserva_id
+                FROM reserva r
+                LEFT JOIN orden_v2 o ON o.reserva_id = r.id
                 LEFT JOIN usuario us ON us.id = r.huesped_id
-               WHERE o.habitacion_id = h.id AND r.estado = 'CONFIRMADA' AND o.checkin_en IS NULL AND r.fecha_salida >= current_date
+               WHERE COALESCE(o.habitacion_id, r.habitacion_id) = h.id AND r.estado = 'CONFIRMADA'
+                 AND COALESCE(o.checkin_en, r.checkin_en) IS NULL AND r.fecha_salida >= current_date
                ORDER BY r.fecha_entrada LIMIT 1) pr ON true
          JOIN alojamiento a ON a.id = h.alojamiento_id
          JOIN unidad_alojamiento u ON u.id = h.unidad_id
