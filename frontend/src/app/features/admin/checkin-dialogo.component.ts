@@ -106,10 +106,10 @@ export interface DatosCheckin {
             <p id="ck-contador" class="ck-ayuda">{{ observaciones.length }}/300</p>
           </div>
 
-          <label class="ck-verificado">
-            <input type="checkbox" name="verificado" [(ngModel)]="verificado" aria-describedby="ck-ayuda-verif" />
-            <span>Verifiqué el documento de identidad del titular{{ r.titular_identificacion ? ' (' + r.titular_identificacion + ')' : '' }}</span>
-          </label>
+          <div class="ck-verificado" [class.elegida]="verificado">
+            <input id="ck-verif" type="checkbox" name="verificado" [(ngModel)]="verificado" aria-describedby="ck-ayuda-verif" />
+            <label for="ck-verif">Verifiqué el documento de identidad del titular{{ r.titular_identificacion ? ' (' + r.titular_identificacion + ')' : '' }}</label>
+          </div>
           <p id="ck-ayuda-verif" class="ck-ayuda">
             {{ verificado ? (r.canal_booking ? 'Al confirmar la unidad quedará ocupada y se avisará a Booking.' : 'Al confirmar la unidad quedará ocupada.') : 'Marca esta casilla para poder confirmar.' }}
           </p>
@@ -152,9 +152,12 @@ export interface DatosCheckin {
     .ck-sugerencias { margin: 0; padding-left: 1.1rem; display: grid; gap: .2rem; }
     .ck-extra .btn { justify-self: start; }
     .ck-error { margin: 0; font-size: .875rem; color: var(--c-error-texto, #b3261e); font-weight: 600; }
-    .ck-verificado { display: flex; flex-direction: row; align-items: flex-start; gap: .6rem; font-size: 1rem; color: var(--c-texto); font-weight: 600; cursor: pointer; margin: .4rem 0 0; }
-    .ck-verificado input { width: 1.25rem; height: 1.25rem; margin-top: .1rem; flex: none; }
-    .ck-verificado + .ck-ayuda { margin: .25rem 0 0 1.85rem; }
+    .ck-verificado { display: flex; flex-direction: row; align-items: center; gap: .75rem; padding: .75rem 1rem; margin: .4rem 0 0; border: 1.5px solid var(--c-borde-suave); border-radius: var(--radio-s); background: var(--c-superficie); transition: border-color var(--transicion), background var(--transicion); }
+    .ck-verificado:hover { border-color: var(--c-borde); }
+    .ck-verificado.elegida { border-color: var(--c-primario); background: var(--c-primario-suave); }
+    .ck-verificado input { width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; flex: none; padding: 0; accent-color: var(--c-primario); cursor: pointer; }
+    .ck-verificado label { margin: 0; font-size: 1rem; font-weight: 600; color: var(--c-texto); cursor: pointer; display: block; flex: 1; }
+    .ck-verificado + .ck-ayuda { margin: .4rem 0 0 .25rem; }
     .ck-acciones { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.1rem; flex-wrap: wrap; }
   `,
 })
