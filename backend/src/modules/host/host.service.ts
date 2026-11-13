@@ -727,6 +727,7 @@ export class HostService {
          JOIN alojamiento a ON a.id = h.alojamiento_id
          JOIN unidad_alojamiento u ON u.id = h.unidad_id
         WHERE h.alojamiento_id = $1::uuid
+          AND (u.activa OR h.estado = 'OCUPADA')
         ORDER BY u.nombre, length(h.numero), h.numero`,
       [alojId],
     );
@@ -738,9 +739,14 @@ export class HostService {
     if (typeof estado !== 'string' || !(ESTADOS_EDITABLES as readonly string[]).includes(estado)) {
       throw invalido('Estado no válido', [{ name: 'estado', reason: 'DISPONIBLE o EN_PREPARACION' }]);
     }
-    const actual = await this.db.uno<{ estado: EstadoHabitacion }>(`SELECT estado::text AS estado FROM habitacion WHERE id = $1::uuid AND alojamiento_id = $2::uuid`, [id, alojId]);
+    const actual = await this.db.uno<{ estado: EstadoHabitacion; activa: boolean }>(
+      `SELECT h.estado::text AS estado, u.activa FROM habitacion h JOIN unidad_alojamiento u ON u.id = h.unidad_id
+        WHERE h.id = $1::uuid AND h.alojamiento_id = $2::uuid`,
+      [id, alojId],
+    );
     if (!actual) throw noEncontrado('La habitación no existe');
     if (actual.estado === 'OCUPADA') throw conflicto('La habitación está ocupada: se libera con el check-out del huésped');
+    if (actual.activa === false) throw conflicto('El tipo de habitación está inhabilitado: actívalo para cambiar el estado de sus habitaciones');
     if (actual.estado !== estado) {
       await this.db.query(`UPDATE habitacion SET estado = $2::estado_habitacion, actualizada_en = now() WHERE id = $1`, [id, estado]);
     }

@@ -17,6 +17,7 @@ interface Opciones {
   checkoutEn?: string | null;
   recepcion?: boolean;
   estadoHabitacion?: string;
+  tipoActivo?: boolean;
   /** Capacidad total de la unidad reservada */
   aforo?: number;
   /** La reserva no trae habitación fijada (reservas anteriores a la mejora) */
@@ -67,7 +68,7 @@ function crear(o: Opciones = {}): { svc: HostService; sqls: string[]; avisos: st
       if (/SELECT o\.checkin_en, o\.checkout_en/.test(sql)) return { checkin_en: o.checkinEn === undefined ? '2026-11-11T01:27:00Z' : o.checkinEn, checkout_en: o.checkoutEn ?? null };
       if (/o\.unidad_id::text AS unidad_id/.test(sql)) return { unidad_id: UNIDAD, alojamiento_codigo: 1033 };
       if (/SELECT a\.id FROM alojamiento a/.test(sql)) return { id: 'aloj-1' };
-      if (/SELECT estado::text AS estado FROM habitacion/.test(sql)) return { estado: o.estadoHabitacion ?? 'EN_PREPARACION' };
+      if (/SELECT h\.estado::text AS estado, u\.activa FROM habitacion/.test(sql)) return { estado: o.estadoHabitacion ?? 'EN_PREPARACION', activa: o.tipoActivo ?? true };
       return null;
     },
     query: guion,
@@ -285,6 +286,12 @@ describe('HostService.cambiarEstadoHabitacion (lo hace el dueño)', () => {
   it('no se puede cambiar una habitación ocupada (409): se libera con el check-out', async () => {
     const { svc } = crear({ estadoHabitacion: 'OCUPADA' });
     await expect(svc.cambiarEstadoHabitacion(7, HAB, 'DISPONIBLE', ADMIN)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('no se puede cambiar el estado de una habitación de un tipo inhabilitado (409)', async () => {
+    const { svc, sqls } = crear({ estadoHabitacion: 'DISPONIBLE', tipoActivo: false });
+    await expect(svc.cambiarEstadoHabitacion(7, HAB, 'EN_PREPARACION', ADMIN)).rejects.toMatchObject({ status: 409 });
+    expect(sqls.some((s) => /UPDATE habitacion SET estado/.test(s))).toBe(false);
   });
 
   it('no se puede fijar OCUPADA a mano ni un estado inventado (400)', async () => {
