@@ -7,6 +7,7 @@ import { ErrorVista, leerError } from '../../core/services/api-base';
 import { avisoTemporal } from '../../shared/aviso';
 import { ICONOS } from '../../shared/iconos';
 import { AlertaErrorComponent, CargandoComponent } from '../../shared/ui';
+import { Paginacion, PaginadorComponent } from '../../shared/paginacion';
 
 export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
   DISPONIBLE: 'Disponible',
@@ -20,7 +21,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
  */
 @Component({
   selector: 'app-habitaciones',
-  imports: [FormsModule, DatePipe, AlertaErrorComponent, CargandoComponent],
+  imports: [FormsModule, DatePipe, AlertaErrorComponent, CargandoComponent, PaginadorComponent],
   template: `
     <p class="ayuda">
       Cada alojamiento tiene una unidad física por cada «cantidad» de su tipo. Se numeran cuando hay más de una; si el alojamiento es una sola unidad, basta su nombre. Al hacer check-out la unidad pasa a «En preparación»;
@@ -45,7 +46,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
           <caption class="sr-only">Unidades del alojamiento</caption>
           <thead><tr><th scope="col">{{ numerar() ? 'N.º' : 'Unidad' }}</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Próxima reserva</th><th scope="col">Última limpieza</th><th scope="col" class="th-der">Acciones</th></tr></thead>
           <tbody>
-            @for (h of habitaciones(); track h.id) {
+            @for (h of pag.items(); track h.id) {
               <tr>
                 <td>
                   @if (numerar()) { <strong>{{ h.numero }}</strong> } @else { <strong>{{ h.alojamiento }}</strong> }
@@ -88,6 +89,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
           </tbody>
         </table>
       </div>
+      <app-paginador [pag]="pag" unidad="habitaciones" />
     }
   `,
   styles: `
@@ -116,6 +118,7 @@ export class HabitacionesComponent implements OnInit {
   readonly hoteles = signal<ResumenAlojamiento[]>([]);
   readonly codigo = signal<number | null>(null);
   readonly habitaciones = signal<HabitacionHost[]>([]);
+  readonly pag = new Paginacion<HabitacionHost>(() => this.habitaciones(), 10);
   readonly cargando = signal(false);
   readonly cambiando = signal<string | null>(null);
   readonly error = signal<ErrorVista | null>(null);

@@ -23,6 +23,7 @@ import { fechaLarga, rangoCorto } from '../../shared/textos';
 import { FiltroDirective } from '../../shared/entrada';
 import { motivoClave, motivoEmail, motivoNombre, motivoNombreLugar, motivoRango, normalizarEmail, normalizarNombre } from '../../shared/validadores';
 import { ConfirmarService } from '../../shared/confirmar';
+import { Paginacion, PaginadorComponent } from '../../shared/paginacion';
 import { ICONOS, iconoTipo } from '../../shared/iconos';
 import { AlertaErrorComponent, CargandoComponent, EstadoComponent } from '../../shared/ui';
 
@@ -35,7 +36,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
   selector: 'app-admin',
   imports: [
     CurrencyPipe, DatePipe, JsonPipe, FormsModule, RouterLink, AlertaErrorComponent, CargandoComponent, EstadoComponent, CalificacionComponent, PagoComponent,
-    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent, CheckinDialogoComponent, SalidaDialogoComponent, HabitacionesComponent,
+    DashboardAdminComponent, ObservabilidadComponent, FiltroDirective, OjoClaveComponent, CheckinDialogoComponent, SalidaDialogoComponent, HabitacionesComponent, PaginadorComponent,
   ],
   template: `
     <h1>Administración</h1>
@@ -70,7 +71,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <caption class="sr-only">Ingresos por mes</caption>
             <thead><tr><th scope="col">Mes</th><th scope="col">Estancias</th><th scope="col">Neto del alojamiento</th><th scope="col">Impuestos</th><th scope="col">Cobrado al huésped</th></tr></thead>
             <tbody>
-              @for (f of ingresos(); track f.mes) {
+              @for (f of pagIngresos.items(); track f.mes) {
                 <tr>
                   <td>{{ mesLargo(f.mes) }}</td><td>{{ f.estancias }}</td>
                   <td>{{ f.ingreso_sin_iva | currency: 'USD' }}</td>
@@ -81,6 +82,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             </tbody>
           </table>
         </div>
+        <app-paginador [pag]="pagIngresos" unidad="meses" />
       }
 
       @case ('alojamientos') {
@@ -113,7 +115,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <caption class="sr-only">Alojamientos del catálogo</caption>
             <thead><tr><th scope="col">#</th><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">Ciudad</th><th scope="col">Opciones</th><th scope="col">Estado</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
-              @for (a of filas(); track a['codigo']) {
+              @for (a of pagAloj.items(); track a['codigo']) {
                 <tr><td class="num">{{ a['codigo'] }}</td>
                   <td class="nombre-celda">{{ a['nombre'] }}</td>
                   <td>
@@ -157,6 +159,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             </tbody>
           </table>
         </div>
+        <app-paginador [pag]="pagAloj" unidad="alojamientos" />
       }
 
       @case ('reservas') {
@@ -191,7 +194,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <caption class="sr-only">Reservas</caption>
             <thead><tr><th scope="col">Reserva</th><th scope="col">Alojamiento</th><th scope="col">Huésped</th><th scope="col">Fechas</th><th scope="col" class="th-der">Total</th><th scope="col">Estado</th><th scope="col">Pago</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
-              @for (s of reservasPagina(); track s.id) {
+              @for (s of pagReservas.items(); track s.id) {
                 <tr class="fila-reserva">
                   <td>
                     <span class="cod-reserva">{{ s.codigo }}</span>
@@ -246,18 +249,12 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             </tbody>
           </table>
         </div>
-        @if (totalPaginasRes() > 1) {
-          <nav class="paginacion pag-reservas d-flex justify-content-center align-items-center gap-3" aria-label="Paginación de reservas">
-            <button class="btn" type="button" (click)="paginaReservas(-1)" [disabled]="paginaRes() === 0">Anterior</button>
-            <span>Página {{ paginaRes() + 1 }} de {{ totalPaginasRes() }} · {{ reservasVisibles().length }} reservas</span>
-            <button class="btn" type="button" (click)="paginaReservas(1)" [disabled]="paginaRes() >= totalPaginasRes() - 1">Siguiente</button>
-          </nav>
-        }
+        <app-paginador [pag]="pagReservas" unidad="reservas" />
       }
 
       @case ('resenas') {
         <p class="ayuda">Las reseñas las publican solo huéspedes con estadía completada y pasan un control automático de texto. No se moderan a mano; puedes responderlas una vez.</p>
-        @for (r of resenas(); track r.id) {
+        @for (r of pagResenas.items(); track r.id) {
           <article class="tarjeta">
             <p class="resena-cabecera d-flex align-items-center flex-wrap gap-2"><strong>{{ r.autor }}</strong> en {{ r.alojamiento }} <app-calificacion [nota]="r.nota_global" [sinConteo]="true" [chica]="true" />
               <small>{{ fecha(r.created_at) }}</small></p>
@@ -272,6 +269,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             }
           </article>
         } @empty { @if (!cargando()) { <p>Sin reseñas todavía.</p> } }
+        <app-paginador [pag]="pagResenas" unidad="reseñas" />
       }
 
       @case ('usuarios') {
@@ -332,7 +330,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             <caption class="sr-only">Usuarios</caption>
             <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col" class="th-der">Acciones</th></tr></thead>
             <tbody>
-              @for (u of filas(); track u['id']) {
+              @for (u of pagUsuarios.items(); track u['id']) {
                 <tr class="fila-usuario" [class.inactivo]="!u['activo']">
                   <td>
                     <div class="usuario-celda">
@@ -364,6 +362,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
             </tbody>
           </table>
         </div>
+        <app-paginador [pag]="pagUsuarios" unidad="usuarios" />
       }
 
       @case ('catalogos') {
@@ -476,7 +475,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
               <caption class="sr-only">Tarifas de impuestos y feriados</caption>
               <thead><tr><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">%</th><th scope="col">Desde</th><th scope="col">Hasta</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
               <tbody>
-                @for (t of filas(); track t['id']) {
+                @for (t of pagImpuestos.items(); track t['id']) {
                   <tr><td>{{ t['nombre'] }}</td><td>{{ t['tipo'] }}</td><td>{{ t['porcentaje'] }}</td><td>{{ fecha(t['vigente_desde']) }}</td>
                     <td>{{ t['vigente_hasta'] ? fecha(t['vigente_hasta']) : '—' }}</td>
                     <td>@if (!t['vigente_hasta']) { <button class="btn btn-chico" type="button" (click)="cerrarImpuesto(t)">Cerrar hoy</button> }</td></tr>
@@ -484,6 +483,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
               </tbody>
             </table>
           </div>
+          <app-paginador [pag]="pagImpuestos" unidad="tarifas" />
         </section>
         <form class="tarjeta" (ngSubmit)="crearImpuesto()" novalidate>
           <h2>Registrar feriado / tarifa</h2>
@@ -649,7 +649,6 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .chip { border: 1px solid var(--c-borde-suave); background: var(--c-superficie); color: var(--gris-700); border-radius: 999px; padding: .4rem 1rem; cursor: pointer; font: inherit; font-size: .9rem; font-weight: 600;
       transition: background var(--transicion), border-color var(--transicion), color var(--transicion); }
     .chip:hover { border-color: var(--c-primario); color: var(--c-primario); }
-    .pag-reservas { margin-top: 1.25rem; }
     .chip:focus-visible { outline: 2px solid var(--c-primario); outline-offset: 2px; }
     .chip-activo, .chip-activo:hover { background: var(--c-primario); color: #fff; border-color: var(--c-primario); }
     .en-vivo { display: inline-flex; align-items: center; gap: .5rem; margin: 0; padding: .45rem .95rem; border-radius: 999px; background: var(--c-primario-suave); color: var(--c-primario); font-size: .85rem; font-weight: 700; }
@@ -732,16 +731,16 @@ export class AdminComponent implements OnInit {
   /** Hora de la última lectura de reservas (indicador «En vivo»). */
   readonly actualizadoA = signal('');
   readonly reservasVisibles = computed(() => this.reservas().filter((s) => this.enVista(s, this.vista())));
-  /** Paginación de la lista de reservas (se hace en pantalla: las más recientes primero). */
-  private readonly porPaginaRes = 10;
-  private readonly paginaSolicitada = signal(0);
-  readonly totalPaginasRes = computed(() => Math.max(1, Math.ceil(this.reservasVisibles().length / this.porPaginaRes)));
-  /** Página mostrada: si la lista se acorta (p. ej. una cancelación), nunca queda fuera de rango. */
-  readonly paginaRes = computed(() => Math.min(this.paginaSolicitada(), this.totalPaginasRes() - 1));
-  readonly reservasPagina = computed(() => {
-    const desde = this.paginaRes() * this.porPaginaRes;
-    return this.reservasVisibles().slice(desde, desde + this.porPaginaRes);
-  });
+  /** Paginación en pantalla (las listas ya vienen cargadas; así no hay que bajar y bajar). */
+  readonly pagAloj = new Paginacion<Fila>(() => this.filas(), 10);
+  readonly pagUsuarios = new Paginacion<Fila>(() => this.filas(), 10);
+  readonly pagImpuestos = new Paginacion<Fila>(() => this.filas(), 10);
+  readonly pagReservas = new Paginacion<ReservaHost>(() => this.reservasVisibles(), 10);
+  readonly pagResenas = new Paginacion<ResenaHost>(() => this.resenas(), 5);
+  readonly pagIngresos = new Paginacion<FilaIngresos>(() => this.ingresos(), 12);
+  private reiniciarPaginas(): void {
+    [this.pagAloj, this.pagUsuarios, this.pagImpuestos, this.pagReservas, this.pagResenas, this.pagIngresos].forEach((p) => p.reiniciar());
+  }
   readonly resenas = signal<ResenaHost[]>([]);
   readonly rango = rangoCorto;
   filtroAloj = '';
@@ -773,13 +772,9 @@ export class AdminComponent implements OnInit {
     enVivo(this.destruir, () => this.sincronizarBooking(), 30000);
   }
 
-  paginaReservas(d: number): void {
-    this.paginaSolicitada.set(Math.max(0, Math.min(this.paginaRes() + d, this.totalPaginasRes() - 1)));
-  }
-
   cambiarVista(v: VistaRecepcion): void {
     this.vista.set(v);
-    this.paginaSolicitada.set(0);
+    this.pagReservas.reiniciar();
   }
 
   private marcarHora(): void {
@@ -815,7 +810,7 @@ export class AdminComponent implements OnInit {
 
   ir(p: Pestana): void {
     this.pestana.set(p);
-    if (p === 'reservas') this.paginaSolicitada.set(0);
+    this.reiniciarPaginas();
     this.error.set(null);
     switch (p) {
       case 'alojamientos':
