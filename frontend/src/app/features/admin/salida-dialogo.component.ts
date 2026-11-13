@@ -102,7 +102,7 @@ const MAX_PRECIO = 9999.99;
             <textarea id="sd-obs" name="obs" rows="2" maxlength="300" [(ngModel)]="observaciones" placeholder="Ej. daños, objetos olvidados, salida tardía…"></textarea>
           </div>
 
-          <div class="sd-llaves">
+          <div class="sd-llaves" [class.elegida]="llaves">
             <input id="sd-llaves" type="checkbox" name="llaves" [(ngModel)]="llaves" aria-describedby="sd-ayuda-llaves" />
             <label for="sd-llaves">3 · Recibí las llaves o tarjetas de acceso</label>
           </div>
@@ -151,8 +151,10 @@ const MAX_PRECIO = 9999.99;
     .sd-campo label { margin: 0; font-size: 1rem; color: var(--c-texto); font-weight: 700; flex-direction: row; display: block; }
     .sd-campo textarea { width: 100%; resize: vertical; font: inherit; }
     .sd-error { margin: 0; font-size: .8rem; color: var(--c-error-texto, #b3261e); font-weight: 600; }
-    .sd-llaves { display: flex; flex-direction: row; align-items: center; gap: .75rem; padding: .75rem 1rem; border: 1px solid var(--gris-300, #ccc); border-radius: var(--radio-s); }
-    .sd-llaves input { width: 1.4rem; height: 1.4rem; flex: none; margin: 0; cursor: pointer; }
+    .sd-llaves { display: flex; flex-direction: row; align-items: center; gap: .75rem; padding: .75rem 1rem; border: 1.5px solid var(--c-borde-suave); border-radius: var(--radio-s); background: var(--c-superficie); transition: border-color var(--transicion), background var(--transicion); }
+    .sd-llaves:hover { border-color: var(--c-borde); }
+    .sd-llaves.elegida { border-color: var(--c-primario); background: var(--c-primario-suave); }
+    .sd-llaves input { width: 1.25rem; height: 1.25rem; min-height: 0; flex: none; margin: 0; padding: 0; accent-color: var(--c-primario); cursor: pointer; }
     .sd-llaves label { margin: 0; font-size: 1rem; font-weight: 700; color: var(--c-texto); cursor: pointer; display: block; flex-direction: row; }
     .sd-ayuda-llaves { margin: .35rem 0 0 .25rem; }
     .sd-efecto { margin-top: 1rem; padding: .7rem .9rem; background: var(--c-fondo, #f6f6f4); border-radius: var(--radio-s); font-size: .9rem; }
