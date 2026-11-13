@@ -3,7 +3,7 @@ import { createHash, randomInt } from 'crypto';
 import { cedulaValida } from '../../common/validation/validadores-ec';
 import { UsuarioToken } from '../../common/auth/decorators';
 import { hoyEcuador, noches as contarNoches } from '../../common/http/respuestas';
-import { InvalidParam, ProblemException, invalido } from '../../common/problem/problem';
+import { InvalidParam, ProblemBody, ProblemException, invalido } from '../../common/problem/problem';
 import { logJson } from '../../common/logging/log-json';
 import { DbService } from '../../database/db.service';
 import { asignarHabitacion, asignarHabitacionParaFechas, esUnidadDeHotel, etiquetaDeUnidad, ocuparHabitacionAsignada, pasarAPreparacion } from '../habitaciones/habitaciones';
@@ -244,7 +244,7 @@ export class AlojamientosV2Service {
     lanzarSiHayErrores(errores);
 
     const { aloj, unidad } = await this.resolverUnidad(c);
-    this.validarReglas(c, aloj, unidad);
+    await this.validarReglasConDatos(c, aloj, unidad);
     const plan = c.planTarifaCodigo ?? PLAN_POR_DEFECTO;
 
     const cupo = (await this.db.uno<{ n: number }>(`SELECT fn_cupo_unidad($1, $2::date, $3::date)::int AS n`, [unidad.id, c.fechaInicio, c.fechaFin]))?.n ?? 0;
@@ -315,7 +315,7 @@ export class AlojamientosV2Service {
     if (b.idempotency_key !== undefined && b.idempotency_key !== claveIdem) {
       throw reglaV2('VALIDATION_FAILED', 'idempotency_key del cuerpo debe ser igual a la cabecera Idempotency-Key', [{ name: 'idempotency_key', reason: 'distinta de la cabecera' }]);
     }
-    this.validarReglas(c, aloj, unidad);
+    await this.validarReglasConDatos(c, aloj, unidad);
     const t = titular as Titular;
     if (t.tipoDocumento === 'CEDULA' && !cedulaValida(t.identificacion)) {
       throw reglaV2('INVALID_DOCUMENT', 'La cédula no supera la verificación módulo 10.', [{ name: 'huespedTitular.identificacion', reason: 'cédula inválida' }]);
@@ -1324,6 +1324,59 @@ export class AlojamientosV2Service {
       const cap = unidad.capacidad_huespedes * c.cantidadHabitaciones;
       if (total > cap) throw reglaV2('CAPACITY_EXCEEDED', `${unidad.codigo_tipo} admite ${unidad.capacidad_huespedes} huésped(es) por habitación (${cap} en total).`);
     }
+  }
+
+  /**
+   * validarReglas + los datos que solo se pueden sacar de la BD. El 422 CAPACITY_EXCEEDED conserva
+   * su status, su code y su detail; solo se le añaden campos de extensión (capacidad, ocupantes, alternativas).
+   */
+  private async validarReglasConDatos(c: ComunV2, aloj: FilaAloj, unidad: FilaUnidad): Promise<void> {
+    try {
+      this.validarReglas(c, aloj, unidad);
+    } catch (e) {
+      if (!(e instanceof ProblemException)) throw e;
+      const cuerpo = e.getResponse() as ProblemBody;
+      if (cuerpo.code !== 'CAPACITY_EXCEEDED') throw e;
+      const o = c.ocupantes as { adultos: number; ninos: number };
+      throw reglaV2('CAPACITY_EXCEEDED', cuerpo.detail ?? '', cuerpo.invalidParams, {
+        capacidadMaximaPorHabitacion: unidad.capacidad_huespedes,
+        ocupantesSolicitados: { adultos: o.adultos, ninos: o.ninos },
+        tipoHabitacionCodigo: unidad.codigo_tipo,
+        alternativas: await this.alternativasConCapacidad(c, aloj, unidad),
+      });
+    }
+  }
+
+  /** Hasta 5 unidades activas del mismo alojamiento que sí alojan a los ocupantes y tienen cupo, de la más barata a la más cara. */
+  private async alternativasConCapacidad(c: ComunV2, aloj: FilaAloj, unidad: FilaUnidad): Promise<Record<string, unknown>[]> {
+    const o = c.ocupantes as { adultos: number; ninos: number };
+    const filas = await this.db.query<{ id: string; nombre: string; codigo_tipo: string; capacidad_huespedes: number; cupo: number }>(
+      `SELECT id::text AS id, nombre, codigo_tipo, capacidad_huespedes::int AS capacidad_huespedes,
+              fn_cupo_unidad(id, $5::date, $6::date)::int AS cupo
+         FROM unidad_alojamiento
+        WHERE alojamiento_id = $1 AND activa AND codigo_tipo <> $2
+          AND capacidad_huespedes * $3::int >= $4::int
+          AND fn_cupo_unidad(id, $5::date, $6::date) >= $3::int
+        ORDER BY precio_noche_base, codigo_tipo
+        LIMIT 5`,
+      [aloj.id, unidad.codigo_tipo, c.cantidadHabitaciones, o.adultos + o.ninos, c.fechaInicio, c.fechaFin],
+    );
+    const conPrecio: { nocheC: number; fila: Record<string, unknown> }[] = [];
+    for (const f of filas) {
+      const precio = await this.calcularPrecio(f.id, aloj.id, c.fechaInicio, c.fechaFin, c.cantidadHabitaciones);
+      conPrecio.push({
+        nocheC: precio.precioNocheC,
+        fila: {
+          tipoHabitacionCodigo: f.codigo_tipo,
+          nombre: f.nombre,
+          capacidadAdultos: f.capacidad_huespedes,
+          habitacionesRemanentes: f.cupo,
+          precioNoche: aMoney(precio.precioNocheC),
+          precioTotalEstancia: aMoney(precio.totalC),
+        },
+      });
+    }
+    return conPrecio.sort((a, b) => a.nocheC - b.nocheC).map((x) => x.fila);
   }
 
   /** Precio noche por noche en centavos enteros: subtotal + IVA + tasa municipal − combo (exacto). */
