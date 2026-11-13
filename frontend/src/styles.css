@@ -160,9 +160,6 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   font-size: 1.1rem; line-height: 1; padding: .35rem .45rem; border-radius: var(--radio-s); color: var(--c-suave); }
 .btn-ojo:hover { background: var(--gris-100); }
 
-.requisitos-clave li { display: flex; gap: .35rem; }
-.requisitos-clave li.falta { color: var(--c-error-texto); }
-.requisitos-clave li.cumple { color: var(--c-ok-texto); }
 
 .alerta { border-radius: var(--radio-s); padding: .8rem 1rem; margin: .75rem 0; }
 .alerta ul { margin: .4rem 0 0; padding-left: 1.2rem; }
@@ -225,9 +222,17 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .campo-boton { text-align: left; font: inherit; cursor: pointer; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-huespedes { position: absolute; top: calc(100% + .5rem); left: 0; z-index: 5; width: min(300px, 90vw); background: var(--c-superficie);
   border: 1px solid var(--c-borde-suave); border-radius: var(--radio); box-shadow: var(--sombra-l); padding: 1rem; }
-.panel-huespedes label { flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: .6rem; color: var(--c-texto); }
-.panel-huespedes input { width: 84px; text-align: center; }
-.panel-huespedes .btn { width: 100%; margin-top: .3rem; }
+.contador-fila { display: flex; align-items: center; gap: .7rem; padding: .55rem 0; }
+.contador-fila + .contador-fila { border-top: 1px solid var(--c-borde-suave); }
+.contador-icono { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: var(--c-primario-suave); color: var(--c-primario); flex: none; }
+.contador-texto { flex: 1; font-weight: 600; color: var(--c-texto); }
+.contador-mando { display: inline-flex; align-items: center; gap: .55rem; }
+.contador-valor { min-width: 1.6rem; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--c-texto); }
+.contador-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 50%; border: 1.5px solid var(--c-primario); background: var(--c-superficie); color: var(--c-primario); cursor: pointer; padding: 0; transition: background .15s, color .15s; }
+.contador-btn:hover:not(:disabled) { background: var(--c-primario); color: #fff; }
+.contador-btn:focus-visible { outline: 2px solid var(--c-primario); outline-offset: 2px; }
+.contador-btn:disabled { border-color: var(--c-borde-suave); color: var(--gris-400, #b7bfbc); cursor: not-allowed; }
+.panel-huespedes .btn { width: 100%; margin-top: .6rem; }
 .buscador .btn-buscar { align-self: center; min-height: 52px; padding: 0 1.6rem; border-radius: var(--radio); font-size: 1rem; margin-left: .3rem; }
 .buscador-pie { padding: .5rem .9rem .2rem; border-top: 1px solid var(--c-borde-suave); }
 .btn-filtros { background: none; border: 0; font: inherit; font-weight: 700; color: var(--c-primario); cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; padding: .3rem 0; }
@@ -350,6 +355,13 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 
 /* Dirección + mapa */
 .combo { position: relative; }
+.combo > input { width: 100%; }
+.combo:has(.combo-flecha) > input { padding-right: 2.4rem; }
+.combo-flecha { position: absolute; right: .3rem; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; min-height: 0; padding: 0; border: 0; border-radius: var(--radio-s); background: none; color: var(--c-suave); cursor: pointer;
+  transition: background var(--transicion), color var(--transicion); }
+.combo-flecha:hover { background: var(--gris-100); color: var(--c-texto); }
+.combo-flecha:focus-visible { outline: 2px solid var(--c-primario); outline-offset: 1px; }
 .sugerencias { position: absolute; z-index: 1000; left: 0; right: 0; top: calc(100% + 4px); list-style: none; margin: 0; padding: .3rem;
   background: var(--c-superficie); border: 1px solid var(--c-borde-suave); border-radius: var(--radio-s); box-shadow: var(--sombra-l); max-height: 260px; overflow-y: auto; }
 .sugerencias li { padding: .55rem .6rem; border-radius: 6px; cursor: pointer; font-size: .9rem; line-height: 1.35; }

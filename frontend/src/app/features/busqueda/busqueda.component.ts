@@ -82,9 +82,33 @@ export function motivoBusqueda(
             <!-- Esc desde cualquier campo del panel lo cierra (el evento sube desde los inputs) -->
             <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
             <div class="panel-huespedes" id="panel-huespedes" (keydown.escape)="panelHuespedes.set(false)">
-              <label>Adultos <input appFiltro="entero" formControlName="adultos" maxlength="2" /></label>
-              <label>Niños <input appFiltro="entero" formControlName="ninos" maxlength="2" /></label>
-              <label>Habitaciones <input appFiltro="entero" formControlName="habitaciones" maxlength="2" /></label>
+              @for (c of contadores; track c.campo) {
+                <div class="contador-fila" role="group" [attr.aria-label]="c.etiqueta">
+                  <span class="contador-icono" aria-hidden="true">
+                    @switch (c.campo) {
+                      @case ('adultos') {
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      }
+                      @case ('ninos') {
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 2 3.5 2 3.5-2 3.5-2"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+                      }
+                      @default {
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M3 9h16a2 2 0 0 1 2 2v8M3 16h18M7 9v7"/></svg>
+                      }
+                    }
+                  </span>
+                  <span class="contador-texto">{{ c.etiqueta }}</span>
+                  <span class="contador-mando">
+                    <button type="button" class="contador-btn" [attr.aria-label]="'Quitar ' + c.unidad" [disabled]="valorContador(c.campo) <= c.min" (click)="ajustar(c.campo, -1)">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+                    </button>
+                    <output class="contador-valor" aria-live="polite">{{ valorContador(c.campo) }}</output>
+                    <button type="button" class="contador-btn" [attr.aria-label]="'Agregar ' + c.unidad" [disabled]="valorContador(c.campo) >= c.max" (click)="ajustar(c.campo, 1)">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                  </span>
+                </div>
+              }
               <button class="btn btn-secundario btn-chico" type="button" (click)="panelHuespedes.set(false)">Listo</button>
             </div>
           }
@@ -312,6 +336,21 @@ export class BusquedaComponent implements OnInit {
   // Estado solo de interfaz (no cambia los criterios ni la llamada al API)
   readonly masFiltros = signal(false);
   readonly panelHuespedes = signal(false);
+  /** Filas del panel de huéspedes: mismos límites que valida motivoBusqueda y el backend. */
+  readonly contadores = [
+    { campo: 'adultos', etiqueta: 'Adultos', unidad: 'adulto', min: 1, max: 30 },
+    { campo: 'ninos', etiqueta: 'Niños', unidad: 'niño', min: 0, max: 10 },
+    { campo: 'habitaciones', etiqueta: 'Habitaciones', unidad: 'habitación', min: 1, max: 20 },
+  ] as const;
+  valorContador(campo: 'adultos' | 'ninos' | 'habitaciones'): number {
+    return Number(this.valores()[campo]) || 0;
+  }
+  ajustar(campo: 'adultos' | 'ninos' | 'habitaciones', paso: number): void {
+    const c = this.contadores.find((x) => x.campo === campo)!;
+    const nuevo = Math.min(c.max, Math.max(c.min, this.valorContador(campo) + paso));
+    this.form.controls[campo].setValue(nuevo);
+    this.form.controls[campo].markAsDirty();
+  }
   readonly esqueletos = [1, 2, 3, 4, 5, 6, 7, 8];
   readonly plural = plural;
 

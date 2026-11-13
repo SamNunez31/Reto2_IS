@@ -380,9 +380,27 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
                 <div class="cat-form-fila">
                   <label>Nombre
                     <input name="na" [(ngModel)]="nuevaAmenidad" maxlength="60" placeholder="Ej.: Parqueadero techado" autocomplete="off" /></label>
-                  <label>Categoría
-                    <input name="nc" [(ngModel)]="nuevaCategoria" maxlength="40" list="cat-categorias" placeholder="Elige una o escribe una nueva" autocomplete="off" /></label>
-                  <datalist id="cat-categorias">@for (g of amenidadesPorCategoria(k.amenidades); track g.categoria) { <option [value]="g.categoria"></option> }</datalist>
+                  @let cats = categoriasFiltradas(k.amenidades);
+                  <label for="cat-nc">Categoría
+                    <div class="combo">
+                      <input id="cat-nc" name="nc" [(ngModel)]="nuevaCategoria" maxlength="40" autocomplete="off" role="combobox"
+                             placeholder="Elige una o escribe una nueva" aria-controls="cat-lista" [attr.aria-expanded]="catAbierta()"
+                             [attr.aria-activedescendant]="catActiva() >= 0 ? 'cat-op-' + catActiva() : null"
+                             (focus)="catAbierta.set(true)" (input)="alEscribirCategoria()"
+                             (keydown)="tecladoCategoria($event, cats)" (blur)="cerrarCategoriaLuego()" />
+                      <button class="combo-flecha" type="button" tabindex="-1" aria-label="Ver categorías"
+                              (mousedown)="$event.preventDefault()" (click)="alternarCategorias()">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                      </button>
+                      @if (catAbierta() && cats.length) {
+                        <ul id="cat-lista" class="sugerencias" role="listbox" aria-label="Categorías de amenidad">
+                          @for (c of cats; track c; let i = $index) {
+                            <li [id]="'cat-op-' + i" role="option" [attr.aria-selected]="i === catActiva()" [class.activa]="i === catActiva()"
+                                (mousedown)="$event.preventDefault(); elegirCategoria(c)">{{ c }}</li>
+                          }
+                        </ul>
+                      }
+                    </div></label>
                   <button class="btn btn-primario" type="submit" [disabled]="!nuevaAmenidad.trim() || !nuevaCategoria.trim()">
                     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Agregar</button>
                 </div>
@@ -1096,6 +1114,57 @@ export class AdminComponent implements OnInit {
     });
     if (!si) return;
     this.accion(this.api.asignarAdmin(this.texto(u['id'])), 'Rol de administrador asignado', 'usuarios');
+  }
+
+  /** Lista desplegable de categorías de amenidad: se filtra con lo que el usuario escribe. */
+  readonly catAbierta = signal(false);
+  readonly catActiva = signal(-1);
+
+  categoriasFiltradas(l: { id: number; nombre: string; categoria: string }[]): string[] {
+    const todas = this.amenidadesPorCategoria(l).map((g) => g.categoria);
+    const q = this.nuevaCategoria.trim().toLowerCase();
+    return q ? todas.filter((c) => c.toLowerCase().includes(q)) : todas;
+  }
+
+  alEscribirCategoria(): void {
+    this.catAbierta.set(true);
+    this.catActiva.set(-1);
+  }
+
+  alternarCategorias(): void {
+    this.catAbierta.set(!this.catAbierta());
+    this.catActiva.set(-1);
+  }
+
+  elegirCategoria(c: string): void {
+    this.nuevaCategoria = c;
+    this.catAbierta.set(false);
+    this.catActiva.set(-1);
+  }
+
+  /** El clic en una opción llega después del blur: se cierra con un respiro. */
+  cerrarCategoriaLuego(): void {
+    setTimeout(() => this.catAbierta.set(false), 120);
+  }
+
+  tecladoCategoria(ev: KeyboardEvent, lista: string[]): void {
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      if (!this.catAbierta()) {
+        this.catAbierta.set(true);
+        return;
+      }
+      const n = lista.length;
+      if (!n) return;
+      const actual = this.catActiva();
+      this.catActiva.set(ev.key === 'ArrowDown' ? (actual + 1) % n : actual <= 0 ? n - 1 : actual - 1);
+    } else if (ev.key === 'Enter' && this.catAbierta() && this.catActiva() >= 0) {
+      ev.preventDefault();
+      this.elegirCategoria(lista[this.catActiva()]);
+    } else if (ev.key === 'Escape') {
+      this.catAbierta.set(false);
+      this.catActiva.set(-1);
+    }
   }
 
   /** Amenidades agrupadas por categoría (orden alfabético) para la lista de Catálogos. */
