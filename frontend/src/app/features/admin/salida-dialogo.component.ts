@@ -24,7 +24,7 @@ const MAX_PRECIO = 9999.99;
 /**
  * Diálogo «Registrar check-out»: como en recepción de un hotel, se repasa la cuenta (consumos extra: minibar,
  * restaurante…), se confirma la devolución de llaves y se deja constancia. Al confirmar la reserva se completa,
- * la unidad pasa a «En preparación» y se avisa a Booking.
+ * la unidad pasa a «En preparación».
  * Pensado a prueba de errores: campos con nombre visible, valores por defecto, errores junto al campo,
  * el fondo no cierra el diálogo si ya se escribió algo y no se puede confirmar sin recibir las llaves.
  */
@@ -109,7 +109,7 @@ const MAX_PRECIO = 9999.99;
           <p id="sd-ayuda-llaves" class="sd-ayuda sd-ayuda-llaves">{{ llaves ? 'Listo: ya puedes confirmar.' : 'Marca esta casilla para poder confirmar.' }}</p>
 
           <div class="sd-efecto" aria-live="polite">
-            <strong>Al confirmar:</strong> la reserva pasa a «Completada», {{ r.habitacion_asignada || 'la unidad' }} queda «En preparación» y se avisa a Booking.
+            <strong>Al confirmar:</strong> la reserva pasa a «Completada», {{ r.habitacion_asignada || 'la unidad' }} queda «En preparación».
           </div>
 
           <div class="sd-acciones">

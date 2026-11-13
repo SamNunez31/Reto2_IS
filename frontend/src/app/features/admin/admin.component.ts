@@ -923,8 +923,7 @@ export class AdminComponent implements OnInit {
         this.ok.mostrar(
           `Check-out de la reserva ${s.codigo} registrado` +
             (r.habitacion_en_preparacion ? `: la habitación ${r.habitacion_en_preparacion} quedó en preparación. ` : '. ') +
-            (Number(r.consumos_total) > 0 ? `Consumos extra: ${this.usd(Number(r.consumos_total))}. ` : '') +
-            (!s.canal_booking ? '' : r.booking_notificado ? 'Booking fue notificado.' : 'Booking se notificará en breve (reintento automático).'),
+            (Number(r.consumos_total) > 0 ? `Consumos extra: ${this.usd(Number(r.consumos_total))}.` : ''),
         );
         this.ir('reservas');
       },

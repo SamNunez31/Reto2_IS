@@ -248,7 +248,7 @@ export class AnfitrionService {
   datosCheckin(id: string): Observable<DatosCheckinHost> {
     return datos(this.http.get<RespuestaApi<DatosCheckinHost>>(`${this.base}/orders/${id}/available-rooms`));
   }
-  /** Check-out en recepción: la habitación queda EN_PREPARACION (y se avisa a Booking si la reserva vino de allí). */
+  /** Check-out en recepción: la habitación queda EN_PREPARACION (Booking ya no necesita el aviso de salida). */
   registrarSalida(id: string, cuerpo: DatosSalida = {}): Observable<RespuestaSalida> {
     return datos(this.http.post<RespuestaApi<RespuestaSalida>>(`${this.base}/orders/${id}/departure`, cuerpo));
   }
