@@ -1,5 +1,6 @@
 import { CurrencyPipe, PercentPipe } from '@angular/common';
-import { Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { enVivo } from '../../shared/en-vivo';
 import { RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 import { EMPTY, expand, forkJoin, map, of, reduce, switchMap } from 'rxjs';
@@ -242,6 +243,7 @@ function barra(x: number, y: number, w: number, base: number): string {
 })
 export class DashboardAdminComponent implements OnInit, OnDestroy {
   private readonly admin = inject(AdminService);
+  private readonly destruir = inject(DestroyRef);
   private readonly catalogo = inject(CatalogoService);
   private readonly host = inject(AnfitrionService);
   private readonly contenedorMapa = viewChild<ElementRef<HTMLDivElement>>('mapa');
@@ -337,14 +339,16 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
     this.cargarKpi();
     this.cargarMeses();
     this.cargarAlojamientos();
+    // En vivo: los indicadores se vuelven a leer solos (sin spinner) mientras el panel está abierto
+    enVivo(this.destruir, () => this.cargarKpi(true), 30000);
   }
 
   ngOnDestroy(): void {
     this.mapa?.remove();
   }
 
-  cargarKpi(): void {
-    this.estadoKpi.set('cargando');
+  cargarKpi(silencioso = false): void {
+    if (!silencioso) this.estadoKpi.set('cargando');
     forkJoin([this.admin.indicadores(), this.admin.ventasPorCiudad()]).subscribe({
       next: ([ind, ventas]) => {
         this.ind.set(ind);
@@ -356,6 +360,7 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
         this.estadoKpi.set('listo');
       },
       error: (e) => {
+        if (silencioso) return;
         this.errorKpi.set(leerError(e).mensaje);
         this.estadoKpi.set('error');
       },

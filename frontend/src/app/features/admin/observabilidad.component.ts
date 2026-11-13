@@ -1,6 +1,7 @@
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { ObservabilidadService, SnapshotObs } from '../../core/services/observabilidad.service';
 import { ConfirmarService } from '../../shared/confirmar';
+import { enVivo } from '../../shared/en-vivo';
 
 const NOMBRE_TIPO: Record<string, string> = {
   inicio: 'Inicio', carga: 'Carga', 'error-js': 'Error JS', 'error-angular': 'Error Angular', promesa: 'Promesa rechazada',
@@ -17,10 +18,9 @@ const NOMBRE_TIPO: Record<string, string> = {
     <section aria-labelledby="obs-titulo">
       <!-- Como página propia (/observabilidad) es el h1; dentro del panel admin va bajo su h1 "Administración" -->
       @if (pagina()) { <h1 id="obs-titulo">Observabilidad del navegador</h1> } @else { <h2 id="obs-titulo">Observabilidad del navegador</h2> }
-      <p class="ayuda">Estos datos son locales de este navegador: se guardan en localStorage y no se envían a ningún servidor.</p>
+      <p class="ayuda">Estos datos son locales de este navegador: se guardan en localStorage y no se envían a ningún servidor. Se actualizan solos.</p>
 
       <div class="acciones obs-acciones">
-        <button class="btn" type="button" (click)="actualizar(true)">Actualizar</button>
         <button class="btn" type="button" (click)="demo()">Generar evento de demostración</button>
         <button class="btn" type="button" (click)="descargar()">Descargar snapshot JSON</button>
         <button class="btn btn-peligro" type="button" (click)="limpiar()">Limpiar almacenamiento</button>
@@ -106,12 +106,14 @@ export class ObservabilidadComponent implements OnInit {
   readonly pagina = input(false);
   private readonly obs = inject(ObservabilidadService);
   private readonly confirmar = inject(ConfirmarService);
+  private readonly destruir = inject(DestroyRef);
   readonly s = signal<SnapshotObs | null>(null);
   readonly ultimos = signal<SnapshotObs['eventos']>([]);
   readonly aviso = signal('');
 
   ngOnInit(): void {
     this.actualizar(false);
+    enVivo(this.destruir, () => this.actualizar(false), 3000);
   }
 
   actualizar(avisar: boolean): void {

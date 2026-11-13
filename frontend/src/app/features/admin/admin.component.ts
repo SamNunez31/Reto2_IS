@@ -1,5 +1,6 @@
 import { CurrencyPipe, DatePipe, JsonPipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { enVivo } from '../../shared/en-vivo';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
@@ -691,6 +692,7 @@ export class AdminComponent implements OnInit {
     { id: 'observabilidad', nombre: 'Observabilidad' },
   ];
   readonly jobs = ['completar-estancias', 'publicar-outbox', 'purgar-idempotencia'];
+  private readonly destruir = inject(DestroyRef);
   readonly pestana = signal<Pestana>('indicadores');
   readonly cargando = signal(false);
   /** Código del alojamiento cuyas reservas activas se están revisando antes de eliminarlo. */
@@ -738,6 +740,17 @@ export class AdminComponent implements OnInit {
     // ?tab=alojamientos al volver del editor
     const tab = this.ruta.snapshot.queryParamMap.get('tab') as Pestana | null;
     this.ir(tab && this.pestanas.some((p) => p.id === tab) ? tab : 'indicadores');
+    // En vivo: las reservas (p. ej. las que llegan desde Booking) aparecen solas, sin botón de actualizar
+    enVivo(this.destruir, () => this.refrescarReservas(), 10000);
+  }
+
+  /** Relee las reservas en segundo plano (sin spinner ni vaciar la lista); ignora errores transitorios. */
+  private refrescarReservas(): void {
+    if (this.pestana() !== 'reservas' || this.cargando()) return;
+    this.catalogo.reservas(this.filtroReservas, 100, 0, this.filtroPago).subscribe({
+      next: (d) => { if (this.pestana() === 'reservas') this.reservas.set(d.items); },
+      error: () => undefined,
+    });
   }
 
   fecha(v: unknown): string {

@@ -17,12 +17,12 @@ import { LoginModalService } from './core/services/login-modal.service';
       <!-- Clic en un enlace del menú móvil lo cierra y Esc también; los enlaces ya son accesibles con teclado -->
       <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
       <nav id="nav" [class.abierto]="menu()" (click)="menu.set(false)" (keydown.escape)="cerrarMenu(menuBtn)" aria-label="Principal">
-        <a routerLink="/" routerLinkActive="activo" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">Buscar</a>
+        <a class="ni ni-buscar" routerLink="/" routerLinkActive="activo" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">Buscar</a>
         @if (auth.usuario(); as u) {
           @if (u.rol === 'ADMIN') {
-            <a routerLink="/admin" routerLinkActive="activo" ariaCurrentWhenActive="page">Administración</a>
+            <a class="ni ni-admin" routerLink="/admin" routerLinkActive="activo" ariaCurrentWhenActive="page">Administración</a>
           } @else {
-            <a routerLink="/mis-reservas" routerLinkActive="activo" ariaCurrentWhenActive="page">Mis reservas</a>
+            <a class="ni ni-reservas" routerLink="/mis-reservas" routerLinkActive="activo" ariaCurrentWhenActive="page">Mis reservas</a>
           }
           <!-- El ADMIN no tiene "Mi perfil" ni nombre en la barra -->
           @if (u.rol !== 'ADMIN') {
@@ -31,9 +31,9 @@ import { LoginModalService } from './core/services/login-modal.service';
               {{ u.nombres }}
             </a>
           }
-          <button class="btn-salir" type="button" (click)="salir()">Salir</button>
+          <button class="btn-salir ni ni-salir" type="button" (click)="salir()">Salir</button>
         } @else {
-          <button class="nav-boton" type="button" (click)="abrirLogin()" aria-haspopup="dialog">Iniciar sesión</button>
+          <button class="nav-boton ni ni-entrar" type="button" (click)="abrirLogin()" aria-haspopup="dialog">Iniciar sesión</button>
           <a routerLink="/registro" class="btn btn-primario">Crear cuenta</a>
         }
       </nav>

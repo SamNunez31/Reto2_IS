@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { enVivo } from '../../shared/en-vivo';
 import { FormsModule } from '@angular/forms';
 import { AnfitrionService, EstadoHabitacion, HabitacionHost, ResumenAlojamiento } from '../../core/services/anfitrion.service';
 import { ErrorVista, leerError } from '../../core/services/api-base';
@@ -107,6 +108,7 @@ export const ETIQUETA_ESTADO: Record<EstadoHabitacion, string> = {
 })
 export class HabitacionesComponent implements OnInit {
   private readonly api = inject(AnfitrionService);
+  private readonly destruir = inject(DestroyRef);
   readonly ok = avisoTemporal();
   readonly iconos = ICONOS;
   readonly estados: EstadoHabitacion[] = ['DISPONIBLE', 'EN_PREPARACION', 'OCUPADA'];
@@ -155,6 +157,14 @@ export class HabitacionesComponent implements OnInit {
       },
       error: (e) => { this.cargando.set(false); this.error.set(leerError(e)); },
     });
+    enVivo(this.destruir, () => this.refrescar(), 8000);
+  }
+
+  /** Actualización en vivo: vuelve a leer el estado sin spinner ni mensajes (ignora errores transitorios). */
+  private refrescar(): void {
+    const codigo = this.codigo();
+    if (codigo === null || this.cargando() || this.cambiando()) return;
+    this.api.habitaciones(codigo).subscribe({ next: (h) => { if (this.codigo() === codigo && !this.cambiando()) this.habitaciones.set(h); }, error: () => undefined });
   }
 
   elegir(codigo: number): void {
