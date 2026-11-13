@@ -150,7 +150,7 @@ describe('HostService.registrarLlegada: llegaron más huéspedes de los reservad
 });
 
 describe('HostService.sincronizarBooking', () => {
-  it('reintenta los avisos pendientes de check-in y de check-out', async () => {
+  it('reintenta solo los avisos pendientes de check-in', async () => {
     const svc = crear().svc;
     expect(await svc.sincronizarBooking(ADMIN)).toEqual({ checkin: 0, checkout: 0 });
   });
@@ -213,7 +213,7 @@ describe('HostService.datosParaCheckin', () => {
 });
 
 describe('HostService.registrarSalida (check-out)', () => {
-  it('completa la reserva, deja la habitación en preparación y avisa a Booking', async () => {
+  it('completa la reserva, deja la habitación en preparación y no avisa a Booking', async () => {
     const { svc, sqls, avisos } = crear({ checkinEn: '2026-11-11T01:27:00Z' });
     const r = await svc.registrarSalida(ID, { observaciones: 'Todo en orden' }, ADMIN);
     expect(r.estado).toBe('CHECKED_OUT');
@@ -221,7 +221,8 @@ describe('HostService.registrarSalida (check-out)', () => {
     expect(r.ya_registrado).toBe(false);
     expect(sqls.some((s) => /UPDATE reserva SET estado = 'COMPLETADA'/.test(s))).toBe(true);
     expect(sqls.some((s) => /checkout_recepcion = true/.test(s))).toBe(true);
-    expect(avisos).toEqual(['checkout']);
+    expect(avisos).toEqual([]);
+    expect(r.booking_notificado).toBe(false);
   });
 
   it('cobra los consumos extra (minibar) y devuelve el total', async () => {
