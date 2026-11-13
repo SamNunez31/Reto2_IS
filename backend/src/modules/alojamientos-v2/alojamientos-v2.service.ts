@@ -32,6 +32,8 @@ import {
 } from './util-v2';
 
 const INICIO = Date.now();
+// El precio que se entrega a Booking (v2) va sin IVA: total = subtotal. La web directa NO usa este cálculo.
+const IVA_V2_ACTIVO = false;
 const TASA_MUNICIPAL_CENTAVOS = 0; // Sin tasa municipal: el precio es subtotal + IVA (antes USD 2.00 por noche y por habitación)
 const PLAN_POR_DEFECTO = 'STANDARD';
 
@@ -1390,7 +1392,7 @@ export class AlojamientosV2Service {
         WHERE u.id = $1 ORDER BY n`,
       [unidadId, alojId, entrada, salida],
     );
-    const noches: Noche[] = filas.map((f) => ({ fecha: f.fecha, precioC: aCentavos(f.precio), ivaPct100: Math.round(Number(f.iva) * 100) }));
+    const noches: Noche[] = filas.map((f) => ({ fecha: f.fecha, precioC: aCentavos(f.precio), ivaPct100: IVA_V2_ACTIVO ? Math.round(Number(f.iva) * 100) : 0 }));
     const subtotalC = noches.reduce((s, n) => s + n.precioC * cantidad, 0);
     const ivaC = Math.round(noches.reduce((s, n) => s + n.precioC * cantidad * n.ivaPct100, 0) / 10000);
     const tasaC = TASA_MUNICIPAL_CENTAVOS * noches.length * cantidad;
@@ -1461,7 +1463,7 @@ export class AlojamientosV2Service {
     const pol = (await this.politica(Number(f.politica_id))) as { esReembolsable: boolean; horasLimiteCancelacion?: number; descripcion: string };
     const ivaPct = Number(f.iva_pct);
     const impuestos = [
-      { codigo: 'IVA', nombre: `IVA ${ivaPct} %`, porcentaje: ivaPct, monto: aMoney(aCentavos(String(f.iva_valor))), incluidoEnPrecio: false },
+      ...(ivaPct > 0 ? [{ codigo: 'IVA', nombre: `IVA ${ivaPct} %`, porcentaje: ivaPct, monto: aMoney(aCentavos(String(f.iva_valor))), incluidoEnPrecio: false }] : []),
       // Las órdenes antiguas conservan su tasa municipal; las nuevas ya no la llevan.
       ...(aCentavos(String(f.tasa)) > 0 ? [{ codigo: 'TASA_MUNICIPAL', nombre: 'Tasa municipal', monto: aMoney(aCentavos(String(f.tasa))), incluidoEnPrecio: false }] : []),
     ];
@@ -1559,7 +1561,7 @@ function desglose(p: Precio): Record<string, unknown> {
     descuentoCombo: aMoney(p.descuentoC),
     totalPagar: aMoney(p.totalC),
     impuestos: [
-      { codigo: 'IVA', nombre: `IVA ${p.ivaPct} %`, porcentaje: p.ivaPct, monto: aMoney(p.ivaC), incluidoEnPrecio: false },
+      ...(p.ivaPct > 0 ? [{ codigo: 'IVA', nombre: `IVA ${p.ivaPct} %`, porcentaje: p.ivaPct, monto: aMoney(p.ivaC), incluidoEnPrecio: false }] : []),
       ...(p.tasaC > 0 ? [{ codigo: 'TASA_MUNICIPAL', nombre: 'Tasa municipal', monto: aMoney(p.tasaC), incluidoEnPrecio: false }] : []),
     ],
     nochesDetalle: p.nochesDetalle,

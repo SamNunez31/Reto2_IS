@@ -80,7 +80,7 @@ describe('422 CAPACITY_EXCEEDED con datos útiles', () => {
           capacidadAdultos: 2,
           habitacionesRemanentes: 3,
           precioNoche: '80.00',
-          precioTotalEstancia: '184.00',
+          precioTotalEstancia: '160.00',
         },
       ],
     });
