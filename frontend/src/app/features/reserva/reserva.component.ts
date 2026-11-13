@@ -1,5 +1,6 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OrderDetail } from '../../core/models/api.models';
@@ -126,13 +127,13 @@ const vCorreo: ValidatorFn = vEmail();
               <div class="opciones-tarjeta" role="radiogroup" aria-label="Método de pago">
                 <label class="opcion-tarjeta">
                   <input type="radio" name="metodo-pago" value="TARJETA" [checked]="metodo() === 'TARJETA'" (change)="elegirMetodo('TARJETA')" />
-                  <span class="icono" aria-hidden="true">💳</span>
+                  <span class="icono" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6 15h4"/></svg></span>
                   <span class="titulo">Tarjeta de crédito</span>
                   <span class="detalle">Pagas ahora y la reserva queda pagada.</span>
                 </label>
                 <label class="opcion-tarjeta">
                   <input type="radio" name="metodo-pago" value="EFECTIVO" [checked]="metodo() === 'EFECTIVO'" (change)="elegirMetodo('EFECTIVO')" />
-                  <span class="icono" aria-hidden="true">💵</span>
+                  <span class="icono" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg></span>
                   <span class="titulo">Efectivo</span>
                   <span class="detalle">Pagas al llegar al alojamiento.</span>
                 </label>
@@ -164,6 +165,26 @@ const vCorreo: ValidatorFn = vEmail();
                   <p class="ayuda">Cualquier otra tarjeta válida se aprueba. Usa una fecha futura y cualquier código.</p>
                 </details>
               }
+
+              <div class="tarjeta-vista" [class.marca-visa]="marca() === 'visa'" [class.marca-mastercard]="marca() === 'mastercard'" [class.marca-amex]="marca() === 'amex'"
+                   role="img" [attr.aria-label]="'Vista previa de tu tarjeta: ' + (vistaTitular() || 'sin nombre')">
+                <div class="tv-fila">
+                  <span class="tv-chip" aria-hidden="true"></span>
+                  <span class="tv-marca" aria-hidden="true">
+                    @switch (marca()) {
+                      @case ('visa') { <span class="tv-visa">VISA</span> }
+                      @case ('mastercard') { <span class="tv-mc"><i></i><i></i></span> }
+                      @case ('amex') { <span class="tv-amex">AMEX</span> }
+                      @default { <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a6 6 0 0 1 8 0M11 18.5a2 2 0 0 1 2 0"/></svg> }
+                    }
+                  </span>
+                </div>
+                <div class="tv-numero" aria-hidden="true">{{ vistaNumero() }}</div>
+                <div class="tv-fila tv-pie" aria-hidden="true">
+                  <div><span class="tv-etq">Titular</span><span class="tv-valor" [class.vacio]="!vistaTitular()">{{ vistaTitular() || 'NOMBRE APELLIDO' }}</span></div>
+                  <div class="tv-cad"><span class="tv-etq">Vence</span><span class="tv-valor" [class.vacio]="!vistaCaducidad()">{{ vistaCaducidad() || 'MM/AA' }}</span></div>
+                </div>
+              </div>
 
               <div class="grupo">
                 <label for="tj-numero">Número de tarjeta</label>
@@ -200,7 +221,7 @@ const vCorreo: ValidatorFn = vEmail();
               <button class="btn btn-primario btn-pagar" type="submit" [disabled]="procesando() || vencido()">
                 {{ procesando() ? 'Procesando pago…' : 'Pagar ' + (total() | currency: 'USD') }}
               </button>
-              <p class="pago-seguro"><span aria-hidden="true">🔒</span> Pago seguro</p>
+              <p class="pago-seguro"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> Pago seguro · tus datos de tarjeta no se guardan</p>
               <div aria-live="polite">@if (procesando()) { <app-cargando texto="Procesando tu pago…" /> }</div>
               @if (vencido()) {
                 <p class="alerta alerta-aviso">El precio garantizado venció. <button class="btn" type="button" (click)="volverACotizar()">Actualizar precio</button></p>
@@ -349,6 +370,18 @@ export class ReservaComponent implements OnInit {
     cvv: ['', (c: AbstractControl) => err(motivoCvv(c.value ?? '', marcaDe(c.parent?.get('numero')?.value ?? '')))],
   });
   readonly marca = signal(marcaDe(''));
+  /** Valores en vivo para la tarjeta de vista previa (el CVV nunca se muestra). */
+  private readonly valoresTarjeta = toSignal(this.tarjeta.valueChanges, { initialValue: this.tarjeta.getRawValue() });
+  readonly vistaNumero = computed(() => {
+    const d = soloDigitos(this.valoresTarjeta().numero ?? '');
+    const grupos = this.marca() === 'amex' ? [4, 6, 5] : [4, 4, 4, 4];
+    const total = grupos.reduce((a, b) => a + b, 0);
+    const base = (d + '•'.repeat(total)).slice(0, total);
+    let i = 0;
+    return grupos.map((g) => { const t = base.slice(i, i + g); i += g; return t; }).join(' ');
+  });
+  readonly vistaTitular = computed(() => (this.valoresTarjeta().titular ?? '').trim().toUpperCase());
+  readonly vistaCaducidad = computed(() => this.valoresTarjeta().caducidad ?? '');
   readonly largoCvv = computed(() => largoCvv(this.marca()));
 
   readonly fechas = computed(() => {
