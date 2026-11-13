@@ -100,7 +100,7 @@ export class JobsService {
       case 'publicar-outbox':
         return this.publicarOutbox(q);
       case 'notificar-checkin':
-        return (await this.checkin.reintentarPendientes()) + (await this.checkout.reintentarPendientes());
+        return this.checkin.reintentarPendientes(); // el check-out ya no se avisa a Booking
     }
   }
 

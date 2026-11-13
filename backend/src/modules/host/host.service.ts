@@ -700,8 +700,8 @@ export class HostService {
         return pasarAPreparacion(q, reservaId);
       });
     }
-    const notificado = await this.checkout.notificar(reservaId);
-    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_OUT', habitacion_en_preparacion: numero, consumos_total: yaRegistrado ? (fila.consumos_total ?? '0.00') : aMoney(extras.centavos), ya_registrado: yaRegistrado, booking_notificado: notificado };
+    // Booking confirmó que no necesita el aviso de check-out: queda registrado solo en Posada EC
+    return { reserva: await this.reserva(reservaId, user), estado: 'CHECKED_OUT', habitacion_en_preparacion: numero, consumos_total: yaRegistrado ? (fila.consumos_total ?? '0.00') : aMoney(extras.centavos), ya_registrado: yaRegistrado, booking_notificado: false };
   }
 
   /** Habitaciones de un hotel con su estado. */
@@ -779,8 +779,9 @@ export class HostService {
   /** Reintenta ahora los avisos a Booking que quedaron pendientes (el mismo trabajo que corre solo cada 30 s). */
   async sincronizarBooking(user: UsuarioToken): Promise<{ checkin: number; checkout: number }> {
     if (user.rol !== 'ADMIN') throw conflicto('Solo el administrador puede sincronizar con Booking');
-    const [checkin, checkout] = await Promise.all([this.checkin.reintentarPendientes(20), this.checkout.reintentarPendientes(20)]);
-    return { checkin, checkout };
+    // Solo el check-in se avisa a Booking; el check-out ya no se envía
+    const checkin = await this.checkin.reintentarPendientes(20);
+    return { checkin, checkout: 0 };
   }
 
   resenas(user: UsuarioToken): Promise<Record<string, unknown>[]> {
