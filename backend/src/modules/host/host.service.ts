@@ -406,7 +406,7 @@ export class HostService {
          FROM (${SQL_RESERVA_HOST}) x
         WHERE ($1::uuid IS NULL OR x.anfitrion_id = $1) AND ($2::text IS NULL OR x.estado = $2)
           AND ($3::text IS NULL OR x.estado_pago = $3)
-        ORDER BY x.fecha_entrada DESC LIMIT $4 OFFSET $5`,
+        ORDER BY x.created_at DESC, x.fecha_entrada DESC LIMIT $4 OFFSET $5`,
       [this.dueno(user), f.estado ?? null, f.estado_pago ?? null, f.limit, f.offset],
     );
     return { items: filas.map(({ total_filas: _t, anfitrion_id: _a, ...x }) => x), total: filas[0]?.total_filas ?? 0, limit: f.limit, offset: f.offset };
