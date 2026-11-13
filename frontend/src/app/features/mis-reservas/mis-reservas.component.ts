@@ -69,12 +69,12 @@ const GRUPO: Record<string, Pestana> = {
                     }
                   </div>
                 </div>
-                @if (ciudades()[o.accommodation_details.id]; as ciudad) { <p class="meta">📍 {{ ciudad }}</p> }
+                @if (ciudades()[o.accommodation_details.id]; as ciudad) { <p class="meta"><span class="il il-pin" aria-hidden="true"></span>{{ ciudad }}</p> }
                 <ul class="viaje-datos">
-                  <li><span aria-hidden="true">📅</span> {{ o.accommodation_details.checkin | date: 'd MMM' }} – {{ o.accommodation_details.checkout | date: 'd MMM y' }}</li>
-                  <li><span aria-hidden="true">👥</span> {{ o.accommodation_details.guests }} huésped{{ o.accommodation_details.guests === 1 ? '' : 'es' }}</li>
-                  <li><span aria-hidden="true">🧾</span> Código de reserva <strong>{{ o.locator }}</strong></li>
-                  @if (o._links['cancel'] && politicaDe(o); as linea) { <li><span aria-hidden="true">↩️</span> {{ linea }}</li> }
+                  <li><span class="il il-cal" aria-hidden="true"></span> {{ o.accommodation_details.checkin | date: 'd MMM' }} – {{ o.accommodation_details.checkout | date: 'd MMM y' }}</li>
+                  <li><span class="il il-personas" aria-hidden="true"></span> {{ o.accommodation_details.guests }} huésped{{ o.accommodation_details.guests === 1 ? '' : 'es' }}</li>
+                  <li><span class="il il-recibo" aria-hidden="true"></span> Código de reserva <strong>{{ o.locator }}</strong></li>
+                  @if (o._links['cancel'] && politicaDe(o); as linea) { <li><span class="il il-reembolso" aria-hidden="true"></span> {{ linea }}</li> }
                 </ul>
                 <p class="viaje-total">Total <strong>{{ o.total_price | currency: 'USD' }}</strong></p>
                 <div class="acciones">

@@ -70,7 +70,7 @@ interface Opcion {
         <div>
           <section class="tarjeta">
             <h2>Descripción</h2>
-            <p class="meta">📍 {{ a.location.address }}, {{ a.city.name }}</p>
+            <p class="meta"><span class="il il-pin" aria-hidden="true"></span>{{ a.location.address }}, {{ a.city.name }}</p>
             <p class="texto">{{ a.description }}</p>
             @if (a.policies?.house_rules) { <h3>Reglas de la casa</h3><p class="texto">{{ a.policies?.house_rules }}</p> }
           </section>
