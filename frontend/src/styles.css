@@ -209,7 +209,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 /* Barra de búsqueda montada sobre el borde inferior del banner */
 .buscador { position: relative; z-index: 2; margin: -3.4rem auto 2.5rem; max-width: 1080px; background: var(--c-superficie);
   border-radius: var(--radio-l); box-shadow: var(--sombra-l); padding: .6rem; }
-.buscador-fila { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) auto; align-items: stretch; }
+.buscador-fila { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, .95fr) minmax(0, .95fr) minmax(0, 1.5fr) auto; align-items: stretch; }
 .campo { display: flex; flex-direction: column; justify-content: center; gap: .1rem; padding: .45rem .9rem; margin: 0; border-radius: var(--radio);
   position: relative; min-width: 0; transition: background var(--transicion); }
 .campo + .campo::before { content: ''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: var(--c-borde-suave); }
@@ -234,6 +234,25 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .contador-btn:disabled { border-color: var(--c-borde-suave); color: var(--gris-400, #b7bfbc); cursor: not-allowed; }
 .panel-huespedes .btn { width: 100%; margin-top: .6rem; }
 .buscador .btn-buscar { align-self: center; min-height: 52px; padding: 0 1.6rem; border-radius: var(--radio); font-size: 1rem; margin-left: .3rem; }
+/* Íconos en las etiquetas de la barra (máscara SVG: toman el color de la etiqueta) */
+.campo-etiqueta { display: inline-flex; align-items: center; gap: .4rem; }
+.campo-etiqueta::before { content: ''; width: 1rem; height: 1rem; flex: none; background-color: currentColor; opacity: .85;
+  -webkit-mask: var(--ico-campo) center / contain no-repeat; mask: var(--ico-campo) center / contain no-repeat; }
+.campo-destino { --ico-campo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E"); }
+.campo-fecha { --ico-campo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E"); }
+.campo-huespedes { --ico-campo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'/%3E%3C/svg%3E"); }
+/* Selectores con la misma flecha y alineación; fechas con el calendario nativo discreto */
+.campo select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-right: 1.3rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23587a73' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right .1rem center / 1rem no-repeat; }
+.campo-destino .campo-doble { gap: .9rem; }
+.campo-destino .campo-doble select + select { border-left: 1px solid var(--c-borde-suave); padding-left: .9rem; }
+.campo-fecha input[type="date"] { cursor: pointer; }
+.campo-fecha input[type="date"]::-webkit-calendar-picker-indicator { opacity: .45; cursor: pointer; transition: opacity var(--transicion); }
+.campo-fecha:hover input[type="date"]::-webkit-calendar-picker-indicator { opacity: .9; }
+.campo-huespedes .campo-boton { padding-right: 1.3rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23587a73' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right .1rem center / 1rem no-repeat; }
+.buscador .btn-buscar { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; box-shadow: 0 6px 16px rgb(176 80 30 / 28%); }
+.buscador .btn-buscar:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgb(176 80 30 / 36%); }
 .buscador-pie { padding: .5rem .9rem .2rem; border-top: 1px solid var(--c-borde-suave); }
 .btn-filtros { background: none; border: 0; font: inherit; font-weight: 700; color: var(--c-primario); cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; padding: .3rem 0; }
 .btn-filtros .contador { background: var(--c-acento); color: var(--blanco); border-radius: var(--radio-pildora); font-size: .72rem; padding: 0 .45rem; min-width: 1.3rem; text-align: center; }

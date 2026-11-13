@@ -64,17 +64,17 @@ export function motivoBusqueda(
             </select>
           </div>
         </div>
-        <label class="campo"><span class="campo-etiqueta">Entrada</span>
+        <label class="campo campo-fecha"><span class="campo-etiqueta">Entrada</span>
           <input type="date" formControlName="checkin" [min]="hoy" required [attr.aria-invalid]="!!fechas().entrada"
                  [attr.aria-describedby]="fechas().entrada ? 'err-checkin' : null" />
           @if (fechas().entrada) { <small class="msg-fecha" id="err-checkin" role="alert">{{ fechas().entrada }}</small> }
         </label>
-        <label class="campo"><span class="campo-etiqueta">Salida</span>
+        <label class="campo campo-fecha"><span class="campo-etiqueta">Salida</span>
           <input type="date" formControlName="checkout" [min]="form.controls.checkin.value" required [attr.aria-invalid]="!!fechas().salida"
                  [attr.aria-describedby]="fechas().salida ? 'err-checkout' : null" />
           @if (fechas().salida) { <small class="msg-fecha" id="err-checkout" role="alert">{{ fechas().salida }}</small> }
         </label>
-        <div class="campo">
+        <div class="campo campo-huespedes">
           <span class="campo-etiqueta" id="et-huespedes">Huéspedes</span>
           <button class="campo-boton" type="button" aria-labelledby="et-huespedes" aria-controls="panel-huespedes"
                   [attr.aria-expanded]="panelHuespedes()" (click)="panelHuespedes.set(!panelHuespedes())">{{ resumenHuespedes() }}</button>
@@ -113,7 +113,10 @@ export function motivoBusqueda(
             </div>
           }
         </div>
-        <button class="btn btn-primario btn-buscar" type="submit" [disabled]="cargando()">Buscar</button>
+        <button class="btn btn-primario btn-buscar" type="submit" [disabled]="cargando()">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Buscar
+        </button>
       </div>
 
       <div class="buscador-pie d-flex justify-content-between align-items-center flex-wrap gap-3 mt-2">
