@@ -1014,3 +1014,25 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 @media (hover: none) { .cat-flecha { display: none; } }
 /* Con raton y ventana estrecha: sitio a los lados para que las flechas no tapen ningun tipo */
 @media (hover: hover) { .categorias-env.desborda .categorias-fila { padding-inline: 38px; } }
+
+/* Perfil: avatar con iniciales, cabecera y formulario por secciones */
+.perfil { max-width: 36rem; margin: 1rem auto; padding: 0; overflow: hidden; }
+.perfil > :not(.perfil-cabecera) { margin-left: 1.6rem; margin-right: 1.6rem; }
+.perfil-cabecera { display: flex; align-items: center; gap: 1.1rem; padding: 1.6rem; margin-bottom: 1.2rem; color: #fff; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--marca-900), var(--marca-700)); }
+.perfil-cabecera::after { content: ''; position: absolute; width: 13rem; height: 13rem; right: -4rem; top: -6rem; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c-acento) 60%, transparent), transparent 68%); opacity: .5; }
+.perfil-cabecera > * { position: relative; z-index: 1; }
+.perfil-avatar { flex: none; width: 4.6rem; height: 4.6rem; border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; font-weight: 800; letter-spacing: .04em;
+  background: linear-gradient(135deg, var(--c-acento), var(--acento-700)); box-shadow: 0 0 0 .3rem rgba(255,255,255,.18); }
+.perfil-id { min-width: 0; }
+.perfil-id h1 { margin: 0; color: #fff; font-size: 1.6rem; line-height: 1.15; overflow-wrap: anywhere; }
+.perfil-correo { display: flex; align-items: center; gap: .35rem; margin: .3rem 0 0; font-size: .9rem; opacity: .85; overflow-wrap: anywhere; }
+.perfil-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .55rem 0 0; }
+.etiqueta-rol { padding: .12rem .65rem; border-radius: 999px; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.2); }
+.perfil-desde { font-size: .82rem; opacity: .8; }
+.perfil-seccion { margin: 1.1rem 0 .6rem; padding-bottom: .4rem; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--c-suave);
+  border-bottom: 1px solid var(--c-borde-suave); font-family: inherit; }
+.perfil-acciones { margin-top: 1.2rem; }
+.perfil-enlace { margin-top: 1.2rem; margin-bottom: 1.5rem; }
+.perfil form { margin-bottom: 0; }
