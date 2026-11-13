@@ -70,10 +70,14 @@ type Campo = 'nombres' | 'apellidos' | 'telefono';
                   [attr.aria-describedby]="!hayCambios() ? 'per-sin-cambios' : null">{{ enviando() ? 'Guardando…' : 'Guardar' }}</button>
           <button class="btn" type="button" (click)="cancelar()" [disabled]="enviando()">Cancelar</button>
         </div>
-        @if (!hayCambios() && !cargando()) { <small id="per-sin-cambios" class="ayuda">No hay cambios por guardar.</small> }
+        @if (!hayCambios() && !cargando() && !ok.texto()) { <small id="per-sin-cambios" class="ayuda perfil-estado">Todo está al día: no hay cambios por guardar.</small> }
+        @if (hayCambios()) { <small class="ayuda perfil-estado perfil-pendiente">Tienes cambios sin guardar.</small> }
         @if (ok.texto()) { <p class="aviso-guardado ok" role="status">✓ {{ ok.texto() }}</p> }
       </form>
-      <p class="perfil-enlace"><a routerLink="/mis-reservas">Ver mis reservas →</a></p>
+      <footer class="perfil-pie">
+        <span>¿Buscas tus viajes?</span>
+        <a class="btn btn-chico" routerLink="/mis-reservas">Ver mis reservas</a>
+      </footer>
     </section>
   `,
 })

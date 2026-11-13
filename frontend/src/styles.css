@@ -105,7 +105,9 @@ h3 { font-size: 1rem; margin: .8rem 0 .4rem; }
   padding: .25rem .6rem; cursor: pointer; text-decoration: none; transition: background var(--transicion), border-color var(--transicion); }
 .btn-salir:hover { background: var(--c-error-fondo); border-color: color-mix(in srgb, var(--c-peligro) 35%, transparent); }
 .btn-salir:focus-visible { outline: 3px solid var(--c-peligro); outline-offset: 2px; }
-.nav-usuario { gap: .35rem; }
+.nav-usuario { gap: .5rem; }
+.nav-avatar { display: inline-grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; font-size: .7rem; font-weight: 800; letter-spacing: .02em; color: #fff;
+  background: linear-gradient(135deg, var(--marca-700), var(--marca-900)); }
 .icono-usuario { flex: none; }
 .politica-resumen { margin-top: .8rem; border-top: 1px solid var(--c-borde); padding-top: .6rem; }
 .politica-resumen h3 { font-size: .95rem; margin: 0 0 .2rem; }
@@ -1034,5 +1036,8 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .perfil-seccion { margin: 1.1rem 0 .6rem; padding-bottom: .4rem; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--c-suave);
   border-bottom: 1px solid var(--c-borde-suave); font-family: inherit; }
 .perfil-acciones { margin-top: 1.2rem; }
-.perfil-enlace { margin-top: 1.2rem; margin-bottom: 1.5rem; }
+.perfil-estado { display: block; margin-top: .6rem; }
+.perfil-pendiente { color: var(--c-aviso-texto); font-weight: 600; }
+.perfil-pie { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0 0 !important; padding: 1rem 1.6rem;
+  background: var(--c-fondo); border-top: 1px solid var(--c-borde-suave); color: var(--c-suave); font-size: .92rem; }
 .perfil form { margin-bottom: 0; }
