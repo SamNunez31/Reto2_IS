@@ -4,9 +4,10 @@ import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { CampoMensajeComponent, conError } from '../../shared/campo';
 import { FiltroDirective } from '../../shared/entrada';
+import { iconoTipo } from '../../shared/iconos';
 import { TelefonoDirective } from '../../shared/telefono.directive';
 import { PISTA_TELEFONO } from '../../shared/validadores';
-import { esUrlHttps, FormAlojamiento, ICONO_AMENIDAD, ICONO_TIPO, L, NOMBRE_POLITICA, reglasTexto, urlsDe } from './alojamiento-form';
+import { esUrlHttps, FormAlojamiento, ICONO_AMENIDAD, L, NOMBRE_POLITICA, reglasTexto, urlsDe } from './alojamiento-form';
 import { DireccionMapaComponent } from './direccion-mapa.component';
 import { lineasTramos, PoliticasService } from './politicas.service';
 
@@ -41,7 +42,7 @@ export class CampoBloqueadoComponent {
         @for (t of c()?.accommodation_types ?? []; track t.id) {
           <label class="opcion-tarjeta">
             <input type="radio" formControlName="tipo_id" [value]="t.id" />
-            <span class="icono" aria-hidden="true">{{ icono(t.name) }}</span>
+            <span class="icono" aria-hidden="true"><svg viewBox="0 0 24 24"><path [attr.d]="icono(t.name)" /></svg></span>
             <span class="titulo">{{ t.name }}</span>
           </label>
         }
@@ -55,7 +56,7 @@ export class SecTipoComponent {
   readonly c = toSignal(inject(CatalogoService).constantes());
   readonly mal = mal;
   icono(n: string): string {
-    return ICONO_TIPO[n] ?? '🏠';
+    return iconoTipo(n);
   }
 }
 

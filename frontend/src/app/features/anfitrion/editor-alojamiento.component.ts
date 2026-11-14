@@ -7,6 +7,7 @@ import { concatMap, from, toArray } from 'rxjs';
 import { ErrorVista, leerError } from '../../core/services/api-base';
 import { AnfitrionService, DatosAlojamiento } from '../../core/services/anfitrion.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
+import { ICONOS } from '../../shared/iconos';
 import { AlertaErrorComponent } from '../../shared/ui';
 import { traducirMotivoApi } from '../../shared/validadores';
 import {
@@ -70,13 +71,13 @@ const PASO_UNIDADES = 5;
               <div class="opciones-tarjeta grandes" role="radiogroup" aria-label="Qué ofreces">
                 <label class="opcion-tarjeta">
                   <input type="radio" name="modalidad" [checked]="modalidad() === 'COMPLETO'" (change)="elegirModalidad('COMPLETO')" />
-                  <span class="icono" aria-hidden="true">🏠</span>
+                  <span class="icono" aria-hidden="true"><svg viewBox="0 0 24 24"><path [attr.d]="iconos['casa']" /></svg></span>
                   <span class="titulo">Todo el alojamiento</span>
                   <span class="detalle">Casa, cabaña o departamento completo. El huésped reserva el lugar entero.</span>
                 </label>
                 <label class="opcion-tarjeta">
                   <input type="radio" name="modalidad" [checked]="modalidad() === 'HABITACIONES'" (change)="elegirModalidad('HABITACIONES')" />
-                  <span class="icono" aria-hidden="true">🛏️</span>
+                  <span class="icono" aria-hidden="true"><svg viewBox="0 0 24 24"><path [attr.d]="iconos['hotel']" /></svg></span>
                   <span class="titulo">Varios tipos de habitación</span>
                   <span class="detalle">Hotel, hostal u hostería: cada tipo con su precio y cuántas tienes disponibles.</span>
                 </label>
@@ -158,6 +159,7 @@ const PASO_UNIDADES = 5;
   `,
 })
 export class EditorAlojamientoComponent implements ConCambiosSinGuardar {
+  protected readonly iconos = ICONOS;
   private readonly api = inject(AnfitrionService);
   private readonly router = inject(Router);
   private readonly raiz = inject<ElementRef<HTMLElement>>(ElementRef);
