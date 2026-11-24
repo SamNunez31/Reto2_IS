@@ -13,7 +13,7 @@ import { LoginModalService } from './core/services/login-modal.service';
     <a class="saltar" href="#contenido">Saltar al contenido</a>
     <header class="barra">
       <a routerLink="/" class="marca" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
-      <button #menuBtn class="menu-btn" type="button" (click)="menu.set(!menu())" [attr.aria-expanded]="menu()" aria-controls="nav">Menú</button>
+      <button #menuBtn class="menu-btn" type="button" (click)="menu.set(!menu())" [attr.aria-expanded]="menu()" aria-controls="nav"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menú</button>
       <!-- Clic en un enlace del menú móvil lo cierra y Esc también; los enlaces ya son accesibles con teclado -->
       <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
       <nav id="nav" [class.abierto]="menu()" (click)="menu.set(false)" (keydown.escape)="cerrarMenu(menuBtn)" aria-label="Principal">
