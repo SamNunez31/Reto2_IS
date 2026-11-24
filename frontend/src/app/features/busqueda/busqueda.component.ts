@@ -218,28 +218,36 @@ export function motivoBusqueda(
                 @if (destacado(a)) { <span class="tarjeta-favorito">Favorito de huéspedes</span> }
               </div>
               <div class="cuerpo">
-                <div class="fila-titulo">
-                  <h2>{{ a.name }}</h2>
-                  @if (a.rating.score !== null && a.rating.reviews > 0) {
-                    <span class="nota-corta" role="img" [attr.aria-label]="notaTexto(a) + ' de 5 estrellas, ' + plural(a.rating.reviews, 'reseña')">
-                      <span aria-hidden="true">★ {{ notaTexto(a) }}</span>
-                    </span>
-                  } @else { <span class="nota-corta nuevo">Nuevo</span> }
+                <h2>{{ a.name }}</h2>
+                <p class="ubicacion">{{ a.city.name }}, {{ a.city.province }}</p>
+                <div class="tarjeta-meta">
+                  @if (iconosServicios(a); as sv) {
+                    @if (sv.length) {
+                      <ul class="tarjeta-iconos" aria-label="Servicios">
+                        @for (s of sv; track s.nombre) {
+                          <li [attr.title]="s.nombre"><span class="sv" [class]="'sv ' + s.clase" aria-hidden="true"></span><span class="sr-only">{{ s.nombre }}</span></li>
+                        }
+                      </ul>
+                    }
+                  }
+                  @if (a.stars) { <app-estrellas [n]="a.stars" /> }
                 </div>
-                <p class="ubicacion"><span>{{ a.city.name }}, {{ a.city.province }}</span></p>
-                @if (a.stars || a.rating.reviews > 0) {
-                  <p class="detalle-corto">@if (a.stars) { <app-estrellas [n]="a.stars" /> }@if (a.stars && a.rating.reviews > 0) { · }@if (a.rating.reviews > 0) { {{ plural(a.rating.reviews, 'reseña') }} }</p>
-                }
-                @if (servicios(a); as sv) { <p class="tarjeta-servicios">{{ sv }}</p> }
                 @if (a.policies?.cancellation?.name; as pol) {
                   <p class="tarjeta-cancelacion" [class.sin-reembolso]="pol === 'NO_REEMBOLSABLE'">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
                     Cancelación {{ titulo(pol).toLowerCase() }}
                   </p>
                 }
-                @if (a.price_from) {
-                  <p class="precio-noche"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>por noche</span></p>
-                }
+                <div class="tarjeta-pie">
+                  @if (a.price_from) {
+                    <p class="precio-noche"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span aria-hidden="true">/ noche</span><span class="sr-only"> por noche</span></p>
+                  }
+                  @if (a.rating.score !== null && a.rating.reviews > 0) {
+                    <span class="nota-corta" role="img" [attr.aria-label]="notaTexto(a) + ' de 5 estrellas, ' + plural(a.rating.reviews, 'reseña')">
+                      <span aria-hidden="true">★ {{ notaTexto(a) }} <span class="nota-n">({{ a.rating.reviews }})</span></span>
+                    </span>
+                  }
+                </div>
               </div>
             </a>
             <button class="corazon" type="button" [class.activo]="esFavorito(a.id)" [attr.aria-pressed]="esFavorito(a.id)"
@@ -285,10 +293,22 @@ export class BusquedaComponent implements OnInit {
   readonly catMas = signal(false);
   /** La fila no cabe entera: se reserva sitio a los lados para que las flechas no tapen un tipo. */
   readonly catDesborda = signal(false);
-  /** Hasta tres comodidades para la tarjeta ("Wi-Fi · Desayuno · Parqueadero"); vacio si no hay. */
-  servicios(a: DetalleAlojamiento): string {
-    const f = (a.facilities ?? []).slice(0, 3).map((x) => x.name);
-    return f.join(' · ');
+  /** Hasta cuatro comodidades de la tarjeta, cada una con su ícono (el nombre queda para lectores de pantalla y como título). */
+  iconosServicios(a: DetalleAlojamiento): { nombre: string; clase: string }[] {
+    return (a.facilities ?? []).slice(0, 4).map((f) => ({ nombre: f.name, clase: BusquedaComponent.claseServicio(f.name) }));
+  }
+  private static claseServicio(nombre: string): string {
+    const n = nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (n.includes('wi-fi') || n.includes('wifi') || n.includes('internet')) return 'sv-wifi';
+    if (n.includes('aire')) return 'sv-aire';
+    if (n.includes('agua caliente') || n.includes('ducha')) return 'sv-agua';
+    if (n.includes('lavander')) return 'sv-lavanderia';
+    if (n.includes('desayuno')) return 'sv-desayuno';
+    if (n.includes('parque') || n.includes('estacion')) return 'sv-parqueadero';
+    if (n === 'tv' || n.includes('televis') || n.includes('cable')) return 'sv-tv';
+    if (n.includes('cocina')) return 'sv-cocina';
+    if (n.includes('calefac')) return 'sv-calefaccion';
+    return 'sv-otro';
   }
 
   /** Recalcula si la fila de tipos tiene contenido fuera de la vista (al desplazar, al redimensionar y al cargar los tipos). */

@@ -823,14 +823,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .buscador .btn-buscar { width: 48px; margin: 0; min-height: 48px; padding: 0; box-shadow: none; }
   .btn-buscar .buscar-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .buscador-fila > .btn-filtros { justify-self: start; min-height: 36px; padding: 0 .4rem; margin: 0; background: none; border-color: transparent; }
-  .grid-tarjetas { grid-template-columns: minmax(0, 1fr); }
   .banner .credito { display: none; }
-}
-@media (min-width: 1200px) {
-  .grid-tarjetas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (min-width: 768px) and (max-width: 1199.98px) {
-  .grid-tarjetas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .spinner, .esqueleto .tarjeta-foto, .linea-esq { animation: none; }
@@ -1227,4 +1220,58 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .asistente select {
   appearance: none; -webkit-appearance: none; padding-right: 2.5rem;
   background: var(--c-superficie) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23596' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") right .85rem center / 16px no-repeat;
+}
+
+/* ---------- 12. Rediseño (etapa 4): tipos de alojamiento y tarjetas compactas ---------- */
+/* Cuadrícula: 2 columnas en móvil, 3 desde 768 px y 4 desde 1200 px (puntos de corte de Bootstrap) */
+.grid-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem .75rem; }
+@media (min-width: 768px) { .grid-tarjetas { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem 1.1rem; } }
+@media (min-width: 1200px) { .grid-tarjetas { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Tarjeta: foto 4:3, nombre, lugar, servicios con ícono, cancelación y, en una sola línea, precio y nota */
+.tarjeta-foto { aspect-ratio: 4 / 3; border-radius: var(--radio); }
+.tarjeta-tipo { top: .55rem; left: .55rem; font-size: .72rem; padding: .15rem .5rem; }
+.tarjeta-favorito { left: .55rem; bottom: .55rem; font-size: .7rem; padding: .18rem .5rem; }
+.corazon { top: .3rem; right: .3rem; }
+.tarjeta-aloj .cuerpo { padding: .55rem .1rem 0; gap: .15rem; }
+.tarjeta-aloj h2 { font-size: .98rem; line-height: 1.2; min-height: 2.4em; }
+.tarjeta-aloj .ubicacion { display: block; font-size: .82rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tarjeta-meta { display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 1.5rem; }
+.tarjeta-meta .estrellas { font-size: .85rem; line-height: 1; white-space: nowrap; }
+.tarjeta-iconos { display: flex; gap: .45rem; list-style: none; margin: 0; padding: 0; color: var(--c-suave); }
+.sv { display: block; width: 18px; height: 18px; background: currentColor; -webkit-mask: var(--sv) center / contain no-repeat; mask: var(--sv) center / contain no-repeat; }
+.sv-wifi { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01'/%3E%3C/svg%3E"); }
+.sv-aire { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4'/%3E%3C/svg%3E"); }
+.sv-agua { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.7s6 6.1 6 10.3a6 6 0 0 1-12 0c0-4.2 6-10.3 6-10.3Z'/%3E%3C/svg%3E"); }
+.sv-lavanderia { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='2' width='18' height='20' rx='2'/%3E%3Ccircle cx='12' cy='14' r='5'/%3E%3Cpath d='M7 6h.01M11 6h.01'/%3E%3C/svg%3E"); }
+.sv-desayuno { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 8h1a4 4 0 0 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4ZM6 2v3M10 2v3M14 2v3'/%3E%3C/svg%3E"); }
+.sv-parqueadero { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E%3Cpath d='M9 17V7h4a3 3 0 0 1 0 6H9'/%3E%3C/svg%3E"); }
+.sv-tv { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='5' width='20' height='13' rx='2'/%3E%3Cpath d='M8 21h8M12 18v3'/%3E%3C/svg%3E"); }
+.sv-cocina { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 3v7a2 2 0 0 0 2 2v9M8 3v7M6 3v7M16 21V3c-2.5 1.5-4 4-4 7v3h4'/%3E%3C/svg%3E"); }
+.sv-calefaccion { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22c4 0 7-2.7 7-6.5 0-3-2-5-3.5-7C14.5 7 14 5 14 3c-3 2-6 6-6 10 0 1 .3 1.9.8 2.6C8 15 7 13.5 7 12c-2 1.5-2 3.3-2 4 0 3.5 3 6 7 6Z'/%3E%3C/svg%3E"); }
+.sv-otro { --sv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
+.tarjeta-cancelacion { margin: .1rem 0 0; font-size: .76rem; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tarjeta-pie { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 .5rem; margin-top: auto; padding-top: .35rem; }
+.tarjeta-aloj .precio-noche { margin: 0; padding: 0; font-size: .82rem; }
+.tarjeta-aloj .precio-noche strong { font-size: 1.12rem; }
+.nota-corta { font-size: .82rem; }
+.nota-n { font-weight: 500; color: var(--c-suave); }
+@media (min-width: 768px) {
+  .tarjeta-aloj h2 { font-size: 1.1rem; min-height: 1.2em; }
+  .tarjeta-aloj .ubicacion { font-size: .88rem; }
+  .tarjeta-cancelacion { font-size: .8rem; }
+  .tarjeta-aloj .precio-noche { font-size: .88rem; }
+}
+
+/* Fila de tipos: en móvil cabe entera (sin flechas que tapen un tipo) y, si hubiera más, se desliza con el dedo */
+@media (max-width: 575.98px) {
+  .categorias { margin-bottom: .9rem; }
+  .categorias-fila { gap: .1rem; justify-content: space-between; }
+  .categoria { flex: 1 1 auto; min-width: 0; padding: .45rem .3rem .4rem; gap: .2rem; font-size: .74rem; }
+  .categoria .ic { width: 22px; height: 22px; }
+  .cat-flecha { display: none; }
+  .categorias-env.desborda .categorias-fila { padding-inline: 0; }
+  .resultados-cabecera { margin-bottom: .9rem; }
+  .resultados-cabecera h2 { font-size: 1.35rem; }
+  .resultados-cabecera p { font-size: .85rem; }
 }
