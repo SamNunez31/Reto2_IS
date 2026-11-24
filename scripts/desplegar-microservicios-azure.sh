@@ -28,7 +28,7 @@ fi
 jq -r '.[] | select(.value != null) | select(.name != "SERVICE_ROLE" and .name != "PORT" and .name != "API_PUBLIC_URL" and .name != "NODE_ENV") | "\(.name)=\(.value)"' /tmp/env_original.json > /tmp/env_base.txt
 echo "Variables copiadas: $(wc -l < /tmp/env_base.txt)"
 # Se separan las variables sensibles (secretos de Azure) de las normales.
-PATRON_SECRETO='^(DATABASE_URL|JWT_SECRET|SERVICE_API_KEY|METRICS_TOKEN|[A-Z_]*(PASSWORD|TOKEN|SECRET|KEY)[A-Z_]*)='
+PATRON_SECRETO='^(DATABASE_URL|AMQP_URL|JWT_SECRET|SERVICE_API_KEY|METRICS_TOKEN|[A-Z_]*(PASSWORD|TOKEN|SECRET|KEY)[A-Z_]*)='
 grep -E "$PATRON_SECRETO" /tmp/env_base.txt > /tmp/env_secretos.txt || true
 grep -vE "$PATRON_SECRETO" /tmp/env_base.txt > /tmp/env_base_plano.txt || true
 mv /tmp/env_base_plano.txt /tmp/env_base.txt

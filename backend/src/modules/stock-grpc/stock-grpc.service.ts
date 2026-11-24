@@ -105,7 +105,7 @@ export class StockGrpcService implements OnModuleInit {
       return;
     }
     logJson('info', 'stock_activo', { canal: this.modo, destino: this.modo === 'rest' ? this.urlRest : this.objetivo, service_id: this.serviceId });
-    this.bus.suscribir((e) => this.alEvento(e));
+    this.bus.suscribir((e) => this.alEvento(e), 'stock');
   }
 
   /** Consumidor del bus: dispara y olvida (el bus corre dentro de la transacción del outbox). */

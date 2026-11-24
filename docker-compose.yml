@@ -30,5 +30,19 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # Bus de eventos (opcional): panel en http://localhost:15672 (guest/guest). Usar con AMQP_URL=amqp://guest:guest@localhost:5672
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: posada_reto2_rabbit
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   pgdata_reto2:
