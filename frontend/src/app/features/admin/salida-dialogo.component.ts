@@ -124,7 +124,7 @@ const MAX_PRECIO = 9999.99;
     .sd-dialogo { border: 0; padding: 0; border-radius: var(--radio-l); box-shadow: var(--sombra-l); width: min(600px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 2rem); color: var(--c-texto); background: var(--c-superficie); }
     .sd-dialogo::backdrop { background: rgb(0 0 0 / .5); }
     .sd-cuerpo { padding: 1.5rem; text-align: left; }
-    h2 { font-family: var(--fuente-titulos); font-weight: 400; font-size: 1.5rem; margin: 0 0 .25rem; }
+    h2 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: 1.5rem; margin: 0 0 .25rem; }
     .sd-codigo { font-variant-numeric: tabular-nums; color: var(--gris-700); }
     .sd-resumen { margin: 0 0 1rem; color: var(--gris-700); }
     .sd-datos { display: grid; gap: .4rem; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--c-fondo, #f6f6f4); border-radius: var(--radio-s); }
@@ -159,7 +159,7 @@ const MAX_PRECIO = 9999.99;
     .sd-ayuda-llaves { margin: .35rem 0 0 .25rem; }
     .sd-efecto { margin-top: 1rem; padding: .7rem .9rem; background: var(--c-fondo, #f6f6f4); border-radius: var(--radio-s); font-size: .9rem; }
     .sd-acciones { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.1rem; flex-wrap: wrap; }
-    @media (max-width: 520px) {
+    @media (max-width: 575.98px) {
       .sd-linea { grid-template-columns: 1fr 1fr; }
       .sd-item { grid-column: 1 / -1; }
       .sd-quitar { margin-top: 1.35rem; justify-self: end; }

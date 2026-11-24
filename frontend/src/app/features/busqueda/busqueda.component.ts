@@ -42,7 +42,6 @@ export function motivoBusqueda(
   template: `
     <section class="banner" aria-labelledby="titulo-banner">
       <div class="banner-texto">
-        <p class="antetitulo">Hoteles · Hostales · Cabañas · Casas</p>
         <h1 id="titulo-banner">Ecuador, a tu ritmo</h1>
         <p class="bajada">De los Andes a Galápagos, con el precio final claro antes de reservar.</p>
       </div>
@@ -55,79 +54,88 @@ export function motivoBusqueda(
           <span class="campo-etiqueta" id="et-destino">Destino</span>
           <div class="campo-doble">
             <select formControlName="province" aria-label="Provincia">
-              <option value="">Todas</option>
+              <option value="">Todo Ecuador</option>
               @for (p of constantes()?.provinces ?? []; track p.name) { <option [value]="p.name">{{ p.name }}</option> }
             </select>
             <select formControlName="city" aria-label="Ciudad">
-              <option [ngValue]="null">Todas las ciudades</option>
+              <option [ngValue]="null">Toda ciudad</option>
               @for (c of ciudades(); track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
             </select>
           </div>
         </div>
-        <label class="campo campo-fecha"><span class="campo-etiqueta">Entrada</span>
-          <input type="date" formControlName="checkin" [min]="hoy" required [attr.aria-invalid]="!!fechas().entrada"
-                 [attr.aria-describedby]="fechas().entrada ? 'err-checkin' : null" />
-          @if (fechas().entrada) { <small class="msg-fecha" id="err-checkin" role="alert">{{ fechas().entrada }}</small> }
-        </label>
-        <label class="campo campo-fecha"><span class="campo-etiqueta">Salida</span>
-          <input type="date" formControlName="checkout" [min]="form.controls.checkin.value" required [attr.aria-invalid]="!!fechas().salida"
-                 [attr.aria-describedby]="fechas().salida ? 'err-checkout' : null" />
-          @if (fechas().salida) { <small class="msg-fecha" id="err-checkout" role="alert">{{ fechas().salida }}</small> }
-        </label>
-        <div class="campo campo-huespedes">
-          <span class="campo-etiqueta" id="et-huespedes">Huéspedes</span>
-          <button class="campo-boton" type="button" aria-labelledby="et-huespedes" aria-controls="panel-huespedes"
-                  [attr.aria-expanded]="panelHuespedes()" (click)="panelHuespedes.set(!panelHuespedes())">{{ resumenHuespedes() }}</button>
-          @if (panelHuespedes()) {
-            <!-- Esc desde cualquier campo del panel lo cierra (el evento sube desde los inputs) -->
-            <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
-            <div class="panel-huespedes" id="panel-huespedes" (keydown.escape)="panelHuespedes.set(false)">
-              @for (c of contadores; track c.campo) {
-                <div class="contador-fila" role="group" [attr.aria-label]="c.etiqueta">
-                  <span class="contador-icono" aria-hidden="true">
-                    @switch (c.campo) {
-                      @case ('adultos') {
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                      }
-                      @case ('ninos') {
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 2 3.5 2 3.5-2 3.5-2"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
-                      }
-                      @default {
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M3 9h16a2 2 0 0 1 2 2v8M3 16h18M7 9v7"/></svg>
-                      }
-                    }
-                  </span>
-                  <span class="contador-texto">{{ c.etiqueta }}</span>
-                  <span class="contador-mando">
-                    <button type="button" class="contador-btn" [attr.aria-label]="'Quitar ' + c.unidad" [disabled]="valorContador(c.campo) <= c.min" (click)="ajustar(c.campo, -1)">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
-                    </button>
-                    <output class="contador-valor" aria-live="polite">{{ valorContador(c.campo) }}</output>
-                    <button type="button" class="contador-btn" [attr.aria-label]="'Agregar ' + c.unidad" [disabled]="valorContador(c.campo) >= c.max" (click)="ajustar(c.campo, 1)">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                    </button>
-                  </span>
-                </div>
-              }
-              <button class="btn btn-secundario btn-chico" type="button" (click)="panelHuespedes.set(false)">Listo</button>
-            </div>
-          }
-        </div>
-        <button class="btn btn-primario btn-buscar" type="submit" [disabled]="cargando()">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          Buscar
+        <!-- Móvil: fechas y huéspedes en un solo botón que despliega los campos aquí mismo (en pantallas más anchas se ven siempre) -->
+        <button class="buscador-resumen d-sm-none" type="button" aria-controls="viaje" [attr.aria-expanded]="viajeAbierto()" (click)="panelViaje.set(!panelViaje())">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span class="resumen-texto"><span class="sr-only">Fechas y huéspedes: </span>{{ resumenViaje() }}</span>
+          <span class="flecha" aria-hidden="true">▾</span>
         </button>
-      </div>
-
-      <div class="buscador-pie d-flex justify-content-between align-items-center flex-wrap gap-3 mt-2">
+        <div class="buscador-viaje" id="viaje" [class.abierto]="viajeAbierto()">
+          <label class="campo campo-fecha campo-entrada"><span class="campo-etiqueta">Entrada</span>
+            <input type="date" formControlName="checkin" autocomplete="off" [min]="hoy" required [attr.aria-invalid]="!!fechas().entrada"
+                   [attr.aria-describedby]="fechas().entrada ? 'err-checkin' : null" />
+            @if (fechas().entrada) { <small class="msg-fecha" id="err-checkin" role="alert">{{ fechas().entrada }}</small> }
+          </label>
+          <label class="campo campo-fecha campo-salida"><span class="campo-etiqueta">Salida</span>
+            <input type="date" formControlName="checkout" autocomplete="off" [min]="form.controls.checkin.value" required [attr.aria-invalid]="!!fechas().salida"
+                   [attr.aria-describedby]="fechas().salida ? 'err-checkout' : null" />
+            @if (fechas().salida) { <small class="msg-fecha" id="err-checkout" role="alert">{{ fechas().salida }}</small> }
+          </label>
+          <div class="campo campo-huespedes">
+            <span class="campo-etiqueta" id="et-huespedes">Huéspedes</span>
+            <button class="campo-boton" type="button" aria-labelledby="et-huespedes" aria-controls="panel-huespedes"
+                    [attr.aria-expanded]="panelHuespedes()" (click)="panelHuespedes.set(!panelHuespedes())">{{ resumenHuespedes() }}</button>
+            @if (panelHuespedes()) {
+              <!-- Esc desde cualquier campo del panel lo cierra (el evento sube desde los inputs) -->
+              <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+              <div class="panel-huespedes" id="panel-huespedes" (keydown.escape)="panelHuespedes.set(false)">
+                @for (c of contadores; track c.campo) {
+                  <div class="contador-fila" role="group" [attr.aria-label]="c.etiqueta">
+                    <span class="contador-icono" aria-hidden="true">
+                      @switch (c.campo) {
+                        @case ('adultos') {
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        }
+                        @case ('ninos') {
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 2 3.5 2 3.5-2 3.5-2"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+                        }
+                        @default {
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M3 9h16a2 2 0 0 1 2 2v8M3 16h18M7 9v7"/></svg>
+                        }
+                      }
+                    </span>
+                    <span class="contador-texto">{{ c.etiqueta }}</span>
+                    <span class="contador-mando">
+                      <button type="button" class="contador-btn" [attr.aria-label]="'Quitar ' + c.unidad" [disabled]="valorContador(c.campo) <= c.min" (click)="ajustar(c.campo, -1)">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+                      </button>
+                      <output class="contador-valor" aria-live="polite">{{ valorContador(c.campo) }}</output>
+                      <button type="button" class="contador-btn" [attr.aria-label]="'Agregar ' + c.unidad" [disabled]="valorContador(c.campo) >= c.max" (click)="ajustar(c.campo, 1)">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                      </button>
+                    </span>
+                  </div>
+                }
+                <button class="btn btn-secundario btn-chico" type="button" (click)="panelHuespedes.set(false)">Listo</button>
+              </div>
+            }
+          </div>
+        </div>
         <button class="btn-filtros" type="button" aria-controls="mas-filtros" [attr.aria-expanded]="masFiltros()" (click)="masFiltros.set(!masFiltros())">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
           Más filtros
           @if (filtrosActivos()) { <span class="contador" [attr.aria-label]="filtrosActivos() + ' activos'">{{ filtrosActivos() }}</span> }
           <span class="flecha" aria-hidden="true">▾</span>
         </button>
-        <!-- Los errores de fecha ya se muestran bajo su campo -->
-        @if (problema() && !fechas().entrada && !fechas().salida) { <p class="aviso-form" role="alert" tabindex="-1">{{ problema() }}</p> }
+        <button class="btn btn-primario btn-buscar" type="submit" [disabled]="cargando()">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="buscar-texto">Buscar</span>
+        </button>
       </div>
+
+      <!-- Los errores de fecha ya se muestran bajo su campo -->
+      @if (problema() && !fechas().entrada && !fechas().salida) {
+        <div class="buscador-pie"><p class="aviso-form" role="alert" tabindex="-1">{{ problema() }}</p></div>
+      }
 
       @if (masFiltros()) {
         <div class="mas-filtros" id="mas-filtros">
@@ -137,7 +145,7 @@ export function motivoBusqueda(
               @for (e of [1, 2, 3, 4, 5]; track e) { <option [ngValue]="e">{{ e }}+</option> }
             </select>
           </label>
-          <label>Precio máx./noche (USD) <input appFiltro="decimal" formControlName="precio" maxlength="9" placeholder="Sin límite" /></label>
+          <label>Precio máx./noche (USD) <input appFiltro="decimal" formControlName="precio" maxlength="9" inputmode="decimal" autocomplete="off" placeholder="Sin límite, ej.: 80…" /></label>
           <label>Ordenar por
             <select formControlName="orden">
               <option value="relevancia">Relevancia</option>
@@ -197,41 +205,49 @@ export function motivoBusqueda(
       @if (resultados().length) {
         <div class="resultados-cabecera d-flex justify-content-between align-items-baseline flex-wrap gap-3">
           <h2>Alojamientos disponibles</h2>
-          <p>{{ resumenResultados() }}</p>
+          <p aria-live="polite">{{ resumenResultados() }}</p>
         </div>
       }
       <div class="grid-tarjetas">
-        @for (a of resultados(); track a.id) {
+        @for (a of resultados(); track a.id; let i = $index) {
           <article class="tarjeta-aloj">
             <a class="tarjeta-enlace" [routerLink]="['/alojamientos', a.id]">
               <div class="tarjeta-foto">
-                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" decoding="async" width="600" height="450" />
+                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" [attr.loading]="i < 4 ? 'eager' : 'lazy'" [attr.fetchpriority]="i === 0 ? 'high' : null" decoding="async" width="600" height="450" />
                 <span class="tarjeta-tipo">{{ a.type }}</span>
                 @if (destacado(a)) { <span class="tarjeta-favorito">Favorito de huéspedes</span> }
               </div>
               <div class="cuerpo">
-                <div class="fila-titulo">
-                  <h2>{{ a.name }}</h2>
-                  @if (a.rating.score !== null && a.rating.reviews > 0) {
-                    <span class="nota-corta" role="img" [attr.aria-label]="notaTexto(a) + ' de 5 estrellas, ' + plural(a.rating.reviews, 'reseña')">
-                      <span aria-hidden="true">★ {{ notaTexto(a) }}</span>
-                    </span>
-                  } @else { <span class="nota-corta nuevo">Nuevo</span> }
+                <h3>{{ a.name }}</h3>
+                <p class="ubicacion">{{ a.city.name }}, {{ a.city.province }}</p>
+                <div class="tarjeta-meta">
+                  @if (iconosServicios(a); as sv) {
+                    @if (sv.length) {
+                      <ul class="tarjeta-iconos" aria-label="Servicios">
+                        @for (s of sv; track s.nombre) {
+                          <li [attr.title]="s.nombre"><span class="sv" [class]="'sv ' + s.clase" aria-hidden="true"></span><span class="sr-only">{{ s.nombre }}</span></li>
+                        }
+                      </ul>
+                    }
+                  }
+                  @if (a.stars) { <app-estrellas [n]="a.stars" /> }
                 </div>
-                <p class="ubicacion"><span>{{ a.city.name }}, {{ a.city.province }}</span></p>
-                @if (a.stars || a.rating.reviews > 0) {
-                  <p class="detalle-corto">@if (a.stars) { <app-estrellas [n]="a.stars" /> }@if (a.stars && a.rating.reviews > 0) { · }@if (a.rating.reviews > 0) { {{ plural(a.rating.reviews, 'reseña') }} }</p>
-                }
-                @if (servicios(a); as sv) { <p class="tarjeta-servicios">{{ sv }}</p> }
                 @if (a.policies?.cancellation?.name; as pol) {
                   <p class="tarjeta-cancelacion" [class.sin-reembolso]="pol === 'NO_REEMBOLSABLE'">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
                     Cancelación {{ titulo(pol).toLowerCase() }}
                   </p>
                 }
-                @if (a.price_from) {
-                  <p class="precio-noche"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span>por noche</span></p>
-                }
+                <div class="tarjeta-pie">
+                  @if (a.price_from) {
+                    <p class="precio-noche"><strong>{{ a.price_from | currency: 'USD' }}</strong> <span aria-hidden="true">/ noche</span><span class="sr-only"> por noche</span></p>
+                  }
+                  @if (a.rating.score !== null && a.rating.reviews > 0) {
+                    <span class="nota-corta" role="img" [attr.aria-label]="notaTexto(a) + ' de 5 estrellas, ' + plural(a.rating.reviews, 'reseña')">
+                      <span aria-hidden="true">★ {{ notaTexto(a) }} <span class="nota-n">({{ a.rating.reviews }})</span></span>
+                    </span>
+                  }
+                </div>
               </div>
             </a>
             <button class="corazon" type="button" [class.activo]="esFavorito(a.id)" [attr.aria-pressed]="esFavorito(a.id)"
@@ -277,10 +293,22 @@ export class BusquedaComponent implements OnInit {
   readonly catMas = signal(false);
   /** La fila no cabe entera: se reserva sitio a los lados para que las flechas no tapen un tipo. */
   readonly catDesborda = signal(false);
-  /** Hasta tres comodidades para la tarjeta ("Wi-Fi · Desayuno · Parqueadero"); vacio si no hay. */
-  servicios(a: DetalleAlojamiento): string {
-    const f = (a.facilities ?? []).slice(0, 3).map((x) => x.name);
-    return f.join(' · ');
+  /** Hasta cuatro comodidades de la tarjeta, cada una con su ícono (el nombre queda para lectores de pantalla y como título). */
+  iconosServicios(a: DetalleAlojamiento): { nombre: string; clase: string }[] {
+    return (a.facilities ?? []).slice(0, 4).map((f) => ({ nombre: f.name, clase: BusquedaComponent.claseServicio(f.name) }));
+  }
+  private static claseServicio(nombre: string): string {
+    const n = nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (n.includes('wi-fi') || n.includes('wifi') || n.includes('internet')) return 'sv-wifi';
+    if (n.includes('aire')) return 'sv-aire';
+    if (n.includes('agua caliente') || n.includes('ducha')) return 'sv-agua';
+    if (n.includes('lavander')) return 'sv-lavanderia';
+    if (n.includes('desayuno')) return 'sv-desayuno';
+    if (n.includes('parque') || n.includes('estacion')) return 'sv-parqueadero';
+    if (n === 'tv' || n.includes('televis') || n.includes('cable')) return 'sv-tv';
+    if (n.includes('cocina')) return 'sv-cocina';
+    if (n.includes('calefac')) return 'sv-calefaccion';
+    return 'sv-otro';
   }
 
   /** Recalcula si la fila de tipos tiene contenido fuera de la vista (al desplazar, al redimensionar y al cargar los tipos). */
@@ -339,6 +367,9 @@ export class BusquedaComponent implements OnInit {
   // Estado solo de interfaz (no cambia los criterios ni la llamada al API)
   readonly masFiltros = signal(false);
   readonly panelHuespedes = signal(false);
+  /** Móvil: despliega fechas y huéspedes; se abre solo si hay un error de fecha que mostrar. */
+  readonly panelViaje = signal(false);
+  readonly viajeAbierto = computed(() => this.panelViaje() || !!this.fechas().entrada || !!this.fechas().salida);
   /** Filas del panel de huéspedes: mismos límites que valida motivoBusqueda y el backend. */
   readonly contadores = [
     { campo: 'adultos', etiqueta: 'Adultos', unidad: 'adulto', min: 1, max: 30 },
@@ -417,6 +448,15 @@ export class BusquedaComponent implements OnInit {
     const ninos = Number(v.ninos) || 0;
     const hab = Number(v.habitaciones) || 0;
     return `${textoPersonas(adultos, ninos)} · ${plural(hab, 'habitación', 'habitaciones')}`;
+  });
+  /** "8–10 dic · 2 huéspedes · 2 hab." (texto del botón de fechas y huéspedes en móvil). */
+  readonly resumenViaje = computed(() => {
+    const v = this.valores();
+    const f = this.fechas();
+    const fechas = v.checkin && v.checkout && !f.entrada && !f.salida ? rangoCorto(v.checkin, v.checkout) : 'Elige fechas';
+    const personas = (Number(v.adultos) || 0) + (Number(v.ninos) || 0);
+    const hab = Number(v.habitaciones) || 0;
+    return `${fechas} · ${plural(personas, 'huésped', 'huéspedes')}${hab > 1 ? ` · ${hab} hab.` : ''}`;
   });
   /** Filtros de "Más filtros" con valor distinto al predeterminado. */
   readonly filtrosActivos = computed(() => {

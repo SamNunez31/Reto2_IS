@@ -89,7 +89,7 @@ const NOMBRE_TIPO: Record<string, string> = {
     .obs-soporte li { color: var(--c-error-texto); } .obs-soporte li.si { color: var(--c-ok-texto); }
     .nowrap { white-space: nowrap; } .obs-detalle { overflow-wrap: anywhere; }
     .fila-error td { background: var(--c-error-fondo); }
-    @media (max-width: 560px) {
+    @media (max-width: 575.98px) {
       .obs-dl { grid-template-columns: minmax(0, 1fr); gap: .1rem; }
       .obs-dl dd { margin-bottom: .4rem; }
       /* Tabla apilada: hora y tipo en una línea, detalle debajo (sin scroll horizontal) */

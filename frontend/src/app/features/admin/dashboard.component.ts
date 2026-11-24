@@ -230,7 +230,7 @@ function barra(x: number, y: number, w: number, base: number): string {
     .datos-tabla summary { cursor: pointer; color: var(--c-primario); font-weight: 600; }
     .vacio { color: var(--c-suave); }
     .mapa-dashboard { height: 380px; border-radius: var(--radio); border: 1px solid var(--c-borde-suave); margin: .5rem 0; }
-    @media (max-width: 560px) {
+    @media (max-width: 575.98px) {
       .barra-fila { grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) 3.8rem; font-size: .85rem; }
       .grafico-mes .eje { font-size: 38px; }
       .grafico-mes .valor { font-size: 38px; }
