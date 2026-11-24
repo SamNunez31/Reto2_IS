@@ -231,12 +231,17 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .banner .credito { position: absolute; right: var(--gutter); top: .6rem; font-size: .7rem; margin: 0; padding: .1rem .45rem; border-radius: 4px; background: rgb(36 26 20 / 55%); }
 
 /* Barra de búsqueda montada sobre el borde inferior del banner */
-.buscador { position: relative; z-index: 2; margin: -3.4rem auto 2.5rem; max-width: 1080px; background: var(--c-superficie);
+.buscador { position: relative; z-index: 2; margin: -3.4rem auto 2.5rem; background: var(--c-superficie);
   border-radius: var(--radio-l); box-shadow: var(--sombra-l); padding: .6rem; }
-.buscador-fila { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, .95fr) minmax(0, .95fr) minmax(0, 1.5fr) auto; align-items: stretch; }
+.buscador-fila { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, .95fr) minmax(0, .95fr) minmax(0, 1.55fr) auto auto; align-items: stretch;
+  grid-template-areas: "dest ent sal hue filt busc"; }
+.campo-destino { grid-area: dest; } .campo-entrada { grid-area: ent; } .campo-salida { grid-area: sal; } .campo-huespedes { grid-area: hue; }
+.buscador-fila > .btn-filtros { grid-area: filt; } .buscador-fila > .btn-buscar { grid-area: busc; } .buscador-resumen { grid-area: res; }
+/* En escritorio y tablet las fechas y los huéspedes son celdas de la misma cuadrícula */
+.buscador-viaje { display: contents; }
 .campo { display: flex; flex-direction: column; justify-content: center; gap: .1rem; padding: .45rem .9rem; margin: 0; border-radius: var(--radio);
   position: relative; min-width: 0; transition: background var(--transicion); }
-.campo + .campo::before { content: ''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: var(--c-borde-suave); }
+.campo + .campo::before, .campo-entrada::before { content: ''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: var(--c-borde-suave); }
 .campo:hover, .campo:focus-within { background: var(--gris-100); }
 .campo-etiqueta { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--c-primario); }
 .campo input, .campo select, .campo .campo-boton { border: 0; padding: 0; min-height: 30px; background: transparent; font-weight: 600; color: var(--c-texto); box-shadow: none; }
@@ -277,8 +282,16 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23587a73' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right .1rem center / 1rem no-repeat; }
 .buscador .btn-buscar { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; box-shadow: 0 6px 16px rgb(75 47 33 / 28%); }
 .buscador .btn-buscar:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgb(75 47 33 / 36%); }
+.buscador-resumen { display: flex; align-items: center; gap: .6rem; min-width: 0; min-height: 48px; padding: 0 .9rem; background: var(--gris-100); border: 0; border-radius: var(--radio);
+  font: inherit; font-weight: 600; color: var(--c-texto); text-align: left; cursor: pointer; }
+.buscador-resumen svg { flex: none; color: var(--c-primario); }
+.buscador-resumen .resumen-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.buscador-resumen .flecha { flex: none; color: var(--c-primario); transition: transform var(--transicion); }
+.buscador-resumen[aria-expanded='true'] .flecha { transform: rotate(180deg); }
 .buscador-pie { padding: .5rem .9rem .2rem; border-top: 1px solid var(--c-borde-suave); }
-.btn-filtros { background: none; border: 0; font: inherit; font-weight: 700; color: var(--c-primario); cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; padding: .3rem 0; }
+.btn-filtros { align-self: center; margin-left: .4rem; min-height: 44px; padding: 0 .95rem; background: var(--c-superficie); border: 1px solid var(--c-borde); border-radius: var(--radio);
+  font: inherit; font-weight: 700; color: var(--c-primario); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; transition: background var(--transicion), border-color var(--transicion); }
+.btn-filtros:hover { background: var(--gris-100); border-color: var(--c-borde-control); }
 .btn-filtros .contador { background: var(--c-acento); color: var(--blanco); border-radius: var(--radio-pildora); font-size: .72rem; padding: 0 .45rem; min-width: 1.3rem; text-align: center; }
 .btn-filtros .flecha { transition: transform var(--transicion); display: inline-block; }
 .btn-filtros[aria-expanded='true'] .flecha { transform: rotate(180deg); }
@@ -759,14 +772,17 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .error-pagina .codigo { font-family: var(--fuente-titulos); font-size: 3.5rem; color: var(--c-primario); margin: 0; }
 
 /* ---------- 11. Responsive ---------- */
+/* Buscador: una sola línea desde 1200 px; por debajo, destino arriba, fechas y huéspedes en cuadrícula y "Buscar" a todo el ancho */
+@media (max-width: 1199.98px) {
+  .buscador-fila { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "dest dest" "ent sal" "hue filt" "busc busc"; gap: .2rem; }
+  .campo + .campo::before, .campo-entrada::before { display: none; }
+  .campo { background: var(--gris-100); }
+  .buscador-fila > .btn-filtros { margin: 0; }
+  .buscador .btn-buscar { margin: .3rem 0 0; width: 100%; }
+}
 @media (max-width: 991.98px) {
   .dos-columnas { grid-template-columns: 1fr; }
   .reserva-lateral { position: static; }
-  .buscador-fila { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .2rem; }
-  .buscador-fila .campo-destino { grid-column: 1 / -1; }
-  .campo + .campo::before { display: none; }
-  .campo { background: var(--gris-100); }
-  .buscador .btn-buscar { grid-column: 1 / -1; margin: .3rem 0 0; width: 100%; }
 }
 @media (max-width: 991.98px) {
   .edicion { grid-template-columns: minmax(0, 1fr); gap: .8rem; }
@@ -795,7 +811,18 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .banner h1 { font-size: 1.85rem; margin-bottom: .4rem; }
   .banner .bajada { font-size: .95rem; }
   .buscador { margin-top: -2.8rem; border-radius: var(--radio); }
-  .buscador-fila { grid-template-columns: minmax(0, 1fr); }
+  /* Dos filas: destino y, debajo, un botón con fechas y huéspedes (despliega los campos aquí mismo) junto a "Buscar" */
+  .buscador { padding: .5rem; }
+  .buscador-fila { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "dest dest" "res busc" "viaje viaje" "filt filt"; gap: .4rem; }
+  .buscador-viaje { display: none; grid-area: viaje; }
+  .buscador-viaje.abierto { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .4rem; }
+  .buscador-viaje > * { grid-area: auto; }
+  .buscador-viaje .campo-huespedes { grid-column: 1 / -1; }
+  .panel-huespedes { position: static; width: 100%; margin-top: .5rem; box-shadow: none; }
+  /* "Buscar" solo con la lupa (el texto sigue disponible para lectores de pantalla) para dar sitio al resumen */
+  .buscador .btn-buscar { width: 48px; margin: 0; min-height: 48px; padding: 0; box-shadow: none; }
+  .btn-buscar .buscar-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .buscador-fila > .btn-filtros { justify-self: start; min-height: 36px; padding: 0 .4rem; margin: 0; background: none; border-color: transparent; }
   .grid-tarjetas { grid-template-columns: minmax(0, 1fr); }
   .banner .credito { display: none; }
 }
