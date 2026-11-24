@@ -23,3 +23,8 @@ Thumbs.db
 
 # Carpeta temporal
 _to_delete/
+
+# Claude Code y automatizacion de navegador: configuracion y volcados locales
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.playwright-cli/
