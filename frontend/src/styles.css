@@ -99,10 +99,10 @@ h3 { font-size: 1rem; margin: .8rem 0 .4rem; }
 
 /* ---------- 4. Estructura ---------- */
 .barra { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem max(var(--gutter), calc((100% - var(--ancho)) / 2));
-  background: rgb(251 250 247 / 94%); backdrop-filter: saturate(140%) blur(8px); border-bottom: 1px solid var(--c-borde);
+  background: rgb(255 255 255 / 92%); backdrop-filter: saturate(160%) blur(8px); border-bottom: 1px solid var(--c-borde-suave);
   position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
-.marca { font-family: var(--fuente-titulos); font-weight: 700; font-size: 1.6rem; text-decoration: none; color: var(--c-texto); letter-spacing: -.01em; line-height: 1; }
-.marca span { color: var(--c-primario); }
+.marca { font-family: var(--fuente-titulos); font-size: 1.55rem; text-decoration: none; color: var(--c-texto); letter-spacing: -.01em; line-height: 1; }
+.marca span { color: var(--c-acento); }
 .barra nav { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
 .barra nav a { text-decoration: none; color: var(--gris-700); font-weight: 600; font-size: .95rem; padding: .25rem 0; border-bottom: 2px solid transparent; transition: color var(--transicion), border-color var(--transicion); }
 .barra nav a:hover { color: var(--c-primario); }
@@ -136,8 +136,8 @@ h3 { font-size: 1rem; margin: .8rem 0 .4rem; }
 .politica-resumen h3 { font-size: .95rem; margin: 0 0 .2rem; }
 .politica-resumen details { margin-top: .4rem; font-size: .85rem; }
 .calendario-celda input { width: 100%; min-width: 6.5rem; }
-.menu-btn { display: none; align-items: center; gap: .45rem; background: var(--c-superficie); border: 1px solid var(--c-borde-control); border-radius: var(--radio-s);
-  padding: .35rem .8rem; font: inherit; font-weight: 700; color: var(--c-texto); cursor: pointer; min-height: 38px; }
+.menu-btn { display: none; align-items: center; background: var(--c-superficie); border: 1px solid var(--c-borde); border-radius: var(--radio-s);
+  padding: .35rem .8rem; font: inherit; font-weight: 700; color: var(--c-primario); cursor: pointer; min-height: 38px; }
 .contenedor { max-width: var(--ancho); margin: 0 auto; padding: 2rem var(--gutter) 4rem; }
 .pie-pagina { text-align: center; color: var(--c-suave); font-size: .85rem; padding: 2rem var(--gutter); border-top: 1px solid var(--c-borde-suave); background: var(--c-superficie); }
 
@@ -215,22 +215,22 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .pie { margin-top: 1rem; font-size: .9rem; }
 
 /* ---------- 6. Búsqueda ---------- */
-/* Banner: el texto a un lado y la foto enmarcada como una ventana de taller (marco de nogal con filete de toquilla).
-   Sin velo de color sobre la foto: se ve la luz natural. Cotopaxi (Unsplash, verificada): ver README → Créditos de imágenes */
-.banner { margin: 0 0 1.5rem; }
-.banner-texto h1 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: clamp(2rem, 4.4vw, 3.3rem); line-height: 1.08;
-  letter-spacing: -.01em; margin: 0 0 .6rem; color: var(--c-texto); text-wrap: balance; }
-.banner-texto h1::after { content: ''; display: block; width: 3.5rem; height: 4px; margin-top: .8rem; border-radius: 2px; background: var(--toquilla); }
-.banner .bajada { font-size: clamp(.98rem, 1.5vw, 1.12rem); color: var(--c-suave); max-width: 40ch; margin: 0; }
-.banner-ventana { margin-inline: 0; margin-bottom: 0; }
-.ventana-marco { position: relative; overflow: hidden; background: var(--acento-600); border: 10px solid var(--acento-600); border-bottom-width: 16px;
-  border-radius: 6px 6px 3px 3px; box-shadow: var(--sombra); }
-.ventana-marco::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--toquilla); pointer-events: none; }
-.ventana-marco img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; object-position: center 40%; }
-.banner .credito { margin: .45rem 0 0; font-size: .75rem; color: var(--c-suave); text-align: right; }
+/* Banner a todo el ancho aunque viva dentro de .contenedor */
+/* Cotopaxi (Unsplash, verificada): ver README → Créditos de imágenes */
+.banner { --banner-img: url('https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1920&q=75');
+  position: relative; margin: -2rem calc(50% - 50vw) 0; margin-inline: calc(50% - 50cqi); min-height: clamp(340px, 52vh, 520px); display: flex; align-items: center;
+  color: var(--blanco); background: var(--marca-900) var(--banner-img) center 40% / cover no-repeat; }
+.banner::before { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgb(36 26 20 / 70%) 0%, rgb(36 26 20 / 66%) 45%, rgb(36 26 20 / 72%) 100%); }
+.banner-texto { position: relative; width: 100%; max-width: var(--ancho); margin: 0 auto; padding: 2.5rem var(--gutter) 5.5rem; }
+.banner .antetitulo { text-transform: uppercase; letter-spacing: .18em; font-size: .78rem; font-weight: 700; margin: 0 0 .7rem; }
+.banner h1 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: clamp(2.1rem, 5.2vw, 3.6rem); line-height: 1.05; max-width: 18ch; margin: 0 0 .8rem;
+  text-shadow: 0 2px 18px rgb(0 0 0 / 30%); letter-spacing: -.01em; }
+.banner .bajada { font-size: clamp(1rem, 1.6vw, 1.15rem); max-width: 46ch; margin: 0; }
+.banner .credito { position: absolute; right: var(--gutter); top: .6rem; font-size: .7rem; margin: 0; padding: .1rem .45rem; border-radius: 4px; background: rgb(36 26 20 / 55%); }
 
 /* Barra de búsqueda montada sobre el borde inferior del banner */
-.buscador { position: relative; z-index: 2; margin: 1.5rem auto 2rem; max-width: 1080px; background: var(--c-superficie);
+.buscador { position: relative; z-index: 2; margin: -3.4rem auto 2.5rem; max-width: 1080px; background: var(--c-superficie);
   border-radius: var(--radio-l); box-shadow: var(--sombra-l); padding: .6rem; }
 .buscador-fila { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, .95fr) minmax(0, .95fr) minmax(0, 1.5fr) auto; align-items: stretch; }
 .campo { display: flex; flex-direction: column; justify-content: center; gap: .1rem; padding: .45rem .9rem; margin: 0; border-radius: var(--radio);
@@ -789,14 +789,12 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .orden-cabecera { flex-direction: column; }
   .orden-cabecera img { width: 100%; height: 140px; }
   .contenedor { padding-top: 1.25rem; }
-  .banner { margin-bottom: 1rem; }
-  .banner-texto h1 { font-size: 1.9rem; }
-  .banner-texto h1::after { margin-top: .6rem; }
-  .ventana-marco { border-width: 6px; border-bottom-width: 10px; }
-  .ventana-marco img { aspect-ratio: 2 / 1; }
-  .buscador { margin-top: 1rem; border-radius: var(--radio); }
+  .banner { --banner-img: url('https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1200&q=70'); margin-top: -1.25rem; min-height: 340px; }
+  .banner-texto { padding-bottom: 4.5rem; }
+  .buscador { margin-top: -2.8rem; border-radius: var(--radio); }
   .buscador-fila { grid-template-columns: minmax(0, 1fr); }
   .grid-tarjetas { grid-template-columns: minmax(0, 1fr); }
+  .banner .credito { display: none; }
 }
 @media (min-width: 1200px) {
   .grid-tarjetas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -814,9 +812,11 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 
 /* ---------- 9. Rediseño: alojamiento primero (inicio, tarjetas, galería) ----------
    Patrones de los sitios solo de alojamiento: foto protagonista, franja de categorías con íconos,
-   corazón de favoritos, insignia de "favorito" y precio por noche claro. Paleta: cal, nogal, eucalipto y toquilla. */
+   corazón de favoritos, insignia de "favorito" y precio por noche claro. Misma paleta (teal + terracota). */
 
 /* Portada más compacta: el buscador y los resultados suben */
+.banner { min-height: clamp(300px, 44vh, 430px); }
+.banner-texto { padding-bottom: 5rem; }
 .buscador { border-radius: 28px; margin-bottom: 1.2rem; }
 
 /* Franja de categorías con íconos (queda fija bajo la barra al bajar) */

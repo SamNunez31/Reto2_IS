@@ -41,20 +41,12 @@ export function motivoBusqueda(
   imports: [ReactiveFormsModule, RouterLink, CurrencyPipe, AlertaErrorComponent, EstrellasComponent, FiltroDirective],
   template: `
     <section class="banner" aria-labelledby="titulo-banner">
-      <div class="row align-items-center g-3 g-md-4">
-        <div class="banner-texto col-md-5 order-2 order-md-1">
-          <h1 id="titulo-banner">Ecuador, a tu ritmo</h1>
-          <p class="bajada">De los Andes a Galápagos, con el precio final claro antes de reservar.</p>
-        </div>
-        <figure class="banner-ventana col-md-7 order-1 order-md-2">
-          <div class="ventana-marco">
-            <img src="https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1000&q=75" srcset="https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=640&q=75 640w, https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1000&q=75 1000w, https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1400&q=75 1400w"
-                 sizes="(min-width: 768px) 58vw, 100vw" width="1000" height="563" fetchpriority="high" decoding="async"
-                 alt="Volcán Cotopaxi con la cumbre nevada y pastizales de páramo en primer plano" />
-          </div>
-          <figcaption class="credito">Foto: Cotopaxi · Unsplash</figcaption>
-        </figure>
+      <div class="banner-texto">
+        <p class="antetitulo">Hoteles · Hostales · Cabañas · Casas</p>
+        <h1 id="titulo-banner">Ecuador, a tu ritmo</h1>
+        <p class="bajada">De los Andes a Galápagos, con el precio final claro antes de reservar.</p>
       </div>
+      <p class="credito">Foto: Cotopaxi · Unsplash</p>
     </section>
 
     <form class="buscador" [formGroup]="form" (ngSubmit)="buscar()" novalidate aria-label="Buscar alojamiento">
