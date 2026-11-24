@@ -82,7 +82,9 @@
 
 /* ---------- 3. Base ---------- */
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 5rem; }
+/* En el inicio también queda fija la fila de tipos: el elemento enfocado no debe quedar debajo de las dos barras */
+html:has(.categorias) { scroll-padding-top: 9.5rem; }
 /* body es contenedor para que el banner a sangre use 100cqi (ancho sin barra de desplazamiento) y no desborde */
 body { container-type: inline-size; }
 body { margin: 0; font-family: var(--fuente); color: var(--c-texto); background: var(--c-fondo); line-height: 1.55; }
@@ -284,6 +286,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .buscador .btn-buscar:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgb(75 47 33 / 36%); }
 .buscador-resumen { display: flex; align-items: center; gap: .6rem; min-width: 0; min-height: 48px; padding: 0 .9rem; background: var(--gris-100); border: 0; border-radius: var(--radio);
   font: inherit; font-weight: 600; color: var(--c-texto); text-align: left; cursor: pointer; }
+.buscador-resumen:hover { background: var(--gris-200); }
 .buscador-resumen svg { flex: none; color: var(--c-primario); }
 .buscador-resumen .resumen-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .buscador-resumen .flecha { flex: none; color: var(--c-primario); transition: transform var(--transicion); }
@@ -315,7 +318,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .tarjeta-nota { position: absolute; top: .75rem; right: .75rem; background: var(--c-primario); color: var(--blanco); font-weight: 800; font-size: .85rem;
   padding: .2rem .55rem; border-radius: var(--radio-s); }
 .tarjeta-aloj .cuerpo { padding: 1rem 1.1rem 1.15rem; display: flex; flex-direction: column; gap: .25rem; flex: 1; }
-.tarjeta-aloj h2 { font-size: 1.08rem; margin: 0; line-height: 1.3; }
+.tarjeta-aloj h3 { font-size: 1.08rem; margin: 0; line-height: 1.3; }
 .ubicacion { color: var(--c-suave); font-size: .9rem; margin: 0; display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
 .pie-tarjeta { display: flex; justify-content: space-between; align-items: flex-end; gap: .5rem; margin-top: auto; padding-top: .8rem; border-top: 1px solid var(--c-borde-suave); }
 .nota { font-weight: 800; color: var(--c-primario); }
@@ -875,7 +878,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   padding: .25rem .65rem; border-radius: var(--radio-pildora); box-shadow: 0 1px 4px rgb(36 26 20 / 22%); }
 .tarjeta-aloj .cuerpo { padding: .8rem .15rem 0; gap: .1rem; flex: none; }
 .fila-titulo { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; }
-.tarjeta-aloj h2 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: 1.22rem; line-height: 1.2; margin: 0; letter-spacing: -.005em;
+.tarjeta-aloj h3 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: 1.22rem; line-height: 1.2; margin: 0; letter-spacing: -.005em;
   display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 0; }
 .nota-corta { flex: none; font-weight: 800; font-size: .92rem; color: var(--c-texto); white-space: nowrap; }
 .nota-corta span { color: var(--c-texto); }
@@ -933,7 +936,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .categoria { min-width: 68px; padding: .5rem .8rem .45rem; }
   .grid-tarjetas { gap: 1.6rem; }
   .tarjeta-foto { aspect-ratio: 4 / 3; }
-  .tarjeta-aloj h2 { font-size: 1.15rem; }
+  .tarjeta-aloj h3 { font-size: 1.15rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tarjeta-aloj img, .corazon, .miniaturas img { transition: none; }
@@ -1004,7 +1007,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .tarjeta-enlace { height: 100%; }
 .tarjeta-aloj .cuerpo { flex: 1; display: flex; flex-direction: column; }
 .tarjeta-aloj .precio-noche { margin-top: auto; padding-top: .45rem; }
-.tarjeta-aloj h2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tarjeta-aloj h3 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Admin > Usuarios: formulario y búsqueda */
 .form-usuario { padding: 1.4rem 1.5rem; margin-bottom: 1.2rem; }
@@ -1228,7 +1231,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .tarjeta-favorito { left: .55rem; bottom: .55rem; font-size: .7rem; padding: .18rem .5rem; }
 .corazon { top: .3rem; right: .3rem; }
 .tarjeta-aloj .cuerpo { padding: .55rem .1rem 0; gap: .15rem; }
-.tarjeta-aloj h2 { font-size: .98rem; line-height: 1.2; min-height: 2.4em; }
+.tarjeta-aloj h3 { font-size: .98rem; line-height: 1.2; min-height: 2.4em; }
 .tarjeta-aloj .ubicacion { display: block; font-size: .82rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .tarjeta-meta { display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 1.5rem; }
 .tarjeta-meta .estrellas { font-size: .85rem; line-height: 1; white-space: nowrap; }
@@ -1251,7 +1254,7 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .nota-corta { font-size: .82rem; }
 .nota-n { font-weight: 500; color: var(--c-suave); }
 @media (min-width: 768px) {
-  .tarjeta-aloj h2 { font-size: 1.1rem; min-height: 1.2em; }
+  .tarjeta-aloj h3 { font-size: 1.1rem; min-height: 1.2em; }
   .tarjeta-aloj .ubicacion { font-size: .88rem; }
   .tarjeta-cancelacion { font-size: .8rem; }
   .tarjeta-aloj .precio-noche { font-size: .88rem; }
@@ -1291,3 +1294,8 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 /* El foco global es de nogal y aquí no se vería: en el pie es de color cal */
 .pie-pagina a:focus-visible, .pie-enlace:focus-visible { outline: 3px solid var(--cal); outline-offset: 3px; border-radius: 3px; }
 .pie-legal { margin: 1.6rem 0 0; padding-top: 1rem; border-top: 1px solid rgb(251 250 247 / 18%); font-size: .8rem; color: rgb(251 250 247 / 72%); }
+
+/* Sin movimiento: las flechas de los botones desplegables cambian de golpe */
+@media (prefers-reduced-motion: reduce) {
+  .buscador-resumen .flecha, .btn-filtros .flecha { transition: none; }
+}

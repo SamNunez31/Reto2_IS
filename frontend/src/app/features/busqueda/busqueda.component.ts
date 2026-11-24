@@ -71,12 +71,12 @@ export function motivoBusqueda(
         </button>
         <div class="buscador-viaje" id="viaje" [class.abierto]="viajeAbierto()">
           <label class="campo campo-fecha campo-entrada"><span class="campo-etiqueta">Entrada</span>
-            <input type="date" formControlName="checkin" [min]="hoy" required [attr.aria-invalid]="!!fechas().entrada"
+            <input type="date" formControlName="checkin" autocomplete="off" [min]="hoy" required [attr.aria-invalid]="!!fechas().entrada"
                    [attr.aria-describedby]="fechas().entrada ? 'err-checkin' : null" />
             @if (fechas().entrada) { <small class="msg-fecha" id="err-checkin" role="alert">{{ fechas().entrada }}</small> }
           </label>
           <label class="campo campo-fecha campo-salida"><span class="campo-etiqueta">Salida</span>
-            <input type="date" formControlName="checkout" [min]="form.controls.checkin.value" required [attr.aria-invalid]="!!fechas().salida"
+            <input type="date" formControlName="checkout" autocomplete="off" [min]="form.controls.checkin.value" required [attr.aria-invalid]="!!fechas().salida"
                    [attr.aria-describedby]="fechas().salida ? 'err-checkout' : null" />
             @if (fechas().salida) { <small class="msg-fecha" id="err-checkout" role="alert">{{ fechas().salida }}</small> }
           </label>
@@ -145,7 +145,7 @@ export function motivoBusqueda(
               @for (e of [1, 2, 3, 4, 5]; track e) { <option [ngValue]="e">{{ e }}+</option> }
             </select>
           </label>
-          <label>Precio máx./noche (USD) <input appFiltro="decimal" formControlName="precio" maxlength="9" placeholder="Sin límite" /></label>
+          <label>Precio máx./noche (USD) <input appFiltro="decimal" formControlName="precio" maxlength="9" inputmode="decimal" autocomplete="off" placeholder="Sin límite, ej.: 80…" /></label>
           <label>Ordenar por
             <select formControlName="orden">
               <option value="relevancia">Relevancia</option>
@@ -205,20 +205,20 @@ export function motivoBusqueda(
       @if (resultados().length) {
         <div class="resultados-cabecera d-flex justify-content-between align-items-baseline flex-wrap gap-3">
           <h2>Alojamientos disponibles</h2>
-          <p>{{ resumenResultados() }}</p>
+          <p aria-live="polite">{{ resumenResultados() }}</p>
         </div>
       }
       <div class="grid-tarjetas">
-        @for (a of resultados(); track a.id) {
+        @for (a of resultados(); track a.id; let i = $index) {
           <article class="tarjeta-aloj">
             <a class="tarjeta-enlace" [routerLink]="['/alojamientos', a.id]">
               <div class="tarjeta-foto">
-                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" loading="lazy" decoding="async" width="600" height="450" />
+                <img [src]="a.cover_photo || 'https://placehold.co/600x400?text=Sin+foto'" alt="" [attr.loading]="i < 4 ? 'eager' : 'lazy'" [attr.fetchpriority]="i === 0 ? 'high' : null" decoding="async" width="600" height="450" />
                 <span class="tarjeta-tipo">{{ a.type }}</span>
                 @if (destacado(a)) { <span class="tarjeta-favorito">Favorito de huéspedes</span> }
               </div>
               <div class="cuerpo">
-                <h2>{{ a.name }}</h2>
+                <h3>{{ a.name }}</h3>
                 <p class="ubicacion">{{ a.city.name }}, {{ a.city.province }}</p>
                 <div class="tarjeta-meta">
                   @if (iconosServicios(a); as sv) {

@@ -12,7 +12,7 @@ import { LoginModalService } from './core/services/login-modal.service';
   template: `
     <a class="saltar" href="#contenido">Saltar al contenido</a>
     <header class="barra">
-      <a routerLink="/" class="marca" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
+      <a routerLink="/" class="marca" translate="no" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
       <button #menuBtn class="menu-btn" type="button" (click)="menu.set(!menu())" [attr.aria-expanded]="menu()" aria-controls="nav">Menú</button>
       <!-- Clic en un enlace del menú móvil lo cierra y Esc también; los enlaces ya son accesibles con teclado -->
       <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
@@ -45,7 +45,7 @@ import { LoginModalService } from './core/services/login-modal.service';
       <div class="pie-contenido">
         <div class="row g-4">
           <div class="col-12 col-md-5">
-            <a routerLink="/" class="pie-sello" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
+            <a routerLink="/" class="pie-sello" translate="no" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
             <p class="pie-lema">Alojamientos en Ecuador, con el precio final claro antes de reservar.</p>
           </div>
           <nav class="col-6 col-md-3" aria-labelledby="pie-cuenta">
