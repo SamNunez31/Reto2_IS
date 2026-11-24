@@ -98,7 +98,7 @@ h3 { font-size: 1rem; margin: .8rem 0 .4rem; }
 .saltar:focus { left: 1rem; }
 
 /* ---------- 4. Estructura ---------- */
-.barra { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem max(var(--gutter), calc((100% - var(--ancho)) / 2));
+.barra { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem max(var(--gutter), calc((100% - var(--ancho)) / 2 + var(--gutter)));
   background: rgb(255 255 255 / 92%); backdrop-filter: saturate(160%) blur(8px); border-bottom: 1px solid var(--c-borde-suave);
   position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
 .marca { font-family: var(--fuente-titulos); font-size: 1.55rem; text-decoration: none; color: var(--c-texto); letter-spacing: -.01em; line-height: 1; }
@@ -221,10 +221,11 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   position: relative; margin: -2rem calc(50% - 50vw) 0; margin-inline: calc(50% - 50cqi); min-height: clamp(340px, 52vh, 520px); display: flex; align-items: center;
   color: var(--blanco); background: var(--marca-900) var(--banner-img) center 40% / cover no-repeat; }
 .banner::before { content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgb(36 26 20 / 70%) 0%, rgb(36 26 20 / 66%) 45%, rgb(36 26 20 / 72%) 100%); }
+  /* Degradado nogal: más denso a la izquierda y abajo (donde va el título) y casi transparente a la derecha y arriba */
+  background: linear-gradient(90deg, rgb(52 32 22 / 62%) 0%, rgb(52 32 22 / 30%) 55%, rgb(52 32 22 / 6%) 100%),
+              linear-gradient(180deg, rgb(52 32 22 / 8%) 0%, rgb(36 22 15 / 22%) 55%, rgb(36 22 15 / 52%) 100%); }
 .banner-texto { position: relative; width: 100%; max-width: var(--ancho); margin: 0 auto; padding: 2.5rem var(--gutter) 5.5rem; }
-.banner .antetitulo { text-transform: uppercase; letter-spacing: .18em; font-size: .78rem; font-weight: 700; margin: 0 0 .7rem; }
-.banner h1 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: clamp(2.1rem, 5.2vw, 3.6rem); line-height: 1.05; max-width: 18ch; margin: 0 0 .8rem;
+.banner h1 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: clamp(2rem, 4.6vw, 3.3rem); line-height: 1.05; max-width: 18ch; margin: 0 0 .8rem;
   text-shadow: 0 2px 18px rgb(0 0 0 / 30%); letter-spacing: -.01em; }
 .banner .bajada { font-size: clamp(1rem, 1.6vw, 1.15rem); max-width: 46ch; margin: 0; }
 .banner .credito { position: absolute; right: var(--gutter); top: .6rem; font-size: .7rem; margin: 0; padding: .1rem .45rem; border-radius: 4px; background: rgb(36 26 20 / 55%); }
@@ -789,8 +790,10 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .orden-cabecera { flex-direction: column; }
   .orden-cabecera img { width: 100%; height: 140px; }
   .contenedor { padding-top: 1.25rem; }
-  .banner { --banner-img: url('https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1200&q=70'); margin-top: -1.25rem; min-height: 340px; }
-  .banner-texto { padding-bottom: 4.5rem; }
+  .banner { --banner-img: url('https://images.unsplash.com/photo-1643302408853-a0171accc39b?w=1200&q=70'); margin-top: -1.25rem; min-height: 220px; }
+  .banner-texto { padding: 1rem var(--gutter) 3.6rem; }
+  .banner h1 { font-size: 1.85rem; margin-bottom: .4rem; }
+  .banner .bajada { font-size: .95rem; }
   .buscador { margin-top: -2.8rem; border-radius: var(--radio); }
   .buscador-fila { grid-template-columns: minmax(0, 1fr); }
   .grid-tarjetas { grid-template-columns: minmax(0, 1fr); }
@@ -815,8 +818,8 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
    corazón de favoritos, insignia de "favorito" y precio por noche claro. Misma paleta (teal + terracota). */
 
 /* Portada más compacta: el buscador y los resultados suben */
-.banner { min-height: clamp(300px, 44vh, 430px); }
-.banner-texto { padding-bottom: 5rem; }
+.banner { min-height: clamp(250px, 32vh, 310px); }
+.banner-texto { padding: 1.5rem var(--gutter) 4.6rem; }
 .buscador { border-radius: 28px; margin-bottom: 1.2rem; }
 
 /* Franja de categorías con íconos (queda fija bajo la barra al bajar) */

@@ -42,7 +42,6 @@ export function motivoBusqueda(
   template: `
     <section class="banner" aria-labelledby="titulo-banner">
       <div class="banner-texto">
-        <p class="antetitulo">Hoteles · Hostales · Cabañas · Casas</p>
         <h1 id="titulo-banner">Ecuador, a tu ritmo</h1>
         <p class="bajada">De los Andes a Galápagos, con el precio final claro antes de reservar.</p>
       </div>
