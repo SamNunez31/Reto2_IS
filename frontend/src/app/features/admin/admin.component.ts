@@ -571,7 +571,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .buscador-ir:hover { background: var(--c-acento-osc); }
     .buscador-ir .ico { width: 1.15rem; height: 1.15rem; stroke-width: 2.1; margin: 0; }
     .nuevo-aloj { flex: none; height: 3rem; padding: 0 1.3rem; border-radius: 999px; }
-    @media (max-width: 680px) {
+    @media (max-width: 767.98px) {
       .buscador-adm { flex-wrap: wrap; border-radius: var(--radio-l, 1rem); padding: .6rem .8rem; }
       .buscador-texto { flex-basis: 100%; }
       .buscador-sep { display: none; }
@@ -582,7 +582,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .cat-intro { color: var(--gris-700); margin: 0 0 1rem; max-width: 46rem; }
     .cat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; align-items: start; }
     .cat-grid .cat-card { margin: 0; } .cat-ancho { grid-column: 1 / -1; }
-    @media (max-width: 860px) { .cat-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 991.98px) { .cat-grid { grid-template-columns: 1fr; } }
     .cat-cab { display: flex; gap: .8rem; align-items: flex-start; margin-bottom: 1rem; }
     .cat-cab h2 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: .5rem; }
     .cat-cab .ayuda { margin: .2rem 0 0; }
@@ -592,7 +592,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .cat-cuenta { font-size: .75rem; font-weight: 700; padding: .05rem .5rem; border-radius: 999px; background: var(--gris-200, #ece9e3); color: var(--gris-700); }
     .cat-grupo { display: grid; grid-template-columns: 9.5rem 1fr; gap: .4rem 1rem; align-items: start; padding: .65rem 0; border-top: 1px solid var(--c-borde-suave); }
     .cat-grupo h3 { margin: .25rem 0 0; font-size: .8rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gris-700); }
-    @media (max-width: 560px) { .cat-grupo { grid-template-columns: 1fr; } }
+    @media (max-width: 575.98px) { .cat-grupo { grid-template-columns: 1fr; } }
     .cat-chips { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; }
     .cat-chips li { display: inline-flex; align-items: center; gap: .4rem; background: var(--c-primario-suave); color: var(--c-primario-osc);
                     border-radius: 999px; padding: .25rem .8rem; font-size: .88rem; font-weight: 500; }
@@ -604,7 +604,7 @@ type Pestana = 'indicadores' | 'alojamientos' | 'reservas' | 'habitaciones' | 'i
     .cat-form h3 { margin: 0 0 .6rem; font-size: .95rem; }
     .cat-form-fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .75rem; align-items: end; }
     .cat-form-fila label { margin: 0; } .cat-form-fila .btn { height: 2.75rem; margin: 0; white-space: nowrap; }
-    @media (max-width: 680px) { .cat-form-fila { grid-template-columns: 1fr; } }
+    @media (max-width: 767.98px) { .cat-form-fila { grid-template-columns: 1fr; } }
     /* Reservas: filtros en línea y tabla legible */
     .filtros-res { display: flex; gap: .9rem; flex-wrap: wrap; align-items: flex-end; }
     .filtro-campo { display: grid; gap: .25rem; margin: 0; font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-700); }

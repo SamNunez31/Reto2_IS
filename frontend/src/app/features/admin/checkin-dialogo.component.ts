@@ -126,7 +126,7 @@ export interface DatosCheckin {
     .ck-dialogo { border: 0; padding: 0; border-radius: var(--radio-l); box-shadow: var(--sombra-l); width: min(520px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 2rem); color: var(--c-texto); background: var(--c-superficie); }
     .ck-dialogo::backdrop { background: rgb(0 0 0 / .5); }
     .ck-cuerpo { padding: 1.5rem 1.5rem 1.25rem; text-align: left; }
-    h2 { font-family: var(--fuente-titulos); font-weight: 400; font-size: 1.45rem; margin: 0 0 .25rem; }
+    h2 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: 1.45rem; margin: 0 0 .25rem; }
     .ck-codigo { font-variant-numeric: tabular-nums; }
     .ck-resumen { margin: 0 0 1rem; color: var(--gris-700); }
     .ck-datos { display: grid; gap: .4rem; margin: 0 0 1.1rem; padding: .8rem 1rem; background: var(--c-fondo, #f6f6f4); border-radius: var(--radio-s); }
