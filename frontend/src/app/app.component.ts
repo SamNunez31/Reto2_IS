@@ -42,9 +42,40 @@ import { LoginModalService } from './core/services/login-modal.service';
       <router-outlet />
     </main>
     <footer class="pie-pagina">
-      <p class="pie-marca">© 2026 Posada EC · Proyecto académico PUCE</p>
-      <p class="pie-aviso">Los pagos y facturas son simulados con fines académicos.</p>
-      <p class="pie-aviso"><a class="pie-enlace" routerLink="/observabilidad">Observabilidad</a></p>
+      <div class="pie-contenido">
+        <div class="row g-4">
+          <div class="col-12 col-md-5">
+            <a routerLink="/" class="pie-sello" aria-label="PosadaEC, inicio">Posada<span>EC</span></a>
+            <p class="pie-lema">Alojamientos en Ecuador, con el precio final claro antes de reservar.</p>
+          </div>
+          <nav class="col-6 col-md-3" aria-labelledby="pie-cuenta">
+            <h2 class="pie-titulo" id="pie-cuenta">Tu cuenta</h2>
+            <ul class="pie-lista">
+              <li><a routerLink="/">Buscar alojamiento</a></li>
+              @if (auth.usuario(); as u) {
+                @if (u.rol === 'ADMIN') {
+                  <li><a routerLink="/admin">Administración</a></li>
+                } @else {
+                  <li><a routerLink="/mis-reservas">Mis reservas</a></li>
+                  <li><a routerLink="/perfil">Mi perfil</a></li>
+                }
+              } @else {
+                <li><button class="pie-enlace" type="button" (click)="abrirLogin()" aria-haspopup="dialog">Iniciar sesión</button></li>
+                <li><a routerLink="/registro">Crear cuenta</a></li>
+              }
+            </ul>
+          </nav>
+          <div class="col-6 col-md-4">
+            <h2 class="pie-titulo">Proyecto</h2>
+            <ul class="pie-lista">
+              <li>Proyecto académico PUCE</li>
+              <li>Pagos y facturas simulados</li>
+              <li><a routerLink="/observabilidad">Observabilidad</a></li>
+            </ul>
+          </div>
+        </div>
+        <p class="pie-legal">© 2026 Posada EC · Los pagos y facturas son simulados con fines académicos.</p>
+      </div>
     </footer>
     <app-confirmar />
     <app-login-modal />

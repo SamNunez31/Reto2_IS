@@ -139,7 +139,7 @@ h3 { font-size: 1rem; margin: .8rem 0 .4rem; }
 .menu-btn { display: none; align-items: center; background: var(--c-superficie); border: 1px solid var(--c-borde); border-radius: var(--radio-s);
   padding: .35rem .8rem; font: inherit; font-weight: 700; color: var(--c-primario); cursor: pointer; min-height: 38px; }
 .contenedor { max-width: var(--ancho); margin: 0 auto; padding: 2rem var(--gutter) 4rem; }
-.pie-pagina { text-align: center; color: var(--c-suave); font-size: .85rem; padding: 2rem var(--gutter); border-top: 1px solid var(--c-borde-suave); background: var(--c-superficie); }
+
 
 /* ---------- 5. Componentes ---------- */
 .tarjeta { background: var(--c-superficie); border: 1px solid var(--c-borde-suave); border-radius: var(--radio); padding: 1.25rem; box-shadow: var(--sombra-s); margin-bottom: 1.25rem; }
@@ -638,12 +638,6 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
 .tarjeta-aloj .cuerpo > .calificacion, .tarjeta-aloj .cuerpo > .badge-nuevo { align-self: flex-start; margin: .1rem 0; }
 
 /* ---------- 6h. Checkout: factura, tarjeta y confirmación ---------- */
-.pie-pagina p { margin: .15rem 0; }
-.pie-marca { font-weight: 600; color: var(--gris-700); }
-.pie-aviso { font-size: .78rem; }
-.pie-enlace { display: inline-flex; align-items: center; min-height: 24px; padding: 0 .35rem;
-  color: var(--c-suave); text-decoration: underline; text-underline-offset: 2px; }
-.pie-enlace:hover { color: var(--c-primario); }
 .checkout .resumen-pago { position: sticky; top: 84px; }
 .resumen-pago h2 { font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: 1.35rem; margin-bottom: .2rem; }
 .opciones-tarjeta.tipo-doc { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
@@ -1275,3 +1269,25 @@ input[aria-invalid='true']:focus, select[aria-invalid='true']:focus { box-shadow
   .resultados-cabecera h2 { font-size: 1.35rem; }
   .resultados-cabecera p { font-size: .85rem; }
 }
+
+/* ---------- 13. Rediseño (etapa 5): pie con estructura ---------- */
+/* Fondo de nogal con un filete de toquilla arriba (solo decorativo); el texto es de color cal */
+.pie-pagina { margin-top: 1rem; padding: 2.25rem 0 1.25rem; background: var(--acento-600); border-top: 4px solid var(--toquilla); color: rgb(251 250 247 / 86%); font-size: .9rem; }
+.pie-contenido { max-width: var(--ancho); margin: 0 auto; padding: 0 var(--gutter); }
+/* Logo grabado como un sello en relieve */
+.pie-sello { display: inline-block; padding: .45rem .85rem; border: 2px solid rgb(251 250 247 / 28%); border-radius: 8px; background: rgb(0 0 0 / 14%);
+  font-family: var(--fuente-titulos); font-weight: 700; font-size: 1.55rem; line-height: 1; letter-spacing: -.01em; text-decoration: none; color: rgb(251 250 247 / 92%);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 14%), 0 -1px 0 rgb(0 0 0 / 45%); box-shadow: inset 0 2px 6px rgb(0 0 0 / 30%), 0 1px 0 rgb(255 255 255 / 10%); }
+.pie-pagina a.pie-sello { text-decoration: none; }
+.pie-sello span { font-weight: 400; }
+.pie-lema { margin: .8rem 0 0; max-width: 32ch; }
+.pie-titulo { margin: 0 0 .9rem; font-family: var(--fuente-titulos); font-weight: var(--peso-titulos); font-size: 1.05rem; letter-spacing: 0; color: var(--cal); }
+.pie-titulo::after { content: ''; display: block; width: 1.8rem; height: 3px; margin-top: .35rem; border-radius: 2px; background: var(--toquilla); }
+.pie-lista { list-style: none; margin: 0; padding: 0; }
+.pie-lista li { margin: 0 0 .4rem; }
+.pie-pagina a, .pie-enlace { color: var(--cal); text-decoration: underline; text-decoration-color: rgb(251 250 247 / 40%); text-underline-offset: 3px; }
+.pie-pagina a:hover, .pie-enlace:hover { color: var(--cal); text-decoration-color: var(--cal); }
+.pie-enlace { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+/* El foco global es de nogal y aquí no se vería: en el pie es de color cal */
+.pie-pagina a:focus-visible, .pie-enlace:focus-visible { outline: 3px solid var(--cal); outline-offset: 3px; border-radius: 3px; }
+.pie-legal { margin: 1.6rem 0 0; padding-top: 1rem; border-top: 1px solid rgb(251 250 247 / 18%); font-size: .8rem; color: rgb(251 250 247 / 72%); }
